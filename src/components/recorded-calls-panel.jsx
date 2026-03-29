@@ -43,7 +43,7 @@ const statusMap = {
   queued: {
     label: "Queued",
     icon: Clock3Icon,
-    tone: "border border-zinc-500/35 bg-zinc-500/15 text-zinc-400",
+    tone: "border border-muted-foreground/30 bg-muted/30 text-muted-foreground",
   },
   pending: {
     label: "Pending",

@@ -393,7 +393,7 @@ function App() {
                     <Input
                       id="target-phone"
                       placeholder="+358 401 234 567"
-                      className="h-12 rounded-xl border-white/5 bg-zinc-900/50 px-4 text-base transition-all focus:border-zinc-500/50 focus:ring-0"
+                      className="h-12 rounded-xl bg-muted/30 border-border px-4 text-base transition-all focus:border-primary/50 focus:ring-0"
                       value={targetPhone}
                       onChange={(event) => setTargetPhone(maskPhoneInput(event.target.value))}
                     />
@@ -479,17 +479,17 @@ function App() {
                                     className="h-full w-full object-cover"
                                   />
                                 ) : (
-                                  <div className="grid h-full place-items-center bg-zinc-800">
-                                    <Volume2Icon className="size-5 text-zinc-500" />
+                                  <div className="grid h-full place-items-center bg-muted">
+                                    <Volume2Icon className="size-5 text-muted-foreground" />
                                   </div>
                                 )}
                               </div>
 
                               <div className="min-w-0 flex-1 space-y-1">
-                                <p className={`truncate text-sm font-medium tracking-tight transition-colors ${isSelected ? "text-white" : "text-zinc-300"}`}>
+                                <p className={`truncate text-sm font-medium tracking-tight transition-colors ${isSelected ? "text-white" : "text-muted-foreground"}`}>
                                   {prank.titulo}
                                 </p>
-                                <p className="line-clamp-1 text-xs leading-relaxed text-zinc-500">
+                                <p className="line-clamp-1 text-xs leading-relaxed text-muted-foreground">
                                   {prank.desc || "Interactive scenario"}
                                 </p>
                               </div>
@@ -661,6 +661,7 @@ function App() {
       </Sheet>
 
       <Toaster richColors closeButton />
+      </main>
     </div>
   )
 }

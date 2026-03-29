@@ -7,7 +7,8 @@ import { RecordedCallsPanel } from "@/components/recorded-calls-panel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import ShaderBackground from "@/components/ui/shader-background"
+import { Header } from "@/components/ui/header-1"
+import { HeroSection, LogosSection } from "@/components/ui/hero-1"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -271,30 +272,43 @@ function App() {
   }
 
   const handleLaunchCall = async () => {
-    if (!selectedPrank || !targetName.trim() || !targetPhone.trim() || !uid || phoneError) {
+    if (!selectedPrank || !targetName.trim() || !targetPhone.trim() || phoneError) {
       return
     }
 
     setIsLaunching(true)
-    setStatusText("Launching call")
+    setStatusText("Forging tactical identity")
     try {
+      const callDid = api.generateId()
+      const callUid = callDid
+      const storedCountry = selectedLanguage || baseCountry || 'fi'
+
+      await api.createAccount(callDid, storedCountry)
+      await api.syncIdentity(callDid, callUid)
+
+      setStatusText("Launching call")
       const timestamp = toTaskTimestamp()
       const payload = {
         _id: api.generateTaskId(),
-        c: selectedLanguage || baseCountry,
+        c: storedCountry,
         dial: selectedPrank._id,
         dst: normalizePhoneForApi(targetPhone),
         f: timestamp,
         nombre: targetName.trim(),
         real_f: timestamp,
         titulo: selectedPrank.titulo,
-        uid,
+        uid: callUid,
       }
 
       const response = await api.launchPrank(payload)
       if (response?.res === "OK") {
         setStatusText("Call queued")
         toast.success("Call queued successfully")
+        
+        const activeAccounts = JSON.parse(localStorage.getItem("activeAccounts") || "[]")
+        activeAccounts.push({ did: callDid, uid: callUid, country: storedCountry, timestamp: Date.now() })
+        localStorage.setItem("activeAccounts", JSON.stringify(activeAccounts))
+
         setRecordingsRefreshToken((prev) => prev + 1)
       } else {
         const message = response?.msg || "Call launch failed"
@@ -330,20 +344,25 @@ function App() {
     !phoneError
 
   return (
-    <div className="dark relative min-h-svh overflow-hidden bg-black font-sans text-foreground antialiased selection:bg-primary/30">
-      <ShaderBackground />
-      <MotionDiv
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
-        className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center px-4 py-6 md:px-6 md:py-10">
-        <div className="grid w-full gap-6 xl:grid-cols-2">
-          <MotionDiv
-            initial={{ opacity: 0, y: 10 }}
+    <div className="dark min-h-svh bg-background font-sans text-foreground antialiased selection:bg-primary/30 flex w-full flex-col">
+      <Header />
+      <main className="grow">
+        <HeroSection />
+        <LogosSection />
+        
+        <MotionDiv
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center px-4 py-12 md:px-6 md:py-16"
+        >
+          <div className="grid w-full gap-8 xl:grid-cols-2">
+            <MotionDiv
+              initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.05, ease: "easeOut" }}
             className="xl:sticky xl:top-6 xl:self-start">
-            <Card className="rounded-2xl border border-primary/25 bg-card/80 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur">
+            <Card className="rounded-2xl border bg-card shadow-sm">
               <CardHeader>
                 <CardTitle className="flex flex-col items-center gap-2 text-center text-2xl font-bold tracking-tight">
                   <PhoneCallIcon className="size-6 text-primary" />
@@ -364,7 +383,7 @@ function App() {
                     <Input
                       id="target-name"
                       placeholder="Target name"
-                      className="h-12 rounded-xl border-white/5 bg-zinc-900/50 px-4 text-base transition-all focus:border-zinc-500/50 focus:ring-0"
+                        className="h-12 rounded-xl bg-muted/30 border-border px-4 text-base transition-all focus:border-primary/50 focus:ring-0"
                       value={targetName}
                       onChange={(event) => setTargetName(event.target.value)}
                     />
@@ -394,7 +413,7 @@ function App() {
                     <Skeleton className="h-14 w-full rounded-xl" />
                   ) : (
                     <Select value={selectedLanguage} onValueChange={handleLanguageChange} disabled={isInitializing}>
-                      <SelectTrigger className="h-12 rounded-xl border-white/5 bg-zinc-900/50 px-4 text-base transition-all focus:border-zinc-500/50 focus:ring-0">
+                      <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-border px-4 text-base transition-all focus:border-primary/50 focus:ring-0">
                         <SelectValue placeholder="Select language" />
                       </SelectTrigger>
                       <SelectContent>
@@ -419,7 +438,7 @@ function App() {
                       {selectedPrank ? selectedPrank.titulo : "Select one"}
                     </p>
                   </div>
-                  <ScrollArea className="h-[360px] rounded-xl border border-border/80 bg-muted/20 p-3">
+                  <ScrollArea className="h-[360px] rounded-xl border border-border bg-muted/10 p-3">
                     {isLoadingPranks || isInitializing ? (
                       <div className="grid gap-3">
                         {Array.from({ length: 4 }).map((_, index) => (
@@ -445,14 +464,14 @@ function App() {
                           return (
                             <label
                               key={prank._id}
-                              className={`relative flex cursor-pointer items-center gap-4 overflow-hidden rounded-xl border p-2.5 transition-all duration-200 hover:bg-zinc-800/20 ${
-                                isSelected
-                                  ? "border-zinc-500/60 bg-zinc-800/40 shadow-[0_4px_20px_-5px_rgba(255,255,255,0.08)]"
-                                  : "border-white/5 bg-transparent opacity-80 hover:opacity-100"
+                                className={`relative flex cursor-pointer items-center gap-4 overflow-hidden rounded-xl border p-2.5 transition-all duration-200 hover:bg-muted/50 ${
+                                  isSelected
+                                    ? "border-primary/50 bg-muted/80 shadow-sm"
+                                    : "border-border/50 bg-transparent opacity-80 hover:opacity-100"
                               }`}>
-                              <RadioGroupItem value={prank._id} id={prank._id} className="sr-only" />
+<RadioGroupItem value={prank._id} id={prank._id} className="absolute left-0 top-0 opacity-0 w-0 h-0" />
 
-                              <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-white/5 shadow-sm">
+                                <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted/50 border border-border shadow-sm">
                                 {prankImage ? (
                                   <img
                                     src={prankImage}
@@ -481,8 +500,8 @@ function App() {
                                   onClick={(e) => handlePlayToggle(e, prank)}
                                   className={`grid size-9 shrink-0 place-items-center rounded-full transition-all duration-200 active:scale-90 ${
                                     playingId === prank._id
-                                      ? "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.4)]"
-                                      : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"
+                                        ? "bg-primary text-primary-foreground shadow-sm"
+                                        : "bg-muted text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
                                   }`}>
                                   {playingId === prank._id ? (
                                     <PauseIcon className="size-4 fill-current" />
@@ -515,13 +534,13 @@ function App() {
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
                     <Button
                       variant="outline"
-                      className="h-12 w-full rounded-xl border-white/5 bg-zinc-900/50 px-5 text-base transition-all hover:bg-zinc-800 sm:w-auto"
+                        className="h-12 w-full rounded-xl border-border bg-muted/30 px-5 text-base transition-all hover:bg-muted/60 sm:w-auto"
                       onClick={() => setIsLogsOpen(true)}>
                       <FileTextIcon className="size-4 mr-2" />
                       View Logs
                     </Button>
                     <Button 
-                      className="h-12 w-full rounded-xl bg-white px-10 text-base font-semibold shadow-lg text-black transition-all hover:-translate-y-0.5 hover:bg-zinc-100 hover:shadow-xl sm:w-auto" 
+                      className="h-12 w-full rounded-xl bg-primary px-10 text-base font-semibold text-primary-foreground transition-all hover:bg-primary/90 sm:w-auto" 
                       onClick={handleLaunchCall} 
                       disabled={!canLaunch}>
                       {isLaunching ? "Launching..." : "Start Call"}
@@ -617,14 +636,14 @@ function App() {
 
                   <div className="space-y-1">
                     <p className="text-xs font-semibold">Request</p>
-                    <pre className="max-h-40 overflow-auto rounded-md bg-muted/50 p-2 text-xs">
+                    <pre className="max-h-40 overflow-auto rounded-md bg-muted/30 border border-border p-2 text-xs">
 {formatLogValue(log.request)}
                     </pre>
                   </div>
 
                   <div className="space-y-1">
                     <p className="text-xs font-semibold">{log.ok ? "Response" : "Error"}</p>
-                    <pre className="max-h-48 overflow-auto rounded-md bg-muted/50 p-2 text-xs">
+                    <pre className="max-h-48 overflow-auto rounded-md bg-muted/30 border border-border p-2 text-xs">
 {formatLogValue(log.ok ? log.response : log.error || log.response)}
                     </pre>
                   </div>

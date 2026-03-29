@@ -1,4 +1,26 @@
 const BASE_URL = '/api';
+const API_LOG_LIMIT = 120;
+let apiLogs = [];
+const apiLogSubscribers = new Set();
+
+const getTimestamp = () => new Date().toISOString();
+
+const notifyApiLogSubscribers = () => {
+    const snapshot = [...apiLogs];
+    for (const subscriber of apiLogSubscribers) {
+        try {
+            subscriber(snapshot);
+        } catch {
+            // no-op
+        }
+    }
+};
+
+const appendApiLog = (entry) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    apiLogs = [{ id, ...entry }, ...apiLogs].slice(0, API_LOG_LIMIT);
+    notifyApiLogSubscribers();
+};
 
 export const generateId = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -140,6 +162,19 @@ const toNonEmptyString = (value) => {
     return normalized;
 };
 
+const toBoolean = (value) => {
+    if (typeof value === 'boolean') {
+        return value;
+    }
+    if (typeof value === 'number') {
+        return value === 1;
+    }
+    if (typeof value === 'string') {
+        return value.trim().toLowerCase() === 'true' || value.trim() === '1';
+    }
+    return false;
+};
+
 const firstNonEmpty = (item, keys) => {
     for (const key of keys) {
         const value = item?.[key];
@@ -233,21 +268,171 @@ const normalizePrankList = (data) => {
     });
 };
 
-const postApi = async (path, payload) => {
-    const response = await fetch(`${BASE_URL}/${path}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-    });
+const resolveCallStatus = (item) => {
+    const isDeclined = toBoolean(item.ndone);
+    const isDone = toBoolean(item.done);
+    const isStarted = toBoolean(item.started);
+    const isQueued = toBoolean(item.queued);
 
-    const text = await response.text();
-    if (!response.ok) {
-        throw new Error(`Request failed (${response.status}): ${text.slice(0, 120)}`);
+    if (isDeclined) {
+        return 'declined';
+    }
+    if (isDone) {
+        return 'accepted';
+    }
+    if (isStarted) {
+        return 'running';
+    }
+    if (isQueued) {
+        return 'queued';
+    }
+    return 'pending';
+};
+
+const normalizeRecordedCallItem = (item) => {
+    if (!item || typeof item !== 'object') {
+        return null;
     }
 
-    return parseApiJson(text);
+    const id = toNonEmptyString(firstNonEmpty(item, ['_id', 'id']));
+    if (!id) {
+        return null;
+    }
+
+    const audioUrl = toNonEmptyString(firstNonEmpty(item, ['url', 'audio', 'audio_url']));
+    const createTimestamp = Number(firstNonEmpty(item, ['create_t', 'f']));
+    const hasTimestamp = Number.isFinite(createTimestamp) && createTimestamp > 0;
+    const callStatus = resolveCallStatus(item);
+
+    return {
+        ...item,
+        _id: id,
+        uid: toNonEmptyString(firstNonEmpty(item, ['uid'])),
+        titulo: toNonEmptyString(firstNonEmpty(item, ['titulo', 'title', 'name'])) || 'Untitled call',
+        cou: toNonEmptyString(firstNonEmpty(item, ['cou', 'c'])).toLowerCase(),
+        pic: toNonEmptyString(firstNonEmpty(item, ['pic', 'image', 'image_url'])),
+        url: audioUrl,
+        started: toBoolean(item.started),
+        queued: toBoolean(item.queued),
+        done: toBoolean(item.done),
+        ndone: toBoolean(item.ndone),
+        returned: toBoolean(item.returned),
+        status: callStatus,
+        isPlayable: audioUrl.length > 0,
+        timestamp: hasTimestamp ? createTimestamp : 0,
+        timeLabel: toNonEmptyString(firstNonEmpty(item, ['fecha', 'real_f'])),
+    };
+};
+
+const normalizeRecordedCallList = (data) => {
+    const list = firstArrayFromObject(data, ['mis_bromas', 'calls', 'records', 'data', 'list', 'items', 'value']);
+    return list
+        .map(normalizeRecordedCallItem)
+        .filter(Boolean)
+        .sort((a, b) => b.timestamp - a.timestamp);
+};
+
+const postApi = async (path, payload) => {
+    const startedAt = Date.now();
+    const url = `${BASE_URL}/${path}`;
+    let hasLogged = false;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const text = await response.text();
+        const durationMs = Date.now() - startedAt;
+
+        if (!response.ok) {
+            const message = `Request failed (${response.status}): ${text.slice(0, 120)}`;
+            appendApiLog({
+                ts: getTimestamp(),
+                path,
+                url,
+                request: payload,
+                ok: false,
+                status: response.status,
+                durationMs,
+                response: text.slice(0, 4000),
+                error: message,
+            });
+            hasLogged = true;
+            throw new Error(message);
+        }
+
+        let parsed;
+        try {
+            parsed = parseApiJson(text);
+        } catch (error) {
+            appendApiLog({
+                ts: getTimestamp(),
+                path,
+                url,
+                request: payload,
+                ok: false,
+                status: response.status,
+                durationMs,
+                response: text.slice(0, 4000),
+                error: error?.message || 'Parse error',
+            });
+            hasLogged = true;
+            throw error;
+        }
+
+        appendApiLog({
+            ts: getTimestamp(),
+            path,
+            url,
+            request: payload,
+            ok: true,
+            status: response.status,
+            durationMs,
+            response: parsed,
+        });
+        hasLogged = true;
+
+        if (parsed?.res === 'KO' || parsed?.res === 'ko') {
+            let errorMsg = 'API Error';
+            if (typeof parsed.content === 'string') {
+                errorMsg = parsed.content;
+            } else if (parsed.content?.et) {
+                try {
+                    const innerEt = JSON.parse(parsed.content.et);
+                    errorMsg = innerEt.et || innerEt.ec || innerEt.res || 'API Error';
+                } catch {
+                    errorMsg = parsed.content.et;
+                }
+            } else if (parsed.msg) {
+                errorMsg = parsed.msg;
+            } else if (parsed.error) {
+                errorMsg = parsed.error;
+            }
+            throw new Error(`API Refused (${parsed.code || 400}): ${errorMsg}`);
+        }
+
+        return parsed;
+    } catch (error) {
+        if (!hasLogged) {
+            appendApiLog({
+                ts: getTimestamp(),
+                path,
+                url,
+                request: payload,
+                ok: false,
+                status: 0,
+                durationMs: Date.now() - startedAt,
+                response: null,
+                error: error?.message || 'Network error',
+            });
+        }
+        throw error;
+    }
 };
 
 export const getDialplanList = async (did) => {
@@ -309,6 +494,16 @@ export const launchPrank = async (data) => {
     return postApi('create_task_ios.lua', data);
 };
 
+export const getRecordedCalls = async (countryCode, uid) => {
+    const payload = {
+        c: toNonEmptyString(countryCode).toLowerCase() || 'fi',
+        lpd: true,
+        uid: toNonEmptyString(uid),
+    };
+    const response = await postApi('get_mis_bromas_ios.lua', payload);
+    return normalizeRecordedCallList(response);
+};
+
 export const resolveUid = (...sources) => {
     for (const source of sources) {
         if (!source) {
@@ -345,4 +540,24 @@ export const resolveUid = (...sources) => {
     }
 
     return '';
+};
+
+export const getApiLogs = () => {
+    return [...apiLogs];
+};
+
+export const clearApiLogs = () => {
+    apiLogs = [];
+    notifyApiLogSubscribers();
+};
+
+export const subscribeApiLogs = (listener) => {
+    if (typeof listener !== 'function') {
+        return () => {};
+    }
+    apiLogSubscribers.add(listener);
+    listener(getApiLogs());
+    return () => {
+        apiLogSubscribers.delete(listener);
+    };
 };

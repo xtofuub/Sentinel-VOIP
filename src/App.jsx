@@ -82,9 +82,21 @@ const buildCurlFromLog = (log) => {
   return `curl.exe -X POST "${endpoint}" -H "Content-Type: application/json" -d "${escapedPayload}"`
 }
 
+const showLaunchFailureToast = (detail) => {
+  if (/valittu numero ei voi vastaanottaa vitsejä/i.test(detail)) {
+    toast.error(detail, {
+      description:
+        "This number cannot receive prank calls (blocked, unsupported, or not allowed). Try another mobile number.",
+    })
+  } else {
+    toast.error(detail)
+  }
+}
+
 function App() {
   const [did, setDid] = useState("")
-  const [uid, setUid] = useState("")
+  /** Server account id (Mongo) for get_dialplan_ios / pranks — not the same as device did. */
+  const [mongoUid, setMongoUid] = useState("")
   const [baseCountry, setBaseCountry] = useState("fi")
   const [languages, setLanguages] = useState([])
   const [selectedLanguage, setSelectedLanguage] = useState("")
@@ -194,52 +206,55 @@ function App() {
       setIsInitializing(true)
       try {
         let currentDid = localStorage.getItem("did")
-        let currentUid = localStorage.getItem("uid")
+        const legacyUid = localStorage.getItem("uid")
+        if (!currentDid && legacyUid?.includes("-")) {
+          currentDid = legacyUid
+          localStorage.setItem("did", legacyUid)
+        }
+        let storedMongo = localStorage.getItem("mongoUid")
+        if (!storedMongo && legacyUid && legacyUid !== currentDid) {
+          storedMongo = legacyUid
+        }
         const storedCountry = (localStorage.getItem("baseCountry") ?? "fi").toLowerCase()
         setBaseCountry(storedCountry)
 
-        let resolvedUid = currentUid
-        let needsNewAccount = true
+        let resolvedMongoUid = storedMongo || ""
 
-        if (currentDid && currentUid) {
-          setStatusText("Checking account status")
-          try {
-            const identityResponse = await api.syncIdentity(currentDid, currentUid)
-            const resolved = api.resolveUid(identityResponse, currentUid)
-            
-            // Try to extract credits
-            const userObj = identityResponse?.user_info || identityResponse?.userInfo || identityResponse?.user || identityResponse || {}
-            const credits = parseInt(userObj.tcreditos ?? userObj.creditos ?? userObj.credits ?? 0, 10)
-            
-            if (credits >= 1) {
-              needsNewAccount = false
-              resolvedUid = resolved
-              setDid(currentDid)
-              setUid(resolvedUid)
-              localStorage.setItem("uid", resolvedUid)
-              localStorage.setItem("baseCountry", storedCountry)
-            }
-          } catch (e) {
-            // Error connecting or syncing, will create new account as fallback
-          }
+        const persistSession = (nextDid, nextMongo) => {
+          currentDid = nextDid
+          resolvedMongoUid = nextMongo
+          setDid(nextDid)
+          setMongoUid(nextMongo)
+          localStorage.setItem("did", nextDid)
+          localStorage.setItem("mongoUid", nextMongo)
         }
 
-        if (needsNewAccount) {
-          currentDid = api.generateId()
-          localStorage.setItem("did", currentDid)
-          setDid(currentDid)
-
+        if (!currentDid) {
           setStatusText("Creating account")
-          const createResponse = await api.createAccount(currentDid, storedCountry)
-          const createdUid = currentDid // Force UID to match DID
-
-          setStatusText("Syncing identity")
-          const identityResponse = await api.syncIdentity(currentDid, createdUid)
-          const syncedUid = currentDid
-
-          resolvedUid = syncedUid
-          setUid(syncedUid)
-          localStorage.setItem("uid", syncedUid)
+          const fresh = await api.bootstrapNewSession(storedCountry)
+          persistSession(fresh.did, fresh.mongoUid)
+          resolvedMongoUid = fresh.mongoUid
+          localStorage.setItem("baseCountry", storedCountry)
+        } else {
+          persistSession(currentDid, resolvedMongoUid)
+          setStatusText("Checking account status")
+          try {
+            const identityResponse = await api.syncIdentity(currentDid, currentDid)
+            const resolved = api.resolveUid(identityResponse, storedMongo || undefined) || storedMongo
+            if (resolved) {
+              resolvedMongoUid = resolved
+              setMongoUid(resolved)
+              localStorage.setItem("mongoUid", resolved)
+            }
+          } catch (err) {
+            if (api.isMissingUserError(err)) {
+              setStatusText("Creating account")
+              toast.info("Saved session was not found on the server. Starting a new account.")
+              const fresh = await api.bootstrapNewSession(storedCountry)
+              persistSession(fresh.did, fresh.mongoUid)
+              resolvedMongoUid = fresh.mongoUid
+            }
+          }
           localStorage.setItem("baseCountry", storedCountry)
         }
 
@@ -261,7 +276,20 @@ function App() {
         localStorage.setItem("selectedLanguage", initialLanguage)
 
         setStatusText("Loading pranks")
-        const prankList = await api.getPranks(storedCountry, resolvedUid, initialLanguage)
+        let prankList
+        try {
+          prankList = await api.getPranks(storedCountry, resolvedMongoUid, initialLanguage)
+        } catch (err) {
+          if (api.isMissingUserError(err)) {
+            toast.info("Session invalid while loading pranks. Creating a new account.")
+            const fresh = await api.bootstrapNewSession(storedCountry)
+            persistSession(fresh.did, fresh.mongoUid)
+            resolvedMongoUid = fresh.mongoUid
+            prankList = await api.getPranks(storedCountry, resolvedMongoUid, initialLanguage)
+          } else {
+            throw err
+          }
+        }
         setPranks(prankList)
         if (prankList.length > 0) {
           setSelectedPrankId(prankList[0]._id)
@@ -281,13 +309,28 @@ function App() {
   }, [])
 
   const refreshPranksByLanguage = async (languageCode) => {
-    if (!uid || !languageCode) {
+    if (!mongoUid || !languageCode) {
       return
     }
     setIsLoadingPranks(true)
     try {
       setStatusText(`Loading ${languageCode.toUpperCase()} pranks`)
-      const prankList = await api.getPranks(baseCountry, uid, languageCode)
+      let prankList
+      try {
+        prankList = await api.getPranks(baseCountry, mongoUid, languageCode)
+      } catch (err) {
+        if (api.isMissingUserError(err)) {
+          toast.info("Session was not found. Creating a new account.")
+          const fresh = await api.bootstrapNewSession(baseCountry)
+          setDid(fresh.did)
+          setMongoUid(fresh.mongoUid)
+          localStorage.setItem("did", fresh.did)
+          localStorage.setItem("mongoUid", fresh.mongoUid)
+          prankList = await api.getPranks(baseCountry, fresh.mongoUid, languageCode)
+        } else {
+          throw err
+        }
+      }
       setPranks(prankList)
       setSelectedPrankId(prankList[0]?._id ?? "")
       setStatusText("Ready")
@@ -312,27 +355,79 @@ function App() {
     }
 
     setIsLaunching(true)
-    setStatusText("Forging tactical identity")
+    setStatusText("Checking call credits")
     try {
-      const callDid = api.generateId()
-      const callUid = callDid
-      const storedCountry = selectedLanguage || baseCountry || 'fi'
+      let callDid = did
+      let sessionMongoUid = mongoUid
+      const storedCountry = selectedLanguage || baseCountry || "fi"
 
-      await api.createAccount(callDid, storedCountry)
-      await api.syncIdentity(callDid, callUid)
+      if (!String(callDid || "").trim() || !String(sessionMongoUid || "").trim()) {
+        throw new Error("Session not ready. Please wait for initialization.")
+      }
+
+      let identityResponse
+      try {
+        identityResponse = await api.syncIdentity(callDid, callDid)
+      } catch (err) {
+        if (api.isMissingUserError(err)) {
+          toast.info("Session was not found. Creating a new account.")
+          const fresh = await api.bootstrapNewSession(storedCountry)
+          callDid = fresh.did
+          sessionMongoUid = fresh.mongoUid
+          setDid(callDid)
+          setMongoUid(sessionMongoUid)
+          localStorage.setItem("did", callDid)
+          localStorage.setItem("mongoUid", sessionMongoUid)
+          identityResponse = await api.syncIdentity(callDid, callDid)
+        } else {
+          throw err
+        }
+      }
+
+      let resolvedMongo = api.resolveUid(identityResponse, sessionMongoUid) || sessionMongoUid
+      const credits = api.getCallCreditsFromIdentity(identityResponse)
+
+      let prankForLaunch = selectedPrank
+
+      if (credits < 1) {
+        setStatusText("Creating account")
+        callDid = api.generateId()
+        const createRes = await api.createAccount(callDid, storedCountry)
+        const afterCreate = await api.syncIdentity(callDid, callDid)
+        resolvedMongo = api.resolveUid(afterCreate, createRes) || resolvedMongo
+        sessionMongoUid = resolvedMongo
+        setDid(callDid)
+        setMongoUid(resolvedMongo)
+        localStorage.setItem("did", callDid)
+        localStorage.setItem("mongoUid", resolvedMongo)
+
+        const prankList = await api.getPranks(storedCountry, resolvedMongo, selectedLanguage)
+        prankForLaunch =
+          prankList.find((p) => p._id === selectedPrank._id) ?? prankList[0] ?? null
+        setPranks(prankList)
+        setSelectedPrankId(prankForLaunch?._id ?? "")
+      } else if (resolvedMongo !== mongoUid) {
+        setMongoUid(resolvedMongo)
+        localStorage.setItem("mongoUid", resolvedMongo)
+        sessionMongoUid = resolvedMongo
+      }
+
+      if (!prankForLaunch) {
+        throw new Error("No prank available for this account.")
+      }
 
       setStatusText("Launching call")
       const timestamp = toTaskTimestamp()
       const payload = {
         _id: api.generateTaskId(),
         c: storedCountry,
-        dial: selectedPrank._id,
+        dial: prankForLaunch._id,
         dst: normalizePhoneForApi(targetPhone),
         f: timestamp,
         nombre: targetName.trim(),
         real_f: timestamp,
-        titulo: selectedPrank.titulo,
-        uid: callUid,
+        titulo: prankForLaunch.titulo,
+        uid: callDid,
       }
 
       const response = await api.launchPrank(payload)
@@ -341,24 +436,33 @@ function App() {
         toast.success("Call queued successfully")
 
         api.pushRecordingTargetMemory({
-          uid: callUid,
-          dial: selectedPrank._id,
+          uid: callDid,
+          dial: prankForLaunch._id,
           targetName: targetName.trim(),
           targetPhone: normalizePhoneForApi(targetPhone),
           taskId: payload._id,
         })
 
         const activeAccounts = JSON.parse(localStorage.getItem("activeAccounts") || "[]")
-        activeAccounts.push({
+        const entry = {
           did: callDid,
-          uid: callUid,
+          uid: callDid,
+          mongoUid: sessionMongoUid,
           country: storedCountry,
           timestamp: Date.now(),
-          dial: selectedPrank._id,
+          dial: prankForLaunch._id,
           targetName: targetName.trim(),
           targetPhone: normalizePhoneForApi(targetPhone),
           taskId: payload._id,
-        })
+        }
+        const existingIdx = activeAccounts.findIndex(
+          (a) => (a.did || a.uid) === callDid
+        )
+        if (existingIdx === -1) {
+          activeAccounts.push(entry)
+        } else {
+          activeAccounts[existingIdx] = { ...activeAccounts[existingIdx], ...entry }
+        }
         localStorage.setItem("activeAccounts", JSON.stringify(activeAccounts))
 
         setRecordingsRefreshToken((prev) => prev + 1)
@@ -368,9 +472,9 @@ function App() {
         toast.error(message)
       }
     } catch (error) {
-      const message = error?.message || "Call launch failed"
-      setStatusText(message)
-      toast.error(message)
+      const detail = api.formatKoErrorMessage(error) || "Call launch failed"
+      setStatusText(detail)
+      showLaunchFailureToast(detail)
     } finally {
       setIsLaunching(false)
     }
@@ -389,7 +493,8 @@ function App() {
     !isInitializing &&
     !isLaunching &&
     !isLoadingPranks &&
-    Boolean(uid) &&
+    Boolean(did) &&
+    Boolean(mongoUid) &&
     Boolean(selectedPrankId) &&
     Boolean(targetName.trim()) &&
     Boolean(targetPhone.trim()) &&
@@ -405,57 +510,59 @@ function App() {
           </p>
         </header>
 
-        <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8 [&>*]:min-w-0">
-          <div className="min-w-0 lg:sticky lg:top-6">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8 [&>*]:min-h-0 [&>*]:min-w-0">
+          <div className="min-h-0 min-w-0 lg:sticky lg:top-6">
             <Card className="min-w-0 shadow-sm">
               <CardHeader className="border-b border-border">
-                <CardTitle className="typography-h4 flex items-center gap-2.5">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
-                    <PhoneCallIcon className="size-4" />
+                <CardTitle className="typography-h3 flex items-center gap-2.5">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                    <PhoneCallIcon className="size-5" />
                   </span>
                   Launch call
                 </CardTitle>
-                <CardDescription className="typography-muted mt-1">
+                <CardDescription className="text-base text-muted-foreground mt-1.5">
                   Name, phone, language, and prank scenario.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="target-name">Name</Label>
+                    <Label htmlFor="target-name" className="text-sm font-semibold">Name</Label>
                     <Input
                       id="target-name"
                       placeholder="Target name"
+                      className="h-12 text-base font-medium"
                       value={targetName}
                       onChange={(event) => setTargetName(event.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="target-phone">Phone</Label>
+                    <Label htmlFor="target-phone" className="text-sm font-semibold">Phone</Label>
                     <Input
                       id="target-phone"
                       placeholder="+358401234567"
+                      className="h-12 text-base font-medium"
                       value={targetPhone}
                       onChange={(event) => setTargetPhone(maskPhoneInput(event.target.value))}
                     />
-                    <p className={phoneError ? "typography-small text-destructive" : "typography-muted"}>
-                      {phoneError || "Include country code, e.g. +358401234567 (no spaces)"}
+                    <p className={phoneError ? "text-sm font-medium text-destructive" : "text-sm text-muted-foreground"}>
+                      {phoneError || "Include country code, e.g. +358401234567"}
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Language</Label>
+                  <Label className="text-sm font-semibold">Language</Label>
                   {isInitializing ? (
-                    <Skeleton className="h-9 w-full" />
+                    <Skeleton className="h-12 w-full" />
                   ) : (
                     <Select value={selectedLanguage} onValueChange={handleLanguageChange} disabled={isInitializing}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-12 text-base font-medium">
                         <SelectValue placeholder="Select language" />
                       </SelectTrigger>
                       <SelectContent>
                         {languages.map((language) => (
-                          <SelectItem key={language._id} value={language._id}>
+                          <SelectItem key={language._id} value={language._id} className="text-base">
                             {language.tname}
                           </SelectItem>
                         ))}
@@ -471,7 +578,7 @@ function App() {
                       {selectedPrank ? selectedPrank.titulo : "Select one"}
                     </span>
                   </div>
-                  <ScrollArea className="h-[360px] rounded-md border bg-muted/30 px-1.5 py-1.5 sm:px-2 sm:py-2">
+                  <ScrollArea className="h-[420px] rounded-md border bg-muted/30 py-1.5 pl-0 pr-1 sm:h-[460px] sm:py-2 sm:pr-1.5">
                     {isLoadingPranks || isInitializing ? (
                       <div className="grid gap-2">
                         {Array.from({ length: 4 }).map((_, index) => (
@@ -492,14 +599,14 @@ function App() {
                           return (
                             <label
                               key={prank._id}
-                              className={`flex cursor-pointer items-center gap-3 rounded-md border p-2.5 transition-colors ${
+                              className={`flex cursor-pointer items-center gap-2 rounded-md border py-2 pl-1 pr-2 sm:gap-2.5 sm:pl-1.5 sm:pr-2.5 transition-colors ${
                                 isSelected
                                   ? "border-foreground/20 bg-muted"
                                   : "border-transparent bg-card hover:bg-muted/50"
                               }`}>
                               <RadioGroupItem value={prank._id} id={prank._id} className="sr-only" />
 
-                              <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-muted">
+                              <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-muted sm:size-12">
                                 {prankImage ? (
                                   <img src={prankImage} alt="" className="size-full object-cover" />
                                 ) : (
@@ -509,9 +616,9 @@ function App() {
                                 )}
                               </div>
 
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-medium">{prank.titulo}</p>
-                                <p className="typography-muted line-clamp-1">
+                              <div className="min-w-0 flex-1 pr-0.5">
+                                <p className="text-sm leading-snug font-medium text-foreground">{prank.titulo}</p>
+                                <p className="typography-muted mt-1 text-[13px] leading-snug break-words sm:text-sm">
                                   {prank.desc || "Scenario"}
                                 </p>
                               </div>
@@ -541,38 +648,43 @@ function App() {
                 </div>
 
                 <div className="space-y-4 border-t border-border pt-6">
-                  <div className="flex flex-wrap items-center justify-center gap-2">
-                    <Badge variant="secondary" className="font-normal">
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <Badge variant="secondary" className="h-7 px-3 text-sm font-medium">
                       {statusText}
                     </Badge>
                     {(isInitializing || isLoadingPranks || isLaunching) && (
-                      <LoaderIcon className="size-4 animate-spin text-muted-foreground" />
+                      <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
                     )}
                   </div>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-                    <Button variant="outline" className="sm:w-auto" onClick={() => setIsLogsOpen(true)}>
-                      <FileTextIcon className="size-4" />
+                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                    <Button variant="outline" className="h-12 text-base font-semibold sm:w-auto" onClick={() => setIsLogsOpen(true)}>
+                      <FileTextIcon className="size-5" />
                       View logs
                     </Button>
-                    <Button className="sm:w-auto" onClick={handleLaunchCall} disabled={!canLaunch}>
+                    <Button className="h-12 text-base font-semibold sm:w-auto sm:px-8" onClick={handleLaunchCall} disabled={!canLaunch}>
                       {isLaunching ? "Starting…" : "Start call"}
                     </Button>
                   </div>
-                  <p className="text-center typography-muted font-mono text-[11px]">
-                    <span className="typography-inline-code text-[11px] font-normal">
-                      DID {did ? `${did.slice(0, 12)}…` : "—"}
-                    </span>
-                    {" · "}
-                    <span className="typography-inline-code text-[11px] font-normal">
-                      UID {uid ? `${uid.slice(0, 16)}…` : "—"}
-                    </span>
-                  </p>
+                  <div className="space-y-1 text-center">
+                    <p className="typography-muted font-mono text-[10px] sm:text-[11px]">
+                      <span className="typography-inline-code text-[10px] font-normal leading-relaxed break-all sm:text-[11px]">
+                        DID {did || "—"}
+                      </span>
+                    </p>
+                    <p className="typography-muted font-mono text-[10px] sm:text-[11px]">
+                      <span className="typography-inline-code text-[10px] font-normal leading-relaxed break-all sm:text-[11px]">
+                        Account {mongoUid || "—"}
+                      </span>
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <RecordedCallsPanel uid={uid} countryCode={baseCountry} refreshToken={recordingsRefreshToken} />
+          <div className="min-h-0 min-w-0">
+            <RecordedCallsPanel uid={did} countryCode={baseCountry} refreshToken={recordingsRefreshToken} />
+          </div>
         </div>
       </div>
 

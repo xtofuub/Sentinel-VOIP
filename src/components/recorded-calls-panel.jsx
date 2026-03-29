@@ -18,7 +18,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { RecordingAudioPlayer } from "@/components/recording-audio-player"
 import { cn } from "@/lib/utils"
@@ -76,9 +75,16 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0, 
   const fetchCalls = useCallback(
     async ({ silent = false } = {}) => {
       const activeAccounts = JSON.parse(localStorage.getItem("activeAccounts") || "[]")
-      let allUids = [...activeAccounts]
-      if (uid && !allUids.some((a) => a.uid === uid)) {
-        allUids.push({ uid, country: countryCode })
+      const uidSeen = new Set()
+      const allUids = []
+      for (const a of activeAccounts) {
+        const taskId = a?.did || a?.uid
+        if (!taskId || uidSeen.has(taskId)) continue
+        uidSeen.add(taskId)
+        allUids.push(a)
+      }
+      if (uid && !uidSeen.has(uid)) {
+        allUids.push({ uid, did: uid, country: countryCode })
       }
 
       if (allUids.length === 0) {
@@ -93,9 +99,12 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0, 
 
       setError("")
       try {
-        const results = await Promise.all(
-          allUids.map((acc) => getRecordedCalls(acc.country || countryCode, acc.uid).catch(() => []))
-        )
+        const results = []
+        for (const acc of allUids) {
+          const taskUid = acc.did || acc.uid
+          const row = await getRecordedCalls(acc.country || countryCode, taskUid).catch(() => [])
+          results.push(row)
+        }
         let combined = results.flat()
         const seen = new Set()
         combined = combined.filter((c) => {
@@ -133,7 +142,7 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0, 
     }
     const intervalId = setInterval(() => {
       void fetchCalls({ silent: true })
-    }, 12000)
+    }, 20000)
     return () => clearInterval(intervalId)
   }, [fetchCalls, runningCount])
 
@@ -168,8 +177,12 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0, 
   }
 
   return (
-    <Card className={cn("min-w-0 shadow-sm", panelClassName)}>
-      <CardHeader className="border-b border-border">
+    <Card
+      className={cn(
+        "flex min-h-0 min-w-0 flex-col overflow-visible shadow-sm",
+        panelClassName
+      )}>
+      <CardHeader className="shrink-0 border-b border-border">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
             <CardTitle className="typography-h4 flex items-center gap-2.5">
@@ -193,7 +206,7 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0, 
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 pt-6">
+      <CardContent className="flex min-h-0 flex-1 flex-col space-y-4 pt-6">
         {runningCount > 0 && (
           <Alert variant="default" className="bg-muted/50">
             <LoaderIcon className="animate-spin text-muted-foreground" />
@@ -216,8 +229,12 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0, 
           <p className="typography-muted">Last updated: {lastUpdated}</p>
         )}
 
-        <ScrollArea className="max-h-[560px]">
-          <div className="space-y-3 pr-3">
+        <div
+          className={cn(
+            "min-h-0 w-full flex-1 overflow-y-auto overscroll-y-contain",
+            "max-h-[min(560px,calc(100svh-11rem))] sm:max-h-[min(72vh,calc(100svh-10rem))]"
+          )}>
+          <div className="space-y-3 pr-1">
             {calls.map((call) => {
               const status = statusMap[call.status] || statusMap.pending
               const StatusIcon = status.icon
@@ -341,7 +358,7 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0, 
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   )

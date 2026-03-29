@@ -1,5 +1,32 @@
 const BASE_URL = '/api';
 const API_LOG_LIMIT = 120;
+/** Limit parallel API calls so bursts (e.g. many recording fetches) do not trigger 429. */
+const API_MAX_CONCURRENT = 2;
+let apiConcurrentBusy = 0;
+const apiConcurrentWaiters = [];
+
+const acquireApiConcurrency = async () => {
+    if (apiConcurrentBusy < API_MAX_CONCURRENT) {
+        apiConcurrentBusy += 1;
+        return;
+    }
+    await new Promise((resolve) => {
+        apiConcurrentWaiters.push(() => {
+            apiConcurrentBusy += 1;
+            resolve();
+        });
+    });
+};
+
+const releaseApiConcurrency = () => {
+    apiConcurrentBusy -= 1;
+    const startNext = apiConcurrentWaiters.shift();
+    if (startNext) {
+        startNext();
+    }
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let apiLogs = [];
 const apiLogSubscribers = new Set();
 
@@ -421,107 +448,164 @@ const normalizeRecordedCallList = (data) => {
 };
 
 const postApi = async (path, payload) => {
-    const startedAt = Date.now();
+    await acquireApiConcurrency();
+    const flowStartedAt = Date.now();
+    try {
+        return await postApiWithRetries(path, payload, flowStartedAt);
+    } finally {
+        releaseApiConcurrency();
+    }
+};
+
+const RATE_LIMIT_MAX_ATTEMPTS = 8;
+
+const postApiWithRetries = async (path, payload, flowStartedAt) => {
     const url = `${BASE_URL}/${path}`;
     let hasLogged = false;
 
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept-Charset': 'utf-8',
-            },
-            body: JSON.stringify(payload)
-        });
-
-        const text = await response.text();
-        const durationMs = Date.now() - startedAt;
-
-        if (!response.ok) {
-            const message = `Request failed (${response.status}): ${text.slice(0, 120)}`;
-            appendApiLog({
-                ts: getTimestamp(),
-                path,
-                url,
-                request: payload,
-                ok: false,
-                status: response.status,
-                durationMs,
-                response: text.slice(0, 4000),
-                error: message,
-            });
-            hasLogged = true;
-            throw new Error(message);
-        }
-
-        let parsed;
+    for (let attempt = 1; attempt <= RATE_LIMIT_MAX_ATTEMPTS; attempt += 1) {
+        const startedAt = Date.now();
         try {
-            parsed = parseApiJson(text);
-        } catch (error) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Accept-Charset': 'utf-8',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const text = await response.text();
+            const durationMs = Date.now() - startedAt;
+
+            if (response.status === 429) {
+                const ra = response.headers.get('Retry-After');
+                let delayMs = Number.parseInt(ra ?? '', 10) * 1000;
+                if (!Number.isFinite(delayMs) || delayMs <= 0) {
+                    delayMs = Math.min(12_000, 600 * 2 ** (attempt - 1));
+                }
+                appendApiLog({
+                    ts: getTimestamp(),
+                    path,
+                    url,
+                    request: payload,
+                    ok: false,
+                    status: 429,
+                    durationMs,
+                    response: text.slice(0, 4000),
+                    error: `Rate limited (429), retry in ${delayMs}ms (attempt ${attempt}/${RATE_LIMIT_MAX_ATTEMPTS})`,
+                });
+                hasLogged = true;
+                if (attempt < RATE_LIMIT_MAX_ATTEMPTS) {
+                    await sleep(delayMs);
+                    hasLogged = false;
+                    continue;
+                }
+                const message = `Request failed (${response.status}): ${text.slice(0, 120)}`;
+                throw new Error(message);
+            }
+
+            if (!response.ok) {
+                const message = `Request failed (${response.status}): ${text.slice(0, 120)}`;
+                appendApiLog({
+                    ts: getTimestamp(),
+                    path,
+                    url,
+                    request: payload,
+                    ok: false,
+                    status: response.status,
+                    durationMs,
+                    response: text.slice(0, 4000),
+                    error: message,
+                });
+                hasLogged = true;
+                throw new Error(message);
+            }
+
+            let parsed;
+            try {
+                parsed = parseApiJson(text);
+            } catch (error) {
+                appendApiLog({
+                    ts: getTimestamp(),
+                    path,
+                    url,
+                    request: payload,
+                    ok: false,
+                    status: response.status,
+                    durationMs,
+                    response: text.slice(0, 4000),
+                    error: error?.message || 'Parse error',
+                });
+                hasLogged = true;
+                throw error;
+            }
+
             appendApiLog({
                 ts: getTimestamp(),
                 path,
                 url,
                 request: payload,
-                ok: false,
+                ok: true,
                 status: response.status,
                 durationMs,
-                response: text.slice(0, 4000),
-                error: error?.message || 'Parse error',
+                response: parsed,
             });
             hasLogged = true;
+
+            if (parsed?.res === 'KO' || parsed?.res === 'ko') {
+                let errorMsg = 'API Error';
+                if (typeof parsed.content === 'string') {
+                    errorMsg = parsed.content;
+                } else if (parsed.content?.et) {
+                    try {
+                        const innerEt = JSON.parse(parsed.content.et);
+                        errorMsg = innerEt.et || innerEt.ec || innerEt.res || 'API Error';
+                    } catch {
+                        errorMsg = parsed.content.et;
+                    }
+                } else if (parsed.msg) {
+                    errorMsg = parsed.msg;
+                } else if (parsed.error) {
+                    errorMsg = parsed.error;
+                }
+                throw new Error(`API Refused (${parsed.code || 400}): ${errorMsg}`);
+            }
+
+            return parsed;
+        } catch (error) {
+            const isLast = attempt >= RATE_LIMIT_MAX_ATTEMPTS;
+            const msg = error?.message || 'Network error';
+            const transient =
+                msg.includes('Failed to fetch') ||
+                msg.includes('NetworkError') ||
+                msg.includes('Load failed');
+
+            if (!isLast && transient) {
+                const delayMs = Math.min(8000, 400 * 2 ** (attempt - 1));
+                await sleep(delayMs);
+                hasLogged = false;
+                continue;
+            }
+
+            if (!hasLogged) {
+                appendApiLog({
+                    ts: getTimestamp(),
+                    path,
+                    url,
+                    request: payload,
+                    ok: false,
+                    status: 0,
+                    durationMs: Date.now() - flowStartedAt,
+                    response: null,
+                    error: msg,
+                });
+            }
             throw error;
         }
-
-        appendApiLog({
-            ts: getTimestamp(),
-            path,
-            url,
-            request: payload,
-            ok: true,
-            status: response.status,
-            durationMs,
-            response: parsed,
-        });
-        hasLogged = true;
-
-        if (parsed?.res === 'KO' || parsed?.res === 'ko') {
-            let errorMsg = 'API Error';
-            if (typeof parsed.content === 'string') {
-                errorMsg = parsed.content;
-            } else if (parsed.content?.et) {
-                try {
-                    const innerEt = JSON.parse(parsed.content.et);
-                    errorMsg = innerEt.et || innerEt.ec || innerEt.res || 'API Error';
-                } catch {
-                    errorMsg = parsed.content.et;
-                }
-            } else if (parsed.msg) {
-                errorMsg = parsed.msg;
-            } else if (parsed.error) {
-                errorMsg = parsed.error;
-            }
-            throw new Error(`API Refused (${parsed.code || 400}): ${errorMsg}`);
-        }
-
-        return parsed;
-    } catch (error) {
-        if (!hasLogged) {
-            appendApiLog({
-                ts: getTimestamp(),
-                path,
-                url,
-                request: payload,
-                ok: false,
-                status: 0,
-                durationMs: Date.now() - startedAt,
-                response: null,
-                error: error?.message || 'Network error',
-            });
-        }
-        throw error;
     }
+
+    throw new Error('Request failed after retries');
 };
 
 export const getDialplanList = async (did) => {
@@ -577,6 +661,56 @@ export const createAccount = async (did, countryCode = 'fi') => {
 
 export const syncIdentity = async (did, uid) => {
     return postApi('get_user.lua', { did, uid });
+};
+
+/** Backend KO when did/uid are unknown or expired (stale localStorage). */
+export const isMissingUserError = (error) => {
+    const m = String(error?.message ?? '');
+    return /user not found|E_NOTFOUND|usuario no encontrado|usuario no existe|no se encontr/i.test(m);
+};
+
+/** Strip `API Refused (400):` style prefix from postApi KO errors for UI toasts. */
+export const formatKoErrorMessage = (error) => {
+    const m = String(error?.message ?? '').trim();
+    const stripped = m.replace(/^API Refused \(\d+\):\s*/i, '').trim();
+    return stripped || m;
+};
+
+/**
+ * Create a new device user and sync.
+ * create.lua returns a Mongo user id; get_user.lua expects did+uid = device UUID.
+ * get_dialplan_ios uses the Mongo id; create_task_ios + get_mis_bromas_ios use the device UUID (did).
+ */
+export const bootstrapNewSession = async (countryCode = 'fi') => {
+    const newDid = generateId();
+    const createRes = await createAccount(newDid, countryCode);
+    const identityRes = await syncIdentity(newDid, newDid);
+    const mongoUid = resolveUid(identityRes, createRes) || '';
+    if (!mongoUid) {
+        throw new Error('Could not resolve account id after create');
+    }
+    return { did: newDid, mongoUid };
+};
+
+/** Call / prank credits from get_user.lua (declined calls often leave credits unchanged). */
+export const getCallCreditsFromIdentity = (identityResponse) => {
+    const userObj =
+        identityResponse?.user_info ||
+        identityResponse?.userInfo ||
+        identityResponse?.user ||
+        identityResponse ||
+        {};
+    const extra = userObj.extra && typeof userObj.extra === 'object' ? userObj.extra : {};
+    const raw =
+        userObj.tcreditos ??
+        userObj.creditos ??
+        userObj.credits ??
+        extra.credit ??
+        extra.credits ??
+        extra.tcreditos ??
+        0;
+    const n = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
+    return Number.isFinite(n) ? n : 0;
 };
 
 export const launchPrank = async (data) => {

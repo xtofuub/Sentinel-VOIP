@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   CopyIcon,
   FileTextIcon,
@@ -7,6 +8,7 @@ import {
   PlayIcon,
   PauseIcon,
   Volume2Icon,
+  CheckCircle2Icon,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -100,6 +102,7 @@ function App() {
   const [baseCountry, setBaseCountry] = useState("fi")
   const [languages, setLanguages] = useState([])
   const [selectedLanguage, setSelectedLanguage] = useState("")
+
   const [pranks, setPranks] = useState([])
   const [selectedPrankId, setSelectedPrankId] = useState("")
   const initRecipient = readLastCallRecipient()
@@ -127,8 +130,8 @@ function App() {
     if (!targetPhone.trim()) {
       return ""
     }
-    if (phoneDigits.length < 8) {
-      return "Phone number is too short."
+    if (phoneDigits.length < 10) {
+      return "Phone number must be at least 10 digits."
     }
     if (phoneDigits.length > 15) {
       return "Phone number is too long."
@@ -187,12 +190,8 @@ function App() {
   }, [apiLogs, logFilter])
 
   useEffect(() => {
-    document.documentElement.classList.add("dark")
-    document.body.classList.add("bg-background")
-    return () => {
-      document.documentElement.classList.remove("dark")
-      document.body.classList.remove("bg-background")
-    }
+    // Neural monochrome theme is handled via CSS and the component
+    return () => {}
   }, [])
 
   useEffect(() => {
@@ -499,146 +498,135 @@ function App() {
     Boolean(targetName.trim()) &&
     Boolean(targetPhone.trim()) &&
     !phoneError
-
   return (
-    <div className="dark relative min-h-svh bg-background font-sans text-foreground antialiased">
-      <div className="relative mx-auto w-full max-w-screen-2xl px-3 py-6 sm:px-4 md:py-8 lg:px-6 xl:px-8">
-        <header className="mb-8 space-y-2 border-b border-border pb-8">
-          <h1 className="typography-h1">Sentinel</h1>
-          <p className="typography-lead max-w-2xl">
-            Launch calls, track sessions, and review recordings.
+    <div className="relative min-h-svh font-sans text-ms-pure antialiased bg-black/95">
+      
+      <main className="page-body relative z-10 mx-auto w-full max-w-[1400px] px-6 py-24 text-ms-pure">
+        <header className="mb-16 text-left reveal active">
+          <h1 className="text-5xl font-extrabold tracking-tighter text-white mb-3">
+            Sentinel <span className="opacity-10 text-ms-white">V2</span>
+          </h1>
+          <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-ms-muted">
+            High Precision Audio Intelligence
           </p>
         </header>
 
-        <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8 [&>*]:min-h-0 [&>*]:min-w-0">
-          <div className="min-h-0 min-w-0 lg:sticky lg:top-6">
-            <Card className="min-w-0 shadow-sm">
-              <CardHeader className="border-b border-border">
-                <CardTitle className="typography-h3 flex items-center gap-2.5">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
-                    <PhoneCallIcon className="size-5" />
-                  </span>
-                  Launch call
-                </CardTitle>
-                <CardDescription className="text-base text-muted-foreground mt-1.5">
-                  Name, phone, language, and prank scenario.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6 pt-6">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="target-name" className="text-sm font-semibold">Name</Label>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+          <div id="launch" className="lg:col-span-3 reveal active">
+            <div className="module h-full">
+              <div className="module-head border-b border-white/5 py-5 px-6">
+                <span className="text-sm font-bold tracking-widest uppercase text-ms-pure">Configure Call Interaction</span>
+                <Badge variant="secondary" className="px-3 py-1 font-mono text-[9px] rounded-full bg-white/5 text-ms-muted border-white/10">
+                  {statusText}
+                </Badge>
+              </div>
+              <div className="module-body">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="field">
+                    <label className="text-[9px] uppercase tracking-[0.2em] opacity-40 mb-2 block font-medium">Target Name</label>
                     <Input
                       id="target-name"
-                      placeholder="Target name"
-                      className="h-12 text-base font-medium"
+                      placeholder="Name"
+                      className="h-11 text-sm bg-white/[0.03] border-white/10 rounded-full px-5 focus:bg-white/[0.06] focus:border-white/20 transition-all duration-500"
                       value={targetName}
-                      onChange={(event) => setTargetName(event.target.value)}
+                      onChange={(e) => setTargetName(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="target-phone" className="text-sm font-semibold">Phone</Label>
+
+                  <div className="field">
+                    <label className="text-[9px] uppercase tracking-[0.2em] opacity-40 mb-2 block font-medium">Target Phone</label>
                     <Input
                       id="target-phone"
-                      placeholder="+358401234567"
-                      className="h-12 text-base font-medium"
+                      placeholder="+Phone"
+                      className="h-11 text-sm bg-white/[0.03] border-white/10 rounded-full px-5 focus:bg-white/[0.06] focus:border-white/20 transition-all duration-500"
                       value={targetPhone}
-                      onChange={(event) => setTargetPhone(maskPhoneInput(event.target.value))}
+                      onChange={(e) => setTargetPhone(maskPhoneInput(e.target.value))}
                     />
-                    <p className={phoneError ? "text-sm font-medium text-destructive" : "text-sm text-muted-foreground"}>
-                      {phoneError || "Include country code, e.g. +358401234567"}
-                    </p>
+                  </div>
+
+                  <div className="field text-ms-pure">
+                    <label className="text-[9px] uppercase tracking-[0.2em] opacity-40 mb-2 block font-medium">Language</label>
+                    {isInitializing ? (
+                      <Skeleton className="h-11 w-full rounded-full" />
+                    ) : (
+                      <Select value={selectedLanguage} onValueChange={handleLanguageChange} disabled={isInitializing}>
+                        <SelectTrigger className="h-11 w-fit min-w-[140px] text-sm bg-white/[0.03] border-white/10 rounded-full px-5 focus:ring-0 focus:border-white/20 transition-all duration-500 flex items-center justify-between gap-3">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-ms-elevated border-ms-border text-ms-pure rounded-2xl">
+                          {languages.map((l) => (
+                            <SelectItem key={l._id} value={l._id} className="text-sm py-2">
+                              {l.tname}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Language</Label>
-                  {isInitializing ? (
-                    <Skeleton className="h-12 w-full" />
-                  ) : (
-                    <Select value={selectedLanguage} onValueChange={handleLanguageChange} disabled={isInitializing}>
-                      <SelectTrigger className="h-12 text-base font-medium">
-                        <SelectValue placeholder="Select language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {languages.map((language) => (
-                          <SelectItem key={language._id} value={language._id} className="text-base">
-                            {language.tname}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <Label>Pranks</Label>
-                    <span className="typography-muted truncate">
-                      {selectedPrank ? selectedPrank.titulo : "Select one"}
-                    </span>
-                  </div>
-                  <ScrollArea className="h-[420px] rounded-md border bg-muted/30 py-1.5 pl-0 pr-1 sm:h-[460px] sm:py-2 sm:pr-1.5">
+                  <div className="field mt-12">
+                    <div className="flex items-center justify-between mb-5 px-1">
+                      <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-ms-muted">available prank scenarios</label>
+                      <span className="text-[9px] font-mono text-ms-muted uppercase tracking-[0.2em] opacity-30">
+                        {selectedPrank ? selectedPrank.titulo : "none selected"}
+                      </span>
+                    </div>
+                  
+                  <ScrollArea className="h-[406px] rounded-lg border border-ms-border bg-black/20 px-4 py-2">
                     {isLoadingPranks || isInitializing ? (
-                      <div className="grid gap-2">
-                        {Array.from({ length: 4 }).map((_, index) => (
-                          <div key={index} className="space-y-2 rounded-md border bg-card p-2">
-                            <Skeleton className="h-20 w-full rounded" />
-                            <Skeleton className="h-4 w-2/3" />
-                            <Skeleton className="h-4 w-full" />
-                          </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[1, 2, 3, 4].map((i) => (
+                          <div key={i} className="module bg-surface/50 animate-pulse h-20" />
                         ))}
                       </div>
                     ) : (
-                      <RadioGroup value={selectedPrankId} onValueChange={setSelectedPrankId} className="grid gap-2">
-                        {pranks.map((prank) => {
-                          const prankImage = prank.image_url || prank.pic || ""
-                          const prankPreview = prank.example || ""
+                      <RadioGroup value={selectedPrankId} onValueChange={setSelectedPrankId} className="grid grid-cols-3 gap-3 p-1">
+                        {pranks.map((prank, index) => {
                           const isSelected = prank._id === selectedPrankId
-
                           return (
                             <label
                               key={prank._id}
-                              className={`flex cursor-pointer items-center gap-2 rounded-md border py-2 pl-1 pr-2 sm:gap-2.5 sm:pl-1.5 sm:pr-2.5 transition-colors ${
-                                isSelected
-                                  ? "border-foreground/20 bg-muted"
-                                  : "border-transparent bg-card hover:bg-muted/50"
-                              }`}>
-                              <RadioGroupItem value={prank._id} id={prank._id} className="sr-only" />
-
-                              <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-muted sm:size-12">
-                                {prankImage ? (
-                                  <img src={prankImage} alt="" className="size-full object-cover" />
-                                ) : (
-                                  <div className="grid size-full place-items-center">
-                                    <Volume2Icon className="size-4 text-muted-foreground" />
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="min-w-0 flex-1 pr-0.5">
-                                <p className="text-sm leading-snug font-medium text-foreground">{prank.titulo}</p>
-                                <p className="typography-muted mt-1 text-[13px] leading-snug break-words sm:text-sm">
-                                  {prank.desc || "Scenario"}
-                                </p>
-                              </div>
-
-                              {prankPreview && (
+                              className={`module mb-0 cursor-pointer flex items-center transition-all duration-300 p-2 animate-in fade-in zoom-in group ${
+                                isSelected 
+                                  ? "border-ms-white ring-2 ring-ms-white/40 bg-white/10 shadow-[0_0_15px_rgba(255,255,255,0.15)] scale-[1.03] z-10" 
+                                  : "hover:bg-ms-elevated hover:scale-[1.02] hover:-translate-y-0.5"
+                              }`}
+                              style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
+                            >
+                              <RadioGroupItem value={prank._id} className="sr-only" />
+                              <div className="flex items-center gap-3 relative flex-1">
+                                <div className={`size-10 rounded overflow-hidden border shrink-0 bg-black/40 relative transition-all duration-300 ${isSelected ? "border-ms-white ring-1 ring-ms-white/50" : "border-ms-border/50 group-hover:border-ms-white/30"}`}>
+                                  {prank.pic || prank.image_url ? (
+                                    <img src={prank.pic || prank.image_url} alt="" className={`size-full object-cover transition-transform duration-500 ${isSelected ? "scale-110 opacity-70" : "group-hover:scale-110"}`} />
+                                  ) : (
+                                    <div className="grid size-full place-items-center opacity-20">
+                                      <Volume2Icon className="size-4" />
+                                    </div>
+                                  )}
+                                  
+                                  {isSelected && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px] animate-in zoom-in duration-200">
+                                      <CheckCircle2Icon className="size-5 text-ms-white drop-shadow-md" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <h3 className={`text-[10px] font-bold leading-tight truncate transition-colors duration-300 ${isSelected ? "text-ms-white" : "text-ms-white/80 group-hover:text-ms-white"}`}>{prank.titulo}</h3>
+                                  <p className={`text-[9px] truncate transition-colors duration-300 ${isSelected ? "text-ms-white/70" : "text-ms-muted group-hover:text-ms-muted"}`}>{prank.desc}</p>
+                                </div>
                                 <button
                                   type="button"
                                   onClick={(e) => handlePlayToggle(e, prank)}
-                                  className={`grid size-8 shrink-0 place-items-center rounded-full border ${
-                                    playingId === prank._id
-                                      ? "border-transparent bg-primary text-primary-foreground"
-                                      : "border-border bg-background text-muted-foreground hover:text-foreground"
-                                  }`}>
-                                  {playingId === prank._id ? (
-                                    <PauseIcon className="size-3.5 fill-current" />
-                                  ) : (
-                                    <PlayIcon className="ml-0.5 size-3.5 fill-current" />
-                                  )}
+                                  className={`shrink-0 size-7 rounded-full flex items-center justify-center transition-all duration-300 z-20 relative ring-1 ring-ms-white/10 ${
+                                    playingId === prank._id 
+                                      ? "bg-ms-white text-black ring-transparent scale-110 shadow-[0_0_10px_rgba(255,255,255,0.3)]" 
+                                      : "bg-black/40 text-ms-white hover:bg-ms-white/20 hover:scale-110"
+                                  }`}
+                                >
+                                  {playingId === prank._id ? <PauseIcon className="size-3 fill-current" /> : <PlayIcon className="size-3 ml-0.5 fill-current" />}
                                 </button>
-                              )}
+                              </div>
                             </label>
                           )
                         })}
@@ -647,51 +635,52 @@ function App() {
                   </ScrollArea>
                 </div>
 
-                <div className="space-y-4 border-t border-border pt-6">
-                  <div className="flex flex-wrap items-center justify-center gap-3">
-                    <Badge variant="secondary" className="h-7 px-3 text-sm font-medium">
-                      {statusText}
-                    </Badge>
-                    {(isInitializing || isLoadingPranks || isLaunching) && (
-                      <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
+                <div className="mt-12 flex justify-center">
+                  <Button 
+                    className="w-full max-w-[320px] h-14 bg-white text-black hover:bg-ms-light font-bold text-[11px] tracking-[0.2em] uppercase rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.5)] transition-all duration-700 hover:scale-[1.03] hover:shadow-[0_0_40px_rgba(255,255,255,0.15)] flex items-center justify-center gap-3 disabled:opacity-5 disabled:pointer-events-none disabled:grayscale"
+                    onClick={handleLaunchCall}
+                    disabled={!canLaunch}
+                  >
+                    {isLaunching ? (
+                      <LoaderIcon className="size-4 animate-spin" />
+                    ) : (
+                      <PhoneCallIcon className="size-4 fill-current" />
                     )}
-                  </div>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                    <Button variant="outline" className="h-12 text-base font-semibold sm:w-auto" onClick={() => setIsLogsOpen(true)}>
-                      <FileTextIcon className="size-5" />
-                      View logs
-                    </Button>
-                    <Button className="h-12 text-base font-semibold sm:w-auto sm:px-8" onClick={handleLaunchCall} disabled={!canLaunch}>
-                      {isLaunching ? "Starting…" : "Start call"}
-                    </Button>
-                  </div>
-                  <div className="space-y-1 text-center">
-                    <p className="typography-muted font-mono text-[10px] sm:text-[11px]">
-                      <span className="typography-inline-code text-[10px] font-normal leading-relaxed break-all sm:text-[11px]">
-                        DID {did || "—"}
+                    START INTERACTION
+                  </Button>
+                </div>
+
+                <div className="mt-6 text-center space-y-1">
+                  <p className="text-[10px] font-mono text-ms-muted uppercase tracking-[0.2em]">
+                    Identity Manifest
+                  </p>
+                  <div className="flex flex-col items-center gap-3 text-[11px] font-mono text-ms-muted">
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <span className="px-3 py-1 rounded border border-ms-border bg-black/40 shadow-sm">
+                        <span className="text-ms-muted mr-1">DID:</span>
+                        <span className="text-ms-white">{did || "???"}</span>
                       </span>
-                    </p>
-                    <p className="typography-muted font-mono text-[10px] sm:text-[11px]">
-                      <span className="typography-inline-code text-[10px] font-normal leading-relaxed break-all sm:text-[11px]">
-                        Account {mongoUid || "—"}
+                      <span className="px-3 py-1 rounded border border-ms-border bg-black/40 shadow-sm">
+                        <span className="text-ms-muted mr-1">ACC:</span>
+                        <span className="text-ms-white">{mongoUid || "???"}</span>
                       </span>
-                    </p>
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
-          <div className="min-h-0 min-w-0">
-            <RecordedCallsPanel uid={did} countryCode={baseCountry} refreshToken={recordingsRefreshToken} />
+          <div id="recordings" className="lg:col-span-2 reveal active h-full">
+            <RecordedCallsPanel uid={did} countryCode={baseCountry} refreshToken={recordingsRefreshToken} panelClassName="border-[var(--color-ms-border)] bg-[var(--color-ms-surface)] h-full" />
           </div>
         </div>
-      </div>
+      </main>
 
       <Sheet open={isLogsOpen} onOpenChange={setIsLogsOpen}>
         <SheetContent
           side="right"
-          className="flex h-full max-h-svh w-full flex-col gap-0 overflow-hidden border-l p-0 sm:max-w-2xl">
+          className="flex h-full max-h-svh w-full flex-col gap-0 overflow-hidden border-l border-white/5 p-0 sm:max-w-2xl bg-[#050505]/60 backdrop-blur-[60px]">
           <SheetHeader className="shrink-0 space-y-1 border-b border-border px-6 pt-6 pb-4">
             <SheetTitle className="typography-h4">API logs</SheetTitle>
             <SheetDescription className="typography-muted text-base">
@@ -809,7 +798,36 @@ function App() {
         </SheetContent>
       </Sheet>
 
-      <Toaster richColors closeButton />
+      <Toaster 
+        richColors 
+        closeButton 
+        theme="dark"
+        toastOptions={{
+          className: "bg-ms-elevated border border-ms-border text-ms-pure rounded-xl shadow-2xl backdrop-blur-md",
+          duration: 3000,
+        }}
+      />
+
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20, scale: 0.9 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ 
+          duration: 1.2, 
+          delay: 0.8, 
+          ease: [0.16, 1, 0.3, 1] // Custom premium "out-expo" ease
+        }}
+        className="fixed bottom-6 right-6 z-50 px-1 py-1"
+      >
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setIsLogsOpen(true)}
+          className="size-10 rounded-full bg-white/[0.03] backdrop-blur-md border-white/10 text-ms-muted hover:text-ms-pure hover:bg-white/10 hover:border-white/20 transition-all duration-500 shadow-2xl group relative overflow-hidden"
+        >
+          <FileTextIcon className="size-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+        </Button>
+      </motion.div>
     </div>
   )
 }

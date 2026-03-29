@@ -182,13 +182,11 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0, 
         "flex min-h-0 min-w-0 flex-col overflow-visible shadow-sm",
         panelClassName
       )}>
-      <CardHeader className="shrink-0 border-b border-border">
+      <CardHeader className="shrink-0 border-b border-white/5 pb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle className="typography-h4 flex items-center gap-2.5">
-              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
-                <PhoneCallIcon className="size-4" />
-              </span>
+            <CardTitle className="text-[10px] font-bold tracking-[0.2em] uppercase flex items-center gap-3 text-ms-pure">
+              <PhoneCallIcon className="size-4 text-ms-white" />
               Recordings
             </CardTitle>
             <CardDescription className="typography-muted mt-1">
@@ -198,7 +196,7 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0, 
           <Button
             variant="outline"
             size="sm"
-            className="shrink-0"
+            className="rounded-full px-4 border-white/10 hover:bg-white/5"
             onClick={() => fetchCalls()}
             disabled={isLoading || !uid}>
             <RefreshCwIcon className={`size-3.5 ${isLoading ? "animate-spin" : ""}`} />
@@ -248,7 +246,7 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0, 
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{call.titulo}</p>
                       <p className="typography-muted">
-                        {formatTime(call)} · Scenario {call.dial || "—"}
+                        {formatTime(call)}
                       </p>
                       {(call.targetName || call.targetPhone) && (
                         <p className="mt-1.5 text-sm leading-snug">

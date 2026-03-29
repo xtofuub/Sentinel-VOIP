@@ -81,6 +81,14 @@ A modern, tactical prank call and call management web application built with Rea
 - Icons by [Lucide](https://lucide.dev/)
 - Animations by [Framer Motion](https://www.framer.com/motion/)
 
-## License
+## Recent Updates
 
-MIT License. See [LICENSE](LICENSE) for details.
+### March 29, 2026
+- Major refactor and feature update:
+  - Added `recording-audio-player.jsx` for in-app audio playback of recorded calls.
+  - Improved `recorded-calls-panel.jsx` to support audio playback, sharing, and deleting recordings.
+  - Enhanced UI and logic in `App.jsx` for call launching, prank selection, and log viewing.
+  - Updated API integration and error handling.
+  - Various bug fixes and UI improvements.
+
+See commit history for full details.

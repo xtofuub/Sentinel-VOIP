@@ -83,38 +83,39 @@
     --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Neutral zinc dark — matches default shadcn/ui palette (no hue) */
 .dark {
-    --background: oklch(0.08 0 0);
+    --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
-    --card: oklch(0.12 0 0);
+    --card: oklch(0.205 0 0);
     --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.12 0 0);
+    --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
     --primary: oklch(0.985 0 0);
-    --primary-foreground: oklch(0.08 0 0);
-    --secondary: oklch(0.18 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.18 0 0);
-    --muted-foreground: oklch(0.6 0 0);
-    --accent: oklch(0.985 0 0);
-    --accent-foreground: oklch(0.08 0 0);
-    --destructive: oklch(0.6 0.2 25);
-    --border: oklch(1 0 0 / 8%);
-    --input: oklch(1 0 0 / 12%);
-    --ring: oklch(0.985 0 0 / 30%);
-    --chart-1: oklch(0.985 0 0);
-    --chart-2: oklch(0.8 0 0);
-    --chart-3: oklch(0.6 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.85 0 0);
+    --chart-2: oklch(0.7 0 0);
+    --chart-3: oklch(0.55 0 0);
     --chart-4: oklch(0.4 0 0);
-    --chart-5: oklch(0.2 0 0);
-    --sidebar: oklch(0.1 0 0);
+    --chart-5: oklch(0.25 0 0);
+    --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.985 0 0);
-    --sidebar-primary-foreground: oklch(0.1 0 0);
-    --sidebar-accent: oklch(0.18 0 0);
+    --sidebar-primary-foreground: oklch(0.205 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 8%);
-    --sidebar-ring: oklch(0.985 0 0 / 30%);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.439 0 0);
 }
 
 @layer base {
@@ -127,4 +128,75 @@
   html {
     @apply font-sans;
     }
+}
+
+/* Typography — utility patterns (shadcn/ui docs; not shipped by default) */
+@layer components {
+  .typography-h1 {
+    @apply scroll-m-20 font-heading text-4xl font-extrabold tracking-tight text-foreground lg:text-5xl;
+  }
+
+  .typography-h2 {
+    @apply scroll-m-20 font-heading border-b border-border pb-2 text-3xl font-semibold tracking-tight text-foreground transition-colors first:mt-0;
+  }
+
+  .typography-h3 {
+    @apply scroll-m-20 font-heading text-2xl font-semibold tracking-tight text-foreground;
+  }
+
+  .typography-h4 {
+    @apply scroll-m-20 font-heading text-xl font-semibold tracking-tight text-foreground;
+  }
+
+  .typography-p {
+    @apply text-base leading-7 text-foreground [&:not(:first-child)]:mt-6;
+  }
+
+  .typography-blockquote {
+    @apply mt-6 border-l-2 border-border pl-6 text-muted-foreground italic;
+  }
+
+  .typography-table {
+    @apply w-full caption-bottom text-sm;
+  }
+
+  .typography-table thead tr {
+    @apply border-b border-border transition-colors;
+  }
+
+  .typography-table tbody tr {
+    @apply border-b border-border transition-colors last:border-0;
+  }
+
+  .typography-table th {
+    @apply h-10 px-2 text-left align-middle font-medium text-muted-foreground;
+  }
+
+  .typography-table td {
+    @apply p-2 align-middle text-foreground;
+  }
+
+  .typography-list {
+    @apply my-6 ml-6 list-disc text-foreground [&>li]:mt-2;
+  }
+
+  .typography-inline-code {
+    @apply relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold text-foreground;
+  }
+
+  .typography-lead {
+    @apply text-xl text-muted-foreground;
+  }
+
+  .typography-large {
+    @apply text-lg font-semibold text-foreground;
+  }
+
+  .typography-small {
+    @apply text-sm font-medium leading-none text-foreground;
+  }
+
+  .typography-muted {
+    @apply text-sm text-muted-foreground;
+  }
 }

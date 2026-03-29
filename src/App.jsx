@@ -1,24 +1,30 @@
 import { useEffect, useMemo, useState } from "react"
-import { FileTextIcon, LoaderIcon, PhoneCallIcon, PlayIcon, PauseIcon, Volume2Icon } from "lucide-react"
-import { motion } from "framer-motion"
+import {
+  CopyIcon,
+  FileTextIcon,
+  LoaderIcon,
+  PhoneCallIcon,
+  PlayIcon,
+  PauseIcon,
+  Volume2Icon,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { RecordedCallsPanel } from "@/components/recorded-calls-panel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import ShaderBackground from "@/components/ui/shader-background"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Toaster } from "@/components/ui/sonner"
 import * as api from "@/services/api"
-
-const MotionDiv = motion.div
 
 const toTaskTimestamp = () => {
   return new Date().toISOString().replace(/\.\d+Z$/, "").replace("T", " ")
@@ -43,15 +49,30 @@ const maskPhoneInput = (value) => {
   if (!digits) {
     return ""
   }
-
-  const country = digits.slice(0, 3)
-  const rest = digits.slice(3).match(/.{1,3}/g) || []
-  return `+${country}${rest.length ? ` ${rest.join(" ")}` : ""}`
+  return `+${digits}`
 }
 
 const normalizePhoneForApi = (value) => {
   const digits = value.replace(/\D/g, "")
   return digits ? `+${digits}` : ""
+}
+
+const LAST_CALL_RECIPIENT_KEY = "lastCallRecipient"
+
+const readLastCallRecipient = () => {
+  try {
+    const raw = localStorage.getItem(LAST_CALL_RECIPIENT_KEY)
+    if (!raw) {
+      return { name: "", phone: "" }
+    }
+    const o = JSON.parse(raw)
+    return {
+      name: typeof o.name === "string" ? o.name : "",
+      phone: typeof o.phone === "string" ? o.phone : "",
+    }
+  } catch {
+    return { name: "", phone: "" }
+  }
 }
 
 const buildCurlFromLog = (log) => {
@@ -69,8 +90,9 @@ function App() {
   const [selectedLanguage, setSelectedLanguage] = useState("")
   const [pranks, setPranks] = useState([])
   const [selectedPrankId, setSelectedPrankId] = useState("")
-  const [targetName, setTargetName] = useState("")
-  const [targetPhone, setTargetPhone] = useState("")
+  const initRecipient = readLastCallRecipient()
+  const [targetName, setTargetName] = useState(initRecipient.name)
+  const [targetPhone, setTargetPhone] = useState(initRecipient.phone)
   const [statusText, setStatusText] = useState("Initializing")
   const [isInitializing, setIsInitializing] = useState(true)
   const [isLoadingPranks, setIsLoadingPranks] = useState(false)
@@ -101,6 +123,20 @@ function App() {
     }
     return ""
   }, [phoneDigits])
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      try {
+        localStorage.setItem(
+          LAST_CALL_RECIPIENT_KEY,
+          JSON.stringify({ name: targetName, phone: targetPhone })
+        )
+      } catch {
+        /* ignore quota / private mode */
+      }
+    }, 400)
+    return () => window.clearTimeout(id)
+  }, [targetName, targetPhone])
 
   const handlePlayToggle = (e, prank) => {
     e.preventDefault()
@@ -303,9 +339,26 @@ function App() {
       if (response?.res === "OK") {
         setStatusText("Call queued")
         toast.success("Call queued successfully")
-        
+
+        api.pushRecordingTargetMemory({
+          uid: callUid,
+          dial: selectedPrank._id,
+          targetName: targetName.trim(),
+          targetPhone: normalizePhoneForApi(targetPhone),
+          taskId: payload._id,
+        })
+
         const activeAccounts = JSON.parse(localStorage.getItem("activeAccounts") || "[]")
-        activeAccounts.push({ did: callDid, uid: callUid, country: storedCountry, timestamp: Date.now() })
+        activeAccounts.push({
+          did: callDid,
+          uid: callUid,
+          country: storedCountry,
+          timestamp: Date.now(),
+          dial: selectedPrank._id,
+          targetName: targetName.trim(),
+          targetPhone: normalizePhoneForApi(targetPhone),
+          taskId: payload._id,
+        })
         localStorage.setItem("activeAccounts", JSON.stringify(activeAccounts))
 
         setRecordingsRefreshToken((prev) => prev + 1)
@@ -343,113 +396,94 @@ function App() {
     !phoneError
 
   return (
-    <div className="dark relative min-h-svh overflow-hidden bg-black font-sans text-foreground antialiased selection:bg-primary/30">
-      <ShaderBackground />
-      <MotionDiv
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
-        className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center px-4 py-6 md:px-6 md:py-10">
-        <div className="grid w-full gap-6 xl:grid-cols-2">
-          <MotionDiv
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05, ease: "easeOut" }}
-            className="xl:sticky xl:top-6 xl:self-start">
-            <Card className="rounded-2xl border border-primary/25 bg-card/80 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur">
-              <CardHeader>
-                <CardTitle className="flex flex-col items-center gap-2 text-center text-2xl font-bold tracking-tight">
-                  <PhoneCallIcon className="size-6 text-primary" />
-                  Launch Call
+    <div className="dark relative min-h-svh bg-background font-sans text-foreground antialiased">
+      <div className="relative mx-auto w-full max-w-screen-2xl px-3 py-6 sm:px-4 md:py-8 lg:px-6 xl:px-8">
+        <header className="mb-8 space-y-2 border-b border-border pb-8">
+          <h1 className="typography-h1">Sentinel</h1>
+          <p className="typography-lead max-w-2xl">
+            Launch calls, track sessions, and review recordings.
+          </p>
+        </header>
+
+        <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:items-start lg:gap-8 [&>*]:min-w-0">
+          <div className="min-w-0 lg:sticky lg:top-6">
+            <Card className="min-w-0 shadow-sm">
+              <CardHeader className="border-b border-border">
+                <CardTitle className="typography-h4 flex items-center gap-2.5">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                    <PhoneCallIcon className="size-4" />
+                  </span>
+                  Launch call
                 </CardTitle>
-                <CardDescription className="text-center text-sm font-medium text-muted-foreground md:text-base">
-                  Fill in number, name, language, and prank. Then start the call.
+                <CardDescription className="typography-muted mt-1">
+                  Name, phone, language, and prank scenario.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <MotionDiv
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.28, delay: 0.1 }}
-                  className="grid gap-4 md:grid-cols-2">
+              <CardContent className="space-y-6 pt-6">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="target-name" className="text-sm font-medium">Name</Label>
+                    <Label htmlFor="target-name">Name</Label>
                     <Input
                       id="target-name"
                       placeholder="Target name"
-                      className="h-12 rounded-xl border-white/5 bg-zinc-900/50 px-4 text-base transition-all focus:border-zinc-500/50 focus:ring-0"
                       value={targetName}
                       onChange={(event) => setTargetName(event.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="target-phone" className="text-sm font-medium">Phone Number</Label>
+                    <Label htmlFor="target-phone">Phone</Label>
                     <Input
                       id="target-phone"
-                      placeholder="+358 401 234 567"
-                      className="h-12 rounded-xl border-white/5 bg-zinc-900/50 px-4 text-base transition-all focus:border-zinc-500/50 focus:ring-0"
+                      placeholder="+358401234567"
                       value={targetPhone}
                       onChange={(event) => setTargetPhone(maskPhoneInput(event.target.value))}
                     />
-                    <p className={`text-xs ${phoneError ? "text-destructive" : "text-muted-foreground"}`}>
-                      {phoneError || "Include country code. Example: +358 401 234 567"}
+                    <p className={phoneError ? "typography-small text-destructive" : "typography-muted"}>
+                      {phoneError || "Include country code, e.g. +358401234567 (no spaces)"}
                     </p>
                   </div>
-                </MotionDiv>
+                </div>
 
-                <MotionDiv
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.28, delay: 0.16 }}
-                  className="space-y-3">
-                  <Label className="text-sm font-medium">Language</Label>
+                <div className="space-y-2">
+                  <Label>Language</Label>
                   {isInitializing ? (
-                    <Skeleton className="h-14 w-full rounded-xl" />
+                    <Skeleton className="h-9 w-full" />
                   ) : (
                     <Select value={selectedLanguage} onValueChange={handleLanguageChange} disabled={isInitializing}>
-                      <SelectTrigger className="h-12 rounded-xl border-white/5 bg-zinc-900/50 px-4 text-base transition-all focus:border-zinc-500/50 focus:ring-0">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select language" />
                       </SelectTrigger>
                       <SelectContent>
                         {languages.map((language) => (
-                          <SelectItem key={language._id} value={language._id} className="py-2.5 text-sm">
+                          <SelectItem key={language._id} value={language._id}>
                             {language.tname}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   )}
-                </MotionDiv>
+                </div>
 
-                <MotionDiv
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.28, delay: 0.2 }}
-                  className="space-y-3">
-                  <div className="flex items-center justify-between px-1">
-                    <Label className="text-sm font-medium">Pranks</Label>
-                    <p className="text-xs text-muted-foreground transition-all">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>Pranks</Label>
+                    <span className="typography-muted truncate">
                       {selectedPrank ? selectedPrank.titulo : "Select one"}
-                    </p>
+                    </span>
                   </div>
-                  <ScrollArea className="h-[360px] rounded-xl border border-border/80 bg-muted/20 p-3">
+                  <ScrollArea className="h-[360px] rounded-md border bg-muted/30 px-1.5 py-1.5 sm:px-2 sm:py-2">
                     {isLoadingPranks || isInitializing ? (
-                      <div className="grid gap-3">
+                      <div className="grid gap-2">
                         {Array.from({ length: 4 }).map((_, index) => (
-                          <div key={index} className="rounded-xl border border-border/60 bg-card/50 p-3">
-                            <Skeleton className="h-24 w-full rounded-lg" />
-                            <Skeleton className="mt-3 h-5 w-2/3" />
-                            <Skeleton className="mt-2 h-4 w-full" />
-                            <Skeleton className="mt-1 h-4 w-4/5" />
-                            <Skeleton className="mt-3 h-10 w-full rounded-md" />
+                          <div key={index} className="space-y-2 rounded-md border bg-card p-2">
+                            <Skeleton className="h-20 w-full rounded" />
+                            <Skeleton className="h-4 w-2/3" />
+                            <Skeleton className="h-4 w-full" />
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <RadioGroup
-                        value={selectedPrankId}
-                        onValueChange={setSelectedPrankId}
-                        className="grid gap-2">
+                      <RadioGroup value={selectedPrankId} onValueChange={setSelectedPrankId} className="grid gap-2">
                         {pranks.map((prank) => {
                           const prankImage = prank.image_url || prank.pic || ""
                           const prankPreview = prank.example || ""
@@ -458,33 +492,27 @@ function App() {
                           return (
                             <label
                               key={prank._id}
-                              className={`relative flex cursor-pointer items-center gap-4 overflow-hidden rounded-xl border p-2.5 transition-all duration-200 hover:bg-zinc-800/20 ${
+                              className={`flex cursor-pointer items-center gap-3 rounded-md border p-2.5 transition-colors ${
                                 isSelected
-                                  ? "border-zinc-500/60 bg-zinc-800/40 shadow-[0_4px_20px_-5px_rgba(255,255,255,0.08)]"
-                                  : "border-white/5 bg-transparent opacity-80 hover:opacity-100"
+                                  ? "border-foreground/20 bg-muted"
+                                  : "border-transparent bg-card hover:bg-muted/50"
                               }`}>
-<RadioGroupItem value={prank._id} id={prank._id} className="absolute left-0 top-0 opacity-0 w-0 h-0" />
+                              <RadioGroupItem value={prank._id} id={prank._id} className="sr-only" />
 
-                              <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-white/5 shadow-sm">
+                              <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-muted">
                                 {prankImage ? (
-                                  <img
-                                    src={prankImage}
-                                    alt={prank.titulo}
-                                    className="h-full w-full object-cover"
-                                  />
+                                  <img src={prankImage} alt="" className="size-full object-cover" />
                                 ) : (
-                                  <div className="grid h-full place-items-center bg-zinc-800">
-                                    <Volume2Icon className="size-5 text-zinc-500" />
+                                  <div className="grid size-full place-items-center">
+                                    <Volume2Icon className="size-4 text-muted-foreground" />
                                   </div>
                                 )}
                               </div>
 
-                              <div className="min-w-0 flex-1 space-y-1">
-                                <p className={`truncate text-sm font-medium tracking-tight transition-colors ${isSelected ? "text-white" : "text-zinc-300"}`}>
-                                  {prank.titulo}
-                                </p>
-                                <p className="line-clamp-1 text-xs leading-relaxed text-zinc-500">
-                                  {prank.desc || "Interactive scenario"}
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium">{prank.titulo}</p>
+                                <p className="typography-muted line-clamp-1">
+                                  {prank.desc || "Scenario"}
                                 </p>
                               </div>
 
@@ -492,15 +520,15 @@ function App() {
                                 <button
                                   type="button"
                                   onClick={(e) => handlePlayToggle(e, prank)}
-                                  className={`grid size-9 shrink-0 place-items-center rounded-full transition-all duration-200 active:scale-90 ${
+                                  className={`grid size-8 shrink-0 place-items-center rounded-full border ${
                                     playingId === prank._id
-                                      ? "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.4)]"
-                                      : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"
+                                      ? "border-transparent bg-primary text-primary-foreground"
+                                      : "border-border bg-background text-muted-foreground hover:text-foreground"
                                   }`}>
                                   {playingId === prank._id ? (
-                                    <PauseIcon className="size-4 fill-current" />
+                                    <PauseIcon className="size-3.5 fill-current" />
                                   ) : (
-                                    <PlayIcon className="size-4 fill-current ml-0.5" />
+                                    <PlayIcon className="ml-0.5 size-3.5 fill-current" />
                                   )}
                                 </button>
                               )}
@@ -510,147 +538,162 @@ function App() {
                       </RadioGroup>
                     )}
                   </ScrollArea>
-                </MotionDiv>
+                </div>
 
-                <MotionDiv
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.28, delay: 0.24 }}
-                  className="space-y-4 pt-2">
-                  <div className="flex flex-wrap items-center justify-center gap-3">
-                    <Badge variant="secondary" className="px-4 py-1.5 text-sm transition-all duration-200">
+                <div className="space-y-4 border-t border-border pt-6">
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <Badge variant="secondary" className="font-normal">
                       {statusText}
                     </Badge>
                     {(isInitializing || isLoadingPranks || isLaunching) && (
-                      <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
+                      <LoaderIcon className="size-4 animate-spin text-muted-foreground" />
                     )}
                   </div>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
-                    <Button
-                      variant="outline"
-                      className="h-12 w-full rounded-xl border-white/5 bg-zinc-900/50 px-5 text-base transition-all hover:bg-zinc-800 sm:w-auto"
-                      onClick={() => setIsLogsOpen(true)}>
-                      <FileTextIcon className="size-4 mr-2" />
-                      View Logs
+                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+                    <Button variant="outline" className="sm:w-auto" onClick={() => setIsLogsOpen(true)}>
+                      <FileTextIcon className="size-4" />
+                      View logs
                     </Button>
-                    <Button 
-                      className="h-12 w-full rounded-xl bg-white px-10 text-base font-semibold shadow-lg text-black transition-all hover:-translate-y-0.5 hover:bg-zinc-100 hover:shadow-xl sm:w-auto" 
-                      onClick={handleLaunchCall} 
-                      disabled={!canLaunch}>
-                      {isLaunching ? "Launching..." : "Start Call"}
+                    <Button className="sm:w-auto" onClick={handleLaunchCall} disabled={!canLaunch}>
+                      {isLaunching ? "Starting…" : "Start call"}
                     </Button>
                   </div>
-                  <p className="text-center text-xs text-muted-foreground/60">
-                    DID: {did ? `${did.slice(0, 12)}...` : "-"} - UID: {uid ? `${uid.slice(0, 16)}...` : "-"}
+                  <p className="text-center typography-muted font-mono text-[11px]">
+                    <span className="typography-inline-code text-[11px] font-normal">
+                      DID {did ? `${did.slice(0, 12)}…` : "—"}
+                    </span>
+                    {" · "}
+                    <span className="typography-inline-code text-[11px] font-normal">
+                      UID {uid ? `${uid.slice(0, 16)}…` : "—"}
+                    </span>
                   </p>
-                </MotionDiv>
+                </div>
               </CardContent>
             </Card>
-          </MotionDiv>
+          </div>
 
-          <MotionDiv
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.14, ease: "easeOut" }}>
-            <RecordedCallsPanel
-              uid={uid}
-              countryCode={baseCountry}
-              refreshToken={recordingsRefreshToken}
-            />
-          </MotionDiv>
+          <RecordedCallsPanel uid={uid} countryCode={baseCountry} refreshToken={recordingsRefreshToken} />
         </div>
-      </MotionDiv>
+      </div>
 
       <Sheet open={isLogsOpen} onOpenChange={setIsLogsOpen}>
-        <SheetContent side="right" className="w-full border-l border-border/80 sm:max-w-2xl">
-          <SheetHeader>
-            <SheetTitle>API Logs</SheetTitle>
-            <SheetDescription>
-              Request and response history for calls, prank loading, identity sync, and recordings.
+        <SheetContent
+          side="right"
+          className="flex h-full max-h-svh w-full flex-col gap-0 overflow-hidden border-l p-0 sm:max-w-2xl">
+          <SheetHeader className="shrink-0 space-y-1 border-b border-border px-6 pt-6 pb-4">
+            <SheetTitle className="typography-h4">API logs</SheetTitle>
+            <SheetDescription className="typography-muted text-base">
+              Requests and responses for identity, pranks, launches, and recordings.
             </SheetDescription>
           </SheetHeader>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-muted-foreground">{filteredApiLogs.length} entries</p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={logFilter === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setLogFilter("all")}>
-                All
-              </Button>
-              <Button
-                variant={logFilter === "errors" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setLogFilter("errors")}>
-                Errors
-              </Button>
-              <Button
-                variant={logFilter === "launch" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setLogFilter("launch")}>
-                Launch
-              </Button>
-              <Button
-                variant={logFilter === "recordings" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setLogFilter("recordings")}>
-                Recordings
-              </Button>
-              <Button variant="outline" size="sm" onClick={api.clearApiLogs} disabled={apiLogs.length === 0}>
-                Clear
-              </Button>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 py-4">
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="typography-muted tabular-nums">
+                {filteredApiLogs.length} {filteredApiLogs.length === 1 ? "entry" : "entries"}
+                {logFilter !== "all" && apiLogs.length !== filteredApiLogs.length
+                  ? ` · filtered from ${apiLogs.length}`
+                  : ""}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <ToggleGroup
+                  type="single"
+                  value={logFilter}
+                  onValueChange={(v) => v && setLogFilter(v)}
+                  variant="outline"
+                  size="sm"
+                  spacing={0}
+                  className="w-full justify-start sm:w-auto">
+                  <ToggleGroupItem value="all" className="px-3">
+                    All
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="errors" className="px-3">
+                    Errors
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="launch" className="px-3">
+                    Launch
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="recordings" className="px-3">
+                    Recordings
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={api.clearApiLogs}
+                  disabled={apiLogs.length === 0}>
+                  Clear all
+                </Button>
+              </div>
             </div>
-          </div>
 
-          <ScrollArea className="mt-4 h-[calc(100svh-12.5rem)] pr-2">
-            <div className="space-y-3 pb-4">
-              {filteredApiLogs.map((log) => (
-                <div key={log.id} className="space-y-2 rounded-xl border p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-mono text-xs text-primary">{log.path}</p>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={log.ok ? "secondary" : "destructive"}>
-                        {log.ok ? "OK" : "ERROR"}
-                      </Badge>
-                      <Badge variant="outline">
-                        {log.status || "NET"} - {log.durationMs ?? 0}ms
-                      </Badge>
+            <ScrollArea className="min-h-0 flex-1 pr-3">
+              <div className="space-y-4 pb-2">
+                {filteredApiLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="overflow-hidden rounded-lg border border-border/80 bg-card text-card-foreground shadow-sm ring-1 ring-foreground/5">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 bg-muted/20 px-4 py-3">
+                      <code className="break-all font-mono text-xs leading-snug text-foreground sm:text-sm">
+                        {log.path}
+                      </code>
+                      <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                        <Badge variant={log.ok ? "secondary" : "destructive"} className="tabular-nums">
+                          {log.ok ? "OK" : "Error"}
+                        </Badge>
+                        <Badge variant="outline" className="font-normal tabular-nums text-muted-foreground">
+                          {log.status ?? "—"} · {log.durationMs ?? 0} ms
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+                      <time className="typography-muted text-xs" dateTime={new Date(log.ts).toISOString()}>
+                        {new Date(log.ts).toLocaleString()}
+                      </time>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-7 gap-1.5 text-xs"
+                        onClick={() => copyLogCurl(log)}>
+                        <CopyIcon className="size-3" />
+                        Copy cURL
+                      </Button>
+                    </div>
+
+                    <Separator />
+
+                    <div className="grid gap-0 sm:grid-cols-1">
+                      <div className="border-border/60 px-4 py-3 sm:border-b-0">
+                        <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Request
+                        </p>
+                        <pre className="max-h-36 overflow-x-auto overflow-y-auto rounded-md border border-border/50 bg-muted/30 p-3 font-mono text-[0.7rem] leading-relaxed text-foreground sm:text-xs">
+{formatLogValue(log.request)}
+                        </pre>
+                      </div>
+                      <div className="border-t border-border/60 px-4 py-3">
+                        <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {log.ok ? "Response" : "Error"}
+                        </p>
+                        <pre className="max-h-44 overflow-x-auto overflow-y-auto rounded-md border border-border/50 bg-muted/30 p-3 font-mono text-[0.7rem] leading-relaxed text-foreground sm:max-h-52 sm:text-xs">
+{formatLogValue(log.ok ? log.response : log.error || log.response)}
+                        </pre>
+                      </div>
                     </div>
                   </div>
+                ))}
 
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(log.ts).toLocaleString()}
-                    </p>
-                    <Button size="sm" variant="outline" onClick={() => copyLogCurl(log)}>
-                      Copy as cURL
-                    </Button>
+                {filteredApiLogs.length === 0 && (
+                  <div className="rounded-lg border border-dashed border-border/80 bg-muted/10 px-6 py-12 text-center">
+                    <FileTextIcon className="mx-auto mb-3 size-8 text-muted-foreground/50" />
+                    <p className="typography-muted">No logs match this filter.</p>
                   </div>
-
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold">Request</p>
-                    <pre className="max-h-40 overflow-auto rounded-md bg-muted/50 p-2 text-xs">
-{formatLogValue(log.request)}
-                    </pre>
-                  </div>
-
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold">{log.ok ? "Response" : "Error"}</p>
-                    <pre className="max-h-48 overflow-auto rounded-md bg-muted/50 p-2 text-xs">
-{formatLogValue(log.ok ? log.response : log.error || log.response)}
-                    </pre>
-                  </div>
-                </div>
-              ))}
-
-              {filteredApiLogs.length === 0 && (
-                <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  No logs match this filter yet.
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         </SheetContent>
       </Sheet>
 

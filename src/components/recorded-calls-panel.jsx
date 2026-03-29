@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { motion } from "framer-motion"
 import {
   AlertCircleIcon,
   CircleCheckIcon,
@@ -21,8 +20,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getRecordedCalls } from "@/services/api"
-const MotionDiv = motion.div
+import { RecordingAudioPlayer } from "@/components/recording-audio-player"
+import { cn } from "@/lib/utils"
+import { enrichRecordedCallsWithLocalInput, getRecordedCalls } from "@/services/api"
 
 const statusMap = {
   accepted: {
@@ -52,21 +52,6 @@ const statusMap = {
   },
 }
 
-const listVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.06,
-    },
-  },
-}
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0 },
-}
-
 const formatTime = (call) => {
   if (call.timeLabel) {
     return call.timeLabel
@@ -77,7 +62,7 @@ const formatTime = (call) => {
   return "Unknown time"
 }
 
-export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0 }) {
+export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0, panelClassName }) {
   const [calls, setCalls] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -122,6 +107,8 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0 }
         const hiddenCalls = JSON.parse(localStorage.getItem("hiddenCalls") || "[]")
         combined = combined.filter((c) => !hiddenCalls.includes(c._id))
         combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+        combined = combined.map((c) => ({ ...c, targetName: "", targetPhone: "" }))
+        combined = enrichRecordedCallsWithLocalInput(combined)
 
         setCalls(combined)
         setLastUpdated(new Date().toLocaleTimeString())
@@ -181,21 +168,24 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0 }
   }
 
   return (
-    <Card className="rounded-2xl border bg-card shadow-sm">
-      <CardHeader className="gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <PhoneCallIcon className="size-5 text-primary" />
-              Recorded Calls
+    <Card className={cn("min-w-0 shadow-sm", panelClassName)}>
+      <CardHeader className="border-b border-border">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1">
+            <CardTitle className="typography-h4 flex items-center gap-2.5">
+              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                <PhoneCallIcon className="size-4" />
+              </span>
+              Recordings
             </CardTitle>
-            <CardDescription className="text-sm md:text-base">
-              Shows running, accepted, and declined calls.
+            <CardDescription className="typography-muted mt-1">
+              Running, queued, and finished calls.
             </CardDescription>
           </div>
           <Button
             variant="outline"
-            className="h-11 rounded-xl px-4 text-sm"
+            size="sm"
+            className="shrink-0"
             onClick={() => fetchCalls()}
             disabled={isLoading || !uid}>
             <RefreshCwIcon className={`size-3.5 ${isLoading ? "animate-spin" : ""}`} />
@@ -203,10 +193,10 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0 }
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         {runningCount > 0 && (
-          <Alert>
-            <LoaderIcon className="animate-spin" />
+          <Alert variant="default" className="bg-muted/50">
+            <LoaderIcon className="animate-spin text-muted-foreground" />
             <AlertTitle>Call in progress</AlertTitle>
             <AlertDescription>
               {runningCount} call{runningCount > 1 ? "s are" : " is"} running or queued.
@@ -223,69 +213,74 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0 }
         )}
 
         {lastUpdated && (
-          <p className="text-sm text-muted-foreground">Last updated: {lastUpdated}</p>
+          <p className="typography-muted">Last updated: {lastUpdated}</p>
         )}
 
         <ScrollArea className="max-h-[560px]">
-          <MotionDiv
-            variants={listVariants}
-            initial="hidden"
-            animate="show"
-            className="space-y-3 pr-3">
+          <div className="space-y-3 pr-3">
             {calls.map((call) => {
               const status = statusMap[call.status] || statusMap.pending
               const StatusIcon = status.icon
               const showRecordingActions = call.isPlayable && call.status === "accepted"
 
               return (
-                <MotionDiv
+                <div
                   key={call._id}
-                  variants={itemVariants}
-                  whileHover={{ y: -2 }}
-                  transition={{ duration: 0.18 }}
-                  className="space-y-3 rounded-xl border p-4">
+                  className="space-y-3 rounded-md border bg-card p-4 transition-colors hover:bg-muted/30">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-semibold">{call.titulo}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatTime(call)} - Dial {call.dial || "-"}
+                      <p className="truncate text-sm font-medium">{call.titulo}</p>
+                      <p className="typography-muted">
+                        {formatTime(call)} · Scenario {call.dial || "—"}
                       </p>
+                      {(call.targetName || call.targetPhone) && (
+                        <p className="mt-1.5 text-sm leading-snug">
+                          {call.targetName ? (
+                            <span className="font-medium text-foreground">{call.targetName}</span>
+                          ) : null}
+                          {call.targetName && call.targetPhone ? (
+                            <span className="text-muted-foreground"> · </span>
+                          ) : null}
+                          {call.targetPhone ? (
+                            <span className="tabular-nums text-muted-foreground">{call.targetPhone}</span>
+                          ) : null}
+                        </p>
+                      )}
                     </div>
-                    <Badge variant="outline" className={`gap-1 px-2.5 py-1 text-sm ${status.tone}`}>
-                      <StatusIcon className={`size-3.5 ${call.status === "running" ? "animate-spin" : ""}`} />
+                    <Badge variant="outline" className={`gap-1 px-2 py-0.5 text-xs ${status.tone}`}>
+                      <StatusIcon className={`size-3 ${call.status === "running" ? "animate-spin" : ""}`} />
                       {status.label}
                     </Badge>
                   </div>
 
                   {showRecordingActions ? (
                     <div className="space-y-2.5">
-                      <audio controls preload="none" src={call.url} className="w-full" />
+                      <RecordingAudioPlayer src={call.url} />
                       <div className="flex flex-wrap gap-2">
-                        <Button className="h-10 rounded-lg px-4" variant="outline" onClick={() => copyAudioLink(call.url)}>
+                        <Button size="sm" variant="outline" onClick={() => copyAudioLink(call.url)}>
                           <CopyIcon className="size-3.5" />
                           Copy link
                         </Button>
-                        <Button className="h-10 rounded-lg px-4" variant="outline" asChild>
+                        <Button size="sm" variant="outline" asChild>
                           <a href={call.url} target="_blank" rel="noopener noreferrer" download>
                             <DownloadIcon className="size-3.5" />
                             Save
                           </a>
                         </Button>
-                        <Button className="h-10 rounded-lg px-4" onClick={() => shareAudio(call)}>
+                        <Button size="sm" onClick={() => shareAudio(call)}>
                           <Share2Icon className="size-3.5" />
                           Share
                         </Button>
-                        <Button 
-                          className="h-10 rounded-lg px-4" 
-                          variant="destructive" 
+                        <Button
+                          size="sm"
+                          variant="destructive"
                           onClick={() => {
-                            const hidden = JSON.parse(localStorage.getItem("hiddenCalls") || "[]");
-                            hidden.push(call._id);
-                            localStorage.setItem("hiddenCalls", JSON.stringify(hidden));
-                            setCalls(prev => prev.filter(c => c._id !== call._id));
-                            toast.success("Call deleted from history");
-                          }}
-                        >
+                            const hidden = JSON.parse(localStorage.getItem("hiddenCalls") || "[]")
+                            hidden.push(call._id)
+                            localStorage.setItem("hiddenCalls", JSON.stringify(hidden))
+                            setCalls((prev) => prev.filter((c) => c._id !== call._id))
+                            toast.success("Call deleted from history")
+                          }}>
                           <Trash2Icon className="size-3.5" />
                           Delete
                         </Button>
@@ -293,60 +288,59 @@ export function RecordedCallsPanel({ uid, countryCode = "fi", refreshToken = 0 }
                     </div>
                   ) : (
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="typography-muted">
                         {call.status === "declined"
-                          ? "Call declined, no recording available."
-                          : "Recording appears here after an accepted call finishes."}
+                          ? "Call declined, no recording."
+                          : "Recording appears after an accepted call finishes."}
                       </p>
-                      <Button 
-                        size="sm"
-                        variant="ghost" 
-                        className="text-muted-foreground hover:text-destructive shrink-0"
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        className="text-muted-foreground hover:text-destructive"
                         onClick={() => {
-                          const hidden = JSON.parse(localStorage.getItem("hiddenCalls") || "[]");
-                          hidden.push(call._id);
-                          localStorage.setItem("hiddenCalls", JSON.stringify(hidden));
-                          setCalls(prev => prev.filter(c => c._id !== call._id));
-                          toast.success("Call deleted from history");
-                        }}
-                      >
+                          const hidden = JSON.parse(localStorage.getItem("hiddenCalls") || "[]")
+                          hidden.push(call._id)
+                          localStorage.setItem("hiddenCalls", JSON.stringify(hidden))
+                          setCalls((prev) => prev.filter((c) => c._id !== call._id))
+                          toast.success("Call deleted from history")
+                        }}>
                         <Trash2Icon className="size-4" />
                       </Button>
                     </div>
                   )}
-                </MotionDiv>
+                </div>
               )
             })}
 
             {isLoading && calls.length === 0 && (
               <div className="grid gap-3">
                 {Array.from({ length: 4 }).map((_, index) => (
-                  <div key={`loading-${index}`} className="space-y-3 rounded-xl border p-4">
+                  <div key={`loading-${index}`} className="space-y-3 rounded-md border p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex-1 space-y-2">
-                        <Skeleton className="h-5 w-3/5" />
-                        <Skeleton className="h-4 w-2/5" />
+                        <Skeleton className="h-4 w-3/5" />
+                        <Skeleton className="h-3 w-2/5" />
                       </div>
-                      <Skeleton className="h-7 w-20 rounded-full" />
+                      <Skeleton className="h-6 w-16 rounded-full" />
                     </div>
-                    <Skeleton className="h-10 w-full rounded-md" />
+                    <Skeleton className="h-9 w-full rounded-md" />
                   </div>
                 ))}
               </div>
             )}
 
             {!uid && (
-              <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                Waiting for UID initialization...
+              <div className="rounded-md border border-dashed p-6 text-center typography-muted">
+                Waiting for UID initialization…
               </div>
             )}
 
             {!isLoading && uid && calls.length === 0 && !error && (
-              <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+              <div className="rounded-md border border-dashed p-6 text-center typography-muted">
                 No recorded calls yet.
               </div>
             )}
-          </MotionDiv>
+          </div>
         </ScrollArea>
       </CardContent>
     </Card>

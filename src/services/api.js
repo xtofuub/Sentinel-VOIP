@@ -289,6 +289,85 @@ const resolveCallStatus = (item) => {
     return 'pending';
 };
 
+const RECORDING_TARGET_MEMORY_KEY = 'recordingTargetMemory';
+const RECORDING_TARGET_MEMORY_LIMIT = 400;
+
+const recordingRowKey = (uid, dial) => `${String(uid ?? '')}|${String(dial ?? '')}`;
+
+/** Remember the name/phone you typed when starting a call (client-only; does not depend on API list fields). */
+export const pushRecordingTargetMemory = ({ uid, dial, targetName, targetPhone, taskId }) => {
+    let arr = [];
+    try {
+        arr = JSON.parse(localStorage.getItem(RECORDING_TARGET_MEMORY_KEY) || '[]');
+    } catch {
+        arr = [];
+    }
+    if (!Array.isArray(arr)) {
+        arr = [];
+    }
+    arr.unshift({
+        uid: String(uid ?? ''),
+        dial: String(dial ?? ''),
+        targetName: toNonEmptyString(targetName),
+        targetPhone: toNonEmptyString(targetPhone),
+        taskId: taskId != null ? String(taskId) : '',
+        at: Date.now(),
+    });
+    localStorage.setItem(
+        RECORDING_TARGET_MEMORY_KEY,
+        JSON.stringify(arr.slice(0, RECORDING_TARGET_MEMORY_LIMIT))
+    );
+};
+
+/**
+ * Apply stored name/phone to each recording row by pairing with launches for the same uid + scenario (dial).
+ * Both lists are newest-first; the i-th recording in that group gets the i-th remembered launch.
+ */
+export const enrichRecordedCallsWithLocalInput = (calls) => {
+    let memory = [];
+    try {
+        memory = JSON.parse(localStorage.getItem(RECORDING_TARGET_MEMORY_KEY) || '[]');
+    } catch {
+        return calls;
+    }
+    if (!Array.isArray(memory) || memory.length === 0 || !calls.length) {
+        return calls;
+    }
+
+    const pendingByKey = new Map();
+    for (const m of memory) {
+        const key = recordingRowKey(m.uid, m.dial);
+        if (!pendingByKey.has(key)) {
+            pendingByKey.set(key, []);
+        }
+        pendingByKey.get(key).push(m);
+    }
+
+    const assignments = new Map();
+    for (const [key, pendingList] of pendingByKey) {
+        const callSub = calls.filter((c) => recordingRowKey(c.uid, c.dial) === key);
+        const n = Math.min(callSub.length, pendingList.length);
+        for (let i = 0; i < n; i++) {
+            assignments.set(callSub[i]._id, {
+                targetName: pendingList[i].targetName,
+                targetPhone: pendingList[i].targetPhone,
+            });
+        }
+    }
+
+    return calls.map((c) => {
+        const a = assignments.get(c._id);
+        if (!a) {
+            return c;
+        }
+        return {
+            ...c,
+            targetName: a.targetName,
+            targetPhone: a.targetPhone,
+        };
+    });
+};
+
 const normalizeRecordedCallItem = (item) => {
     if (!item || typeof item !== 'object') {
         return null;
@@ -303,12 +382,18 @@ const normalizeRecordedCallItem = (item) => {
     const createTimestamp = Number(firstNonEmpty(item, ['create_t', 'f']));
     const hasTimestamp = Number.isFinite(createTimestamp) && createTimestamp > 0;
     const callStatus = resolveCallStatus(item);
+    const targetName = toNonEmptyString(
+        firstNonEmpty(item, ['nombre', 'target_name', 'contact_name', 'nom', 'contacto', 'caller_name'])
+    );
+    const targetPhone = toNonEmptyString(
+        firstNonEmpty(item, ['dst', 'telefono', 'phone', 'tlf', 'numero', 'movil', 'msisdn'])
+    );
 
     return {
         ...item,
         _id: id,
         uid: toNonEmptyString(firstNonEmpty(item, ['uid'])),
-        titulo: toNonEmptyString(firstNonEmpty(item, ['titulo', 'title', 'name'])) || 'Untitled call',
+        titulo: toNonEmptyString(firstNonEmpty(item, ['titulo', 'title', 'tname'])) || 'Untitled call',
         cou: toNonEmptyString(firstNonEmpty(item, ['cou', 'c'])).toLowerCase(),
         pic: toNonEmptyString(firstNonEmpty(item, ['pic', 'image', 'image_url'])),
         url: audioUrl,
@@ -321,6 +406,9 @@ const normalizeRecordedCallItem = (item) => {
         isPlayable: audioUrl.length > 0,
         timestamp: hasTimestamp ? createTimestamp : 0,
         timeLabel: toNonEmptyString(firstNonEmpty(item, ['fecha', 'real_f'])),
+        dial: toNonEmptyString(firstNonEmpty(item, ['dial', 'dial_id', 'd'])),
+        targetName,
+        targetPhone,
     };
 };
 
@@ -341,7 +429,8 @@ const postApi = async (path, payload) => {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept-Charset': 'utf-8',
             },
             body: JSON.stringify(payload)
         });

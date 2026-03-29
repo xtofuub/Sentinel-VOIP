@@ -33,6 +33,7 @@ export default defineConfig({
             proxyReq.removeHeader('sec-fetch-dest');
             proxyReq.removeHeader('sec-fetch-mode');
             proxyReq.removeHeader('sec-fetch-site');
+            proxyReq.setHeader('Accept-Charset', 'utf-8');
           });
         }
       },

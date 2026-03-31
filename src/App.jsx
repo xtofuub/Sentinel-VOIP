@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   CopyIcon,
@@ -119,6 +119,7 @@ function App() {
   const [logFilter, setLogFilter] = useState("all")
   const [playingId, setPlayingId] = useState(null)
   const [currentAudio, setCurrentAudio] = useState(null)
+  const isLaunchingRef = useRef(false)
 
   const selectedPrank = useMemo(
     () => pranks.find((prank) => prank._id === selectedPrankId) ?? null,
@@ -349,10 +350,15 @@ function App() {
   }
 
   const handleLaunchCall = async () => {
+    if (isLaunchingRef.current) {
+      return
+    }
+
     if (!selectedPrank || !targetName.trim() || !targetPhone.trim() || phoneError) {
       return
     }
 
+    isLaunchingRef.current = true
     setIsLaunching(true)
     setStatusText("Checking call credits")
     try {
@@ -476,6 +482,7 @@ function App() {
       showLaunchFailureToast(detail)
     } finally {
       setIsLaunching(false)
+      isLaunchingRef.current = false
     }
   }
 
@@ -507,7 +514,7 @@ function App() {
             Sentinel <span className="opacity-10 text-ms-white">V2</span>
           </h1>
           <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-ms-muted">
-            High Precision Audio Intelligence
+            Unlimited Prank Call Intelligence
           </p>
         </header>
 

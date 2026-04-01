@@ -1,17 +1,87 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <title>Sentinel</title>
-  </head>
-  <body class="font-body selection:bg-primary-container selection:text-white">
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<html class="dark" lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary-container": "#ff4a8e",
+            "on-surface-variant": "#e5bcc5",
+            "tertiary-fixed-dim": "#c6c6c7",
+            "surface": "#131313",
+            "secondary-container": "#fd8b00",
+            "outline-variant": "#5c3f46",
+            "error-container": "#93000a",
+            "error": "#ffb4ab",
+            "on-primary-fixed-variant": "#8f0045",
+            "secondary-fixed-dim": "#ffb77d",
+            "on-primary": "#65002f",
+            "surface-container-high": "#2a2a2a",
+            "inverse-primary": "#ba005c",
+            "surface-variant": "#353535",
+            "on-tertiary": "#2f3131",
+            "tertiary-fixed": "#e2e2e2",
+            "surface-container-highest": "#353535",
+            "primary-fixed": "#ffd9e1",
+            "on-surface": "#e2e2e2",
+            "secondary": "#ffb77d",
+            "on-secondary-fixed-variant": "#6e3900",
+            "on-error-container": "#ffdad6",
+            "secondary-fixed": "#ffdcc3",
+            "surface-container-low": "#1b1b1b",
+            "tertiary": "#c6c6c7",
+            "on-background": "#e2e2e2",
+            "tertiary-container": "#909191",
+            "surface-tint": "#ffb1c5",
+            "surface-dim": "#131313",
+            "on-tertiary-fixed-variant": "#454747",
+            "on-secondary": "#4d2600",
+            "on-secondary-fixed": "#2f1500",
+            "background": "#131313",
+            "inverse-surface": "#e2e2e2",
+            "primary-fixed-dim": "#ffb1c5",
+            "on-primary-container": "#590028",
+            "on-primary-fixed": "#3f001b",
+            "surface-container-lowest": "#0e0e0e",
+            "on-error": "#690005",
+            "on-tertiary-fixed": "#1a1c1c",
+            "outline": "#ac878f",
+            "on-tertiary-container": "#282a2a",
+            "on-secondary-container": "#603100",
+            "surface-container": "#1f1f1f",
+            "primary": "#ffb1c5",
+            "inverse-on-surface": "#303030",
+            "surface-bright": "#393939"
+          },
+          fontFamily: {
+            headline: ["Inter", "sans-serif"],
+            body: ["Inter", "sans-serif"],
+            label: ["Inter", "sans-serif"]
+          }
+        }
+      }
+    }
+  </script>
+  <title>Juas Mojave</title>
+</head>
+
+<body class="bg-surface text-on-surface font-body selection:bg-primary-container selection:text-white">
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

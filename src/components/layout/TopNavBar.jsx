@@ -7,6 +7,10 @@ export const TopNavBar = () => {
     import("@/services/mock_data");
   };
 
+  const handleAccountClick = () => {
+    window.dispatchEvent(new CustomEvent("sentinel:open-api-panel"));
+  };
+
   return (
     <nav className="fixed top-0 w-full z-50 bg-[#131313]/80 backdrop-blur-xl grid grid-cols-[auto_1fr_auto] items-center px-8 h-20 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
       {/* Left: Brand */}
@@ -67,7 +71,12 @@ export const TopNavBar = () => {
 
       {/* Right: Account icon */}
       <div className="flex items-center justify-end">
-        <button className="material-symbols-outlined text-[#FFB1C5] p-2 hover:bg-[#2A2A2A] rounded-lg transition-all duration-300 active:scale-95">
+        <button
+          type="button"
+          onClick={handleAccountClick}
+          title="Open API Debug"
+          className="material-symbols-outlined text-[#FFB1C5] p-2 hover:bg-[#2A2A2A] rounded-lg transition-all duration-300 active:scale-95"
+        >
           account_circle
         </button>
       </div>

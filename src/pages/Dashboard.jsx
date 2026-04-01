@@ -9,7 +9,10 @@ import {
   launchPrank,
   generateTaskId,
   pushRecordingTargetMemory,
-  formatKoErrorMessage
+  formatKoErrorMessage,
+  getApiLogs,
+  clearApiLogs,
+  subscribeApiLogs
 } from "../services/api";
 
 const formatPlaybackTime = (seconds) => {
@@ -22,6 +25,18 @@ const formatPlaybackTime = (seconds) => {
 const formatTaskTimestamp = (date = new Date()) => {
   const pad = (value) => String(value).padStart(2, "0");
   return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
+
+const stringifyApiLogValue = (value, maxLength = 1400) => {
+  if (value === null || value === undefined) return "";
+  let raw = "";
+  try {
+    raw = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  } catch {
+    raw = String(value);
+  }
+  if (raw.length <= maxLength) return raw;
+  return `${raw.slice(0, maxLength)}\n...truncated`;
 };
 
 const DashboardAudioPlayer = ({ url, titulo }) => {
@@ -304,6 +319,10 @@ export const Dashboard = () => {
   const [canScrollMore, setCanScrollMore] = useState(true);
   const previewAudioRef = useRef(null);
   const [previewingId, setPreviewingId] = useState(null);
+  const apiPanelRef = useRef(null);
+  const [apiPanelPulse, setApiPanelPulse] = useState(false);
+  const [apiLogItems, setApiLogItems] = useState([]);
+  const [apiLogFilter, setApiLogFilter] = useState("all");
 
   const handlePrankListScroll = (e) => {
     const bottom = e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight < 20;
@@ -319,6 +338,81 @@ export const Dashboard = () => {
     });
     return Array.from(byId.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   }, [queuedCalls, calls]);
+
+  const apiLogStats = useMemo(() => {
+    const total = apiLogItems.length;
+    const success = apiLogItems.filter((entry) => entry.ok).length;
+    const errors = apiLogItems.filter((entry) => !entry.ok).length;
+    return { total, success, errors };
+  }, [apiLogItems]);
+
+  const filteredApiLogs = useMemo(() => {
+    if (apiLogFilter === "errors") {
+      return apiLogItems.filter((entry) => !entry.ok);
+    }
+    if (apiLogFilter === "success") {
+      return apiLogItems.filter((entry) => entry.ok);
+    }
+    return apiLogItems;
+  }, [apiLogItems, apiLogFilter]);
+
+  const handleClearApiLogs = useCallback(() => {
+    clearApiLogs();
+    toast.success("API trace cleared");
+  }, []);
+
+  const handleOpenApiPanel = useCallback(() => {
+    setApiPanelPulse(true);
+    apiPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const removeDeletedCallFromStorage = useCallback((call) => {
+    if (!call?._id) return;
+
+    const callUid = String(call.uid || "");
+    const callDial = String(call.dial || "");
+    const callId = String(call._id || "");
+
+    // Purge any locally remembered target data tied to this deleted row.
+    try {
+      const memoryRaw = JSON.parse(localStorage.getItem("recordingTargetMemory") || "[]");
+      if (Array.isArray(memoryRaw) && memoryRaw.length > 0) {
+        const filteredMemory = memoryRaw.filter((entry) => {
+          const entryUid = String(entry?.uid || "");
+          const entryDial = String(entry?.dial || "");
+          const entryTaskId = String(entry?.taskId || "");
+          if (entryTaskId && entryTaskId === callId) return false;
+          if (callUid && callDial && entryUid === callUid && entryDial === callDial) return false;
+          return true;
+        });
+        localStorage.setItem("recordingTargetMemory", JSON.stringify(filteredMemory));
+      }
+    } catch {
+      // no-op
+    }
+
+    // Drop stale hidden-calls key from older behavior.
+    localStorage.removeItem("hiddenCalls");
+
+    // If no rows remain for this uid, remove it from active accounts to stop polling that account.
+    if (callUid) {
+      const stillHasUid = [...calls, ...queuedCalls].some((entry) => entry?._id !== call._id && String(entry?.uid || "") === callUid);
+      if (!stillHasUid) {
+        try {
+          const activeAccounts = JSON.parse(localStorage.getItem("activeAccounts") || "[]");
+          if (Array.isArray(activeAccounts)) {
+            const nextAccounts = activeAccounts.filter((entry) => {
+              const entryId = String(entry?.did || entry?.uid || "");
+              return entryId !== callUid;
+            });
+            localStorage.setItem("activeAccounts", JSON.stringify(nextAccounts));
+          }
+        } catch {
+          // no-op
+        }
+      }
+    }
+  }, [calls, queuedCalls]);
 
   const fetchCalls = useCallback(async ({ silent = false } = {}) => {
     const activeAccounts = JSON.parse(localStorage.getItem("activeAccounts") || "[]");
@@ -353,8 +447,6 @@ export const Dashboard = () => {
         return true;
       });
 
-      const hiddenCalls = JSON.parse(localStorage.getItem("hiddenCalls") || "[]");
-      combined = combined.filter((c) => !hiddenCalls.includes(c._id));
       combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
       combined = combined.map((c) => ({ ...c, targetName: "", targetPhone: "" }));
       combined = enrichRecordedCallsWithLocalInput(combined);
@@ -371,6 +463,28 @@ export const Dashboard = () => {
   useEffect(() => {
     fetchCalls();
   }, [fetchCalls]);
+
+  useEffect(() => {
+    setApiLogItems(getApiLogs());
+    const unsubscribe = subscribeApiLogs((nextLogs) => {
+      setApiLogItems(Array.isArray(nextLogs) ? nextLogs : []);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const handleOpenEvent = () => {
+      handleOpenApiPanel();
+    };
+    window.addEventListener("sentinel:open-api-panel", handleOpenEvent);
+    return () => window.removeEventListener("sentinel:open-api-panel", handleOpenEvent);
+  }, [handleOpenApiPanel]);
+
+  useEffect(() => {
+    if (!apiPanelPulse) return;
+    const timeoutId = setTimeout(() => setApiPanelPulse(false), 1400);
+    return () => clearTimeout(timeoutId);
+  }, [apiPanelPulse]);
 
   const runningCount = useMemo(() => {
     return visibleCalls.filter((call) => call.status === "running" || call.status === "queued" || call.status === "pending").length;
@@ -463,21 +577,18 @@ export const Dashboard = () => {
     }
   };
 
-  const handleDeleteLog = useCallback((callId) => {
-    if (!callId) {
+  const handleDeleteLog = useCallback((call) => {
+    if (!call?._id) {
       return;
     }
 
-    const currentHidden = JSON.parse(localStorage.getItem("hiddenCalls") || "[]");
-    const hiddenSet = new Set(Array.isArray(currentHidden) ? currentHidden : []);
-    hiddenSet.add(callId);
-    localStorage.setItem("hiddenCalls", JSON.stringify(Array.from(hiddenSet).slice(-500)));
+    removeDeletedCallFromStorage(call);
 
-    setCalls((currentCalls) => currentCalls.filter((entry) => entry._id !== callId));
-    setQueuedCalls((currentCalls) => currentCalls.filter((entry) => entry._id !== callId));
+    setCalls((currentCalls) => currentCalls.filter((entry) => entry._id !== call._id));
+    setQueuedCalls((currentCalls) => currentCalls.filter((entry) => entry._id !== call._id));
 
     toast.success("Call deleted from history");
-  }, []);
+  }, [removeDeletedCallFromStorage]);
 
   const handleStartPrank = async () => {
     if (!selectedPrank) {
@@ -563,9 +674,20 @@ export const Dashboard = () => {
         currentQueued.map((entry) => (entry._id === taskId ? { ...entry, uid: did } : entry))
       );
 
-      toast.success("Mischief queued", {
-        description: `${cleanName} • ${selectedPrank.titulo}`
-      });
+      toast.success(
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[16px] text-[#ff7aa8]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            verified
+          </span>
+          <span className="font-black uppercase tracking-[0.14em] text-[11px] text-[#ffe2ec]">
+            Mischief queued
+          </span>
+        </div>,
+        {
+          description: `${cleanName} • ${selectedPrank.titulo}`,
+          className: "!border-[#ff4a8e]/35 !bg-[#1b1115] !text-[#ffe2ec]"
+        }
+      );
       setTargetName("");
       setPhoneNumber("");
 
@@ -586,6 +708,14 @@ export const Dashboard = () => {
   return (
     <main className="pt-32 pb-24 px-8 max-w-[1600px] mx-auto bg-[#131313] min-h-screen font-['Inter'] selection:bg-[#ff4a8e] selection:text-white">
       <audio ref={previewAudioRef} preload="none" className="hidden" />
+      <button
+        type="button"
+        onClick={handleOpenApiPanel}
+        className="fixed bottom-6 right-6 z-[80] inline-flex items-center gap-2 rounded-full border border-[#ff4a8e]/40 bg-[#190f14]/95 px-4 py-2.5 text-[#ffd0e0] shadow-[0_10px_30px_rgba(255,74,142,0.28)] backdrop-blur-md transition-all hover:bg-[#25151c] hover:border-[#ff6aa1]/60 hover:scale-[1.02] active:scale-[0.98]"
+      >
+        <span className="material-symbols-outlined text-[16px]">bug_report</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.18em]">API Debug</span>
+      </button>
       <div className="flex flex-col gap-12">
 
         {/* Top Section: Config Left, Bento Right */}
@@ -993,7 +1123,7 @@ export const Dashboard = () => {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeleteLog(call._id);
+                                handleDeleteLog(call);
                               }}
                               className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-500/10 text-rose-500/50 hover:bg-rose-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
                               title="Purge record"
@@ -1087,6 +1217,160 @@ export const Dashboard = () => {
                   <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#ffb1c5]/60 max-w-sm text-center">
                     Initiate a sequence from the scenario vault to begin tracking.
                   </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section ref={apiPanelRef} className="mt-8 break-inside-avoid">
+          <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/5 pb-5">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="h-[2px] w-8 bg-[#ff4a8e]"></div>
+                <span className="text-[10px] text-[#ff4a8e] font-black uppercase tracking-[0.28em]">Sentinel Diagnostics</span>
+              </div>
+              <h3 className="text-3xl lg:text-4xl font-black tracking-tighter text-white uppercase italic leading-none">
+                API Trace Panel
+              </h3>
+              <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.2em] text-on-surface-variant/70">
+                Live request telemetry for debugging
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-3 py-1.5 rounded-full border border-white/10 bg-[#171114] text-[10px] font-black uppercase tracking-[0.16em] text-white/70">
+                Total {apiLogStats.total}
+              </span>
+              <span className="px-3 py-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300">
+                OK {apiLogStats.success}
+              </span>
+              <span className="px-3 py-1.5 rounded-full border border-rose-400/20 bg-rose-400/10 text-[10px] font-black uppercase tracking-[0.16em] text-rose-300">
+                ERR {apiLogStats.errors}
+              </span>
+            </div>
+          </header>
+
+          <div
+            className={`relative rounded-[2rem] border border-[#ff4a8e]/15 bg-[#120e10] shadow-[0_30px_80px_-20px_rgba(255,74,142,0.15)] overflow-hidden transition-all duration-300 ${
+              apiPanelPulse ? "ring-2 ring-[#ff4a8e]/45 shadow-[0_0_0_1px_rgba(255,74,142,0.35),0_30px_80px_-20px_rgba(255,74,142,0.25)]" : ""
+            }`}
+          >
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#ff4a8e]/35 to-transparent"></div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-white/5 bg-[#171114] px-6 py-4">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">
+                <span className="w-2 h-2 rounded-full bg-[#ff4a8e] animate-pulse"></span>
+                Request Stream
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setApiLogFilter("all")}
+                  className={`px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-[0.14em] transition-colors ${
+                    apiLogFilter === "all"
+                      ? "border-[#ff4a8e]/40 bg-[#ff4a8e]/15 text-[#ffd5e4]"
+                      : "border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white/20"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setApiLogFilter("errors")}
+                  className={`px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-[0.14em] transition-colors ${
+                    apiLogFilter === "errors"
+                      ? "border-rose-400/45 bg-rose-400/15 text-rose-200"
+                      : "border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white/20"
+                  }`}
+                >
+                  Errors
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setApiLogFilter("success")}
+                  className={`px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-[0.14em] transition-colors ${
+                    apiLogFilter === "success"
+                      ? "border-emerald-400/45 bg-emerald-400/15 text-emerald-200"
+                      : "border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white/20"
+                  }`}
+                >
+                  Success
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearApiLogs}
+                  className="px-3 py-1.5 rounded-lg border border-[#ff4a8e]/30 bg-[#ff4a8e]/10 text-[10px] font-black uppercase tracking-[0.14em] text-[#ffd0e0] transition-colors hover:bg-[#ff4a8e]/20"
+                >
+                  Clear Trace
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 sm:p-6 max-h-[420px] overflow-y-auto custom-scrollbar space-y-3">
+              {filteredApiLogs.length > 0 ? (
+                filteredApiLogs.map((entry) => {
+                  const isError = !entry.ok;
+                  const requestText = stringifyApiLogValue(entry.request);
+                  const responseText = stringifyApiLogValue(entry.response);
+                  return (
+                    <details
+                      key={entry.id}
+                      className={`rounded-2xl border bg-[#171215] transition-colors ${
+                        isError
+                          ? "border-rose-400/30 hover:border-rose-300/40"
+                          : "border-emerald-400/20 hover:border-emerald-300/30"
+                      }`}
+                    >
+                      <summary className="list-none cursor-pointer px-4 py-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`material-symbols-outlined text-[16px] shrink-0 ${isError ? "text-rose-300" : "text-emerald-300"}`}>
+                              {isError ? "error" : "task_alt"}
+                            </span>
+                            <span className="text-[11px] font-black uppercase tracking-[0.14em] text-[#ffd8e6] truncate">
+                              {entry.path || "unknown_path"}
+                            </span>
+                            <span className="text-[10px] font-mono text-white/45 shrink-0">
+                              {entry.status || 0}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-[10px] font-mono text-white/45">
+                            <span>{entry.durationMs || 0}ms</span>
+                            <span>{entry.ts ? new Date(entry.ts).toLocaleTimeString() : "-"}</span>
+                          </div>
+                        </div>
+                        {entry.error && (
+                          <p className="mt-2 text-[10px] text-rose-200/90 font-medium line-clamp-2">
+                            {entry.error}
+                          </p>
+                        )}
+                      </summary>
+
+                      <div className="border-t border-white/5 px-4 py-3 space-y-3">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#ffb8ce] mb-1">Request</p>
+                          <pre className="text-[10px] leading-relaxed text-white/70 bg-black/20 border border-white/10 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap break-words">
+                            {requestText || "No request payload"}
+                          </pre>
+                        </div>
+
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#ffb8ce] mb-1">Response</p>
+                          <pre className="text-[10px] leading-relaxed text-white/70 bg-black/20 border border-white/10 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap break-words">
+                            {responseText || "No response payload"}
+                          </pre>
+                        </div>
+                      </div>
+                    </details>
+                  );
+                })
+              ) : (
+                <div className="rounded-2xl border border-dashed border-[#ff4a8e]/25 bg-[#161114] p-10 text-center">
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#ffb8ce]/75">No API trace entries</p>
+                  <p className="mt-2 text-[11px] text-white/45">Trigger actions to populate debug telemetry.</p>
                 </div>
               )}
             </div>

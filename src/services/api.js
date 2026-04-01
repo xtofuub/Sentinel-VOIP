@@ -642,7 +642,26 @@ const getLocaleForCountry = (countryCode) => {
     return mapping[countryCode.toLowerCase()] || `${countryCode.toLowerCase()}_${countryCode.toUpperCase()}`;
 };
 
+const IOS_VERSION_POOL = ['16.2', '16.4', '16.6', '17.0', '17.1', '17.3', '17.4'];
+
+const TIMEZONE_POOL = [
+    'Europe/Helsinki',
+    'Europe/Stockholm',
+    'Europe/Oslo',
+    'Europe/Copenhagen',
+    'Europe/Amsterdam',
+    'Europe/Paris',
+    'Europe/Berlin',
+    'Europe/Madrid',
+    'Europe/Rome',
+    'Europe/London'
+];
+
+const pickRandom = (items) => items[Math.floor(Math.random() * items.length)];
+
 export const createAccount = async (did, countryCode = 'fi') => {
+    const iosVersion = pickRandom(IOS_VERSION_POOL);
+    const timezone = pickRandom(TIMEZONE_POOL);
     const payload = {
         did: did,
         dtype: "uid",
@@ -651,10 +670,10 @@ export const createAccount = async (did, countryCode = 'fi') => {
             c: countryCode.toUpperCase(), 
             l: getLocaleForCountry(countryCode), 
             v: "6.7", 
-            r: "16.2", 
+            r: iosVersion, 
             mf: "Apple" 
         },
-        timezone: "Europe/Helsinki"
+        timezone
     };
     return postApi('create.lua', payload);
 };

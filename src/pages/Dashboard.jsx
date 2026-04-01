@@ -1,22 +1,176 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { usePrank } from "../context/PrankContext";
 import { MOCK_PRANKS_BY_LANGUAGE } from "../services/mock_data";
+
+const PRIMARY_LANGUAGE_GROUPS = new Set(["English", "Español", "Français", "Português"]);
+
+const REGION_CODE_MAP = {
+  Danmark: "dk",
+  Deutsch: "de",
+  Eesti: "ee",
+  English: "gb",
+  "Español": "es",
+  "Français": "fr",
+  Hrvatska: "hr",
+  Indonesia: "id",
+  Italiano: "it",
+  Latvija: "lv",
+  Lietuva: "lt",
+  "Magyarország": "hu",
+  Malaysia: "my",
+  Malta: "mt",
+  Moldova: "md",
+  Nederlands: "nl",
+  Norge: "no",
+  Polska: "pl",
+  "Português": "pt",
+  "România": "ro",
+  Slovenija: "si",
+  Slovensko: "sk",
+  Suomi: "fi",
+  Sverige: "se",
+  "Türkiye": "tr",
+  "Yкраїнська": "ua",
+  "Việt Nam": "vn",
+  "Ísland": "is",
+  "Česko": "cz",
+  "Ελλάδα": "gr",
+  "Κύπρος": "cy",
+  "България": "bg",
+  "Русский": "ru",
+  "ישראל": "il",
+  "پاکستان": "pk",
+  "भारत": "in",
+  "বাংলাদেশ": "bd",
+  "ประเทศไทย": "th",
+  "中国": "cn",
+  "台灣": "tw",
+  "日本": "jp",
+  "대한민국": "kr",
+  "مصر": "eg",
+  "香港": "hk",
+  "Hong Kong": "hk",
+  Australia: "au",
+  Canada: "ca",
+  Ireland: "ie",
+  "New Zealand": "nz",
+  Singapore: "sg",
+  "South Africa": "za",
+  "United Kingdom": "gb",
+  "United States": "us",
+  "España": "es",
+  "México": "mx",
+  Colombia: "co",
+  Argentina: "ar",
+  Chile: "cl",
+  "Costa Rica": "cr",
+  Paraguay: "py",
+  "Perú": "pe",
+  "Puerto Rico": "pr",
+  Venezuela: "ve",
+  Belgique: "be",
+  France: "fr",
+  "Lëtzebuerg": "lu",
+  Suisse: "ch",
+  Brasil: "br",
+  Portugal: "pt",
+  "Română": "ro",
+  "عربي": "eg"
+};
+
+const normalizeLanguageName = (name) => {
+  if (!name) return "";
+  const cleaned = name.replace(/\uFFFD/g, "").replace(/\s+/g, " ").trim();
+  if (cleaned.includes("香港") || /hong\s*kong/i.test(cleaned)) return "Hong Kong";
+  return cleaned;
+};
+
+const getFlagEmoji = (regionName) => {
+  const normalized = normalizeLanguageName(regionName);
+  const code = REGION_CODE_MAP[normalized];
+  if (!code) return "🌐";
+  return String.fromCodePoint(
+    ...code
+      .toUpperCase()
+      .split("")
+      .map((ch) => 127397 + ch.charCodeAt(0))
+  );
+};
+
+const buildLanguageOptions = (data) => {
+  const options = [];
+
+  Object.entries(data).forEach(([key, val]) => {
+    if (Array.isArray(val)) {
+      const label = normalizeLanguageName(key);
+      options.push({
+        id: `flat:${key}`,
+        label,
+        displayName: `${getFlagEmoji(label)} ${label}`,
+        pranks: val
+      });
+      return;
+    }
+
+    if (val && typeof val === "object") {
+      Object.entries(val).forEach(([subKey, subPranks]) => {
+        if (!Array.isArray(subPranks)) return;
+        const sourceLabel = PRIMARY_LANGUAGE_GROUPS.has(key) ? subKey : key;
+        const label = normalizeLanguageName(sourceLabel);
+        options.push({
+          id: `nested:${key}:${subKey}`,
+          label,
+          displayName: `${getFlagEmoji(label)} ${label}`,
+          pranks: subPranks
+        });
+      });
+    }
+  });
+
+  // Keep one entry per visible label to avoid duplicates caused by malformed imports.
+  const uniqueByLabel = new Map();
+  options.forEach((option) => {
+    const existing = uniqueByLabel.get(option.label);
+    if (!existing || option.pranks.length > existing.pranks.length) {
+      uniqueByLabel.set(option.label, option);
+    }
+  });
+
+  return Array.from(uniqueByLabel.values()).sort((a, b) => a.label.localeCompare(b.label));
+};
 
 export const Dashboard = () => {
   const { selectedPrank, setSelectedPrank, credits } = usePrank();
   const [targetName, setTargetName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [selectedLanguage, setSelectedLanguage] = useState("English (US)");
+  const [selectedLanguage, setSelectedLanguage] = useState("");
+  const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+  const [languageSearch, setLanguageSearch] = useState("");
+  const languageMenuRef = useRef(null);
 
-  // Extract all available languages from mock data
   const availableLanguages = useMemo(() => {
-    return Object.keys(MOCK_PRANKS_BY_LANGUAGE).sort();
+    return buildLanguageOptions(MOCK_PRANKS_BY_LANGUAGE);
   }, []);
+
+  const activeLanguage = useMemo(() => {
+    return availableLanguages.find((lang) => lang.id === selectedLanguage) || availableLanguages[0] || null;
+  }, [availableLanguages, selectedLanguage]);
 
   // Filter pranks based on selected language
   const pranksForLanguage = useMemo(() => {
-    return MOCK_PRANKS_BY_LANGUAGE[selectedLanguage] || [];
-  }, [selectedLanguage]);
+    return activeLanguage?.pranks || [];
+  }, [activeLanguage]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (languageMenuRef.current && !languageMenuRef.current.contains(event.target)) {
+        setIsLanguageMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleStartPrank = () => {
     if (!selectedPrank) {
@@ -31,7 +185,7 @@ export const Dashboard = () => {
       prank: selectedPrank.titulo,
       target: targetName,
       phone: phoneNumber,
-      language: selectedLanguage
+      language: activeLanguage?.label || "Unknown"
     });
     // In a real app, this would trigger an API call
     alert(`Success! Engaging ${targetName} with the "${selectedPrank.titulo}" scenario.`);
@@ -52,11 +206,13 @@ export const Dashboard = () => {
               <p className="text-[10px] text-on-surface-variant font-black uppercase tracking-[0.3em] mt-2 opacity-60">Target Details & Logic</p>
             </header>
 
-            <div className="bg-[#1b1b1b] p-8 rounded-3xl border border-outline-variant/10 shadow-2xl space-y-8 relative overflow-hidden group">
-              {/* Decorative gradient corner */}
-              <div className="absolute -top-12 -right-12 w-24 h-24 bg-[#ff4a8e]/5 blur-3xl rounded-full group-hover:bg-[#ff4a8e]/15 transition-all duration-700"></div>
+            <div className="bg-[#1b1b1b] p-8 rounded-3xl border border-outline-variant/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] space-y-8 relative group">
+              {/* Decorative gradient corner protected by its own overflow container so the dropdown can escape */}
+              <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+                <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#ff4a8e]/10 blur-[40px] rounded-full group-hover:bg-[#ff4a8e]/20 group-hover:blur-[50px] transition-all duration-700"></div>
+              </div>
 
-              <div className="space-y-6">
+              <div className="space-y-6 relative z-10">
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant font-black">Target Name</label>
                   <div className="relative">
@@ -85,16 +241,80 @@ export const Dashboard = () => {
 
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant font-black">Language</label>
-                  <div className="relative">
-                    <select
-                      value={selectedLanguage}
-                      onChange={(e) => setSelectedLanguage(e.target.value)}
-                      className="w-full bg-[#131313] border border-outline-variant/10 focus:border-[#ffb1c5] focus:ring-0 text-on-surface px-4 py-4 rounded-xl appearance-none transition-all font-medium"
+                  <div className="relative" ref={languageMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLanguageMenuOpen((prev) => !prev);
+                        if (!isLanguageMenuOpen) setLanguageSearch("");
+                      }}
+                      className={`w-full bg-[#101010] border ${
+                        isLanguageMenuOpen ? "border-[#ff4a8e] shadow-[0_0_20px_rgba(255,74,142,0.2)]" : "border-white/10 hover:border-white/20"
+                      } text-white px-4 py-4 rounded-xl transition-all font-bold flex items-center justify-between group/langbox`}
                     >
-                      {availableLanguages.map(lang => (
-                        <option key={lang} value={lang}>{lang}</option>
-                      ))}
-                    </select>
+                      <div className="flex items-center gap-3">
+                        <span className="truncate tracking-wide text-sm">
+                          {activeLanguage?.displayName || "Select region..."}
+                        </span>
+                      </div>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
+                        isLanguageMenuOpen ? "bg-[#ff4a8e] text-white rotate-180 shadow-[0_0_15px_#ff4a8e]" : "bg-white/5 text-white/50 group-hover/langbox:bg-white/10"
+                      }`}>
+                        <span className="material-symbols-outlined text-[16px]">expand_more</span>
+                      </div>
+                    </button>
+
+                    {isLanguageMenuOpen && (
+                      <div className="absolute z-[100] mt-3 w-full rounded-2xl border border-[#ff4a8e]/30 bg-black/90 backdrop-blur-2xl shadow-[0_30px_80px_-10px_rgba(255,74,142,0.2)] flex flex-col ring-1 ring-white/5 origin-top animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-3 border-b border-white/10 bg-[#ff4a8e]/5">
+                          <div className="relative">
+                            <input
+                              type="text"
+                              autoFocus
+                              value={languageSearch}
+                              onChange={(e) => setLanguageSearch(e.target.value)}
+                              placeholder="Search Global Node..."
+                              className="w-full bg-[#1b1b1b]/80 border border-white/10 rounded-xl py-2.5 px-3 text-xs text-white placeholder:text-white/40 focus:border-[#ff4a8e]/50 focus:ring-0 transition-all font-medium backdrop-blur-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-2 grid grid-cols-1 gap-2">
+                          {availableLanguages
+                            .filter(l => l.label.toLowerCase().includes(languageSearch.toLowerCase()))
+                            .map((lang) => (
+                              <button
+                                key={lang.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedLanguage(lang.id);
+                                  setIsLanguageMenuOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-4 rounded-xl text-base font-bold transition-all flex items-center justify-between group/item ${
+                                  activeLanguage?.id === lang.id
+                                    ? "bg-[#ff4a8e]/20 text-white shadow-[inset_0_0_0_1px_rgba(255,74,142,0.4)]"
+                                    : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                                }`}
+                              >
+                                <span className={`truncate transition-colors ${activeLanguage?.id === lang.id ? "text-[#ffb1c5]" : "group-hover/item:text-white"}`}>
+                                  {lang.displayName}
+                                </span>
+                                {activeLanguage?.id === lang.id && (
+                                  <div className="w-6 h-6 rounded-full bg-[#ff4a8e] flex items-center justify-center shadow-[0_0_10px_rgba(255,74,142,0.5)]">
+                                    <span className="material-symbols-outlined text-[14px] text-white" style={{ fontVariationSettings: "'FILL' 1, 'wght' 700" }}>check</span>
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          
+                          {availableLanguages.filter(l => l.label.toLowerCase().includes(languageSearch.toLowerCase())).length === 0 && (
+                            <div className="py-6 text-center text-white/40 text-xs font-medium">
+                              No intercept nodes found.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -133,7 +353,7 @@ export const Dashboard = () => {
                 <div className="flex flex-wrap items-center gap-2 mt-3">
                   <span className="text-[10px] text-on-surface-variant font-black uppercase tracking-[0.3em] opacity-70">Sentinel Voice Arsenal</span>
                   <span className="text-[9px] bg-[#ff4a8e]/20 text-[#ffb1c5] px-2 py-0.5 rounded font-black uppercase border border-[#ff4a8e]/20">
-                    {selectedLanguage}
+                    {activeLanguage?.label || "Unknown"}
                   </span>
                 </div>
               </div>
@@ -215,7 +435,7 @@ export const Dashboard = () => {
                 <div className="col-span-full rounded-[2.5rem] bg-[#1b1b1b] border border-outline-variant/10 flex flex-col items-center justify-center text-on-surface-variant p-20 text-center">
                   <span className="material-symbols-outlined text-6xl mb-4 opacity-20">inventory_2</span>
                   <p className="text-2xl font-black uppercase italic tracking-tighter">Vault Empty</p>
-                  <p className="text-sm opacity-50 mt-2 max-w-[300px]">Initialising more mischief for {selectedLanguage} soon.</p>
+                  <p className="text-sm opacity-50 mt-2 max-w-[300px]">Initialising more mischief for {activeLanguage?.label || "this locale"} soon.</p>
                 </div>
               )}
             </div>

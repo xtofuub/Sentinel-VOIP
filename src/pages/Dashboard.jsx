@@ -302,6 +302,8 @@ export const Dashboard = () => {
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [isLaunching, setIsLaunching] = useState(false);
   const [canScrollMore, setCanScrollMore] = useState(true);
+  const previewAudioRef = useRef(null);
+  const [previewingId, setPreviewingId] = useState(null);
 
   const handlePrankListScroll = (e) => {
     const bottom = e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight < 20;
@@ -413,6 +415,53 @@ export const Dashboard = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const previewEl = previewAudioRef.current;
+    if (!previewEl) return;
+
+    const onEnded = () => setPreviewingId(null);
+    previewEl.addEventListener("ended", onEnded);
+
+    return () => {
+      previewEl.removeEventListener("ended", onEnded);
+      previewEl.pause();
+      previewEl.src = "";
+    };
+  }, []);
+
+  const handlePreviewToggle = async (prank) => {
+    const previewUrl = prank?.example;
+    if (!previewUrl) {
+      toast.error("No preview available for this scenario.");
+      return;
+    }
+
+    const previewEl = previewAudioRef.current;
+    if (!previewEl) {
+      toast.error("Audio preview is unavailable.");
+      return;
+    }
+
+    const isCurrent = previewingId === prank._id;
+    if (isCurrent) {
+      previewEl.pause();
+      previewEl.currentTime = 0;
+      setPreviewingId(null);
+      return;
+    }
+
+    try {
+      previewEl.pause();
+      previewEl.src = previewUrl;
+      previewEl.currentTime = 0;
+      await previewEl.play();
+      setPreviewingId(prank._id);
+    } catch {
+      setPreviewingId(null);
+      toast.error("Could not play preview audio.");
+    }
+  };
 
   const handleDeleteLog = useCallback((callId) => {
     if (!callId) {
@@ -536,6 +585,7 @@ export const Dashboard = () => {
 
   return (
     <main className="pt-32 pb-24 px-8 max-w-[1600px] mx-auto bg-[#131313] min-h-screen font-['Inter'] selection:bg-[#ff4a8e] selection:text-white">
+      <audio ref={previewAudioRef} preload="none" className="hidden" />
       <div className="flex flex-col gap-12">
 
         {/* Top Section: Config Left, Bento Right */}
@@ -756,7 +806,11 @@ export const Dashboard = () => {
 
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="text-[9px] font-black uppercase tracking-[0.18em] px-2 py-1 rounded-md border border-white/10 text-white/70 bg-white/5">
+                                <span className={`text-[9px] font-black uppercase tracking-[0.18em] px-2 py-1 rounded-md border ${
+                                  selectedPrank?._id === prank._id
+                                    ? "border-[#ff4a8e]/30 text-[#ffb1c5] bg-[#ff4a8e]/10"
+                                    : "border-[#ff4a8e]/20 text-[#ffc2d4]/85 bg-[#ff4a8e]/10"
+                                }`}>
                                   Script
                                 </span>
                                 {selectedPrank?._id === prank._id && (
@@ -777,16 +831,20 @@ export const Dashboard = () => {
 
                           <div className="flex items-center justify-between mt-4 pt-5 border-t border-white/10">
                             <button
-                              className="inline-flex items-center gap-2 rounded-full px-4 py-2 bg-white/5 border border-white/10 text-white/80 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all text-[11px] font-black uppercase tracking-[0.16em]"
+                              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 border transition-all text-[11px] font-black uppercase tracking-[0.16em] ${
+                                selectedPrank?._id === prank._id
+                                  ? "bg-[#ff4a8e]/12 border-[#ff4a8e]/28 text-[#ffd3e1] hover:bg-[#ff4a8e]/18 hover:border-[#ff4a8e]/45"
+                                  : "bg-[#ff4a8e]/10 border-[#ff4a8e]/20 text-[#ffc2d4] hover:text-white hover:bg-[#ff4a8e]/16 hover:border-[#ff4a8e]/35"
+                              }`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                alert("Playing preview for: " + prank.titulo);
+                                void handlePreviewToggle(prank);
                               }}
                             >
                               <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>
-                                play_circle
+                                {previewingId === prank._id ? "pause_circle" : "play_circle"}
                               </span>
-                              Play
+                              {previewingId === prank._id ? "Pause" : "Play"}
                             </button>
 
                             <span className="text-[10px] text-white/45 font-black uppercase tracking-[0.18em]">Tap Card To Arm</span>

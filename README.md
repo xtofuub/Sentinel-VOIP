@@ -1,94 +1,62 @@
-# React + Vite
+# Sentinel-VOIP
+<img width="1711" height="988" alt="image" src="https://github.com/user-attachments/assets/e2dcac8d-267d-4458-909d-4e4cfe6a5d30" />
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Reconstruction of the Juasapp VoIP protocol. This project documents the transition from dynamic instrumentation on iOS to a standalone JavaScript implementation for global signaling and research-driven call orchestration.
 
-Currently, two official plugins are available:
+## Technical Methodology
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### 1. Dynamic Analysis & Pentesting (iOS)
 
-## React Compiler
+The protocol was reversed using a **jailbroken iOS device**. The research focused on real-time behavior to achieve the following:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frida Instrumentation:** Used to observe dynamic request flows. By hooking `NSURLSession`, I captured raw API traffic and bypass device-level blacklisting.
+- **FLEX / FLEXer:** Employed for live heap exploration to identify the internal logic responsible for credit validation.
 
-## Expanding the ESLint configuration
+### 2. Protocol Replication
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The data discovered during the iOS pentest was ported to a standalone JavaScript environment to:
 
----
-
-# Sentinel VOIP
-
-A modern, tactical prank call and call management web application built with React, Vite, Tailwind CSS, and shadcn/ui. Sentinel VOIP enables users to launch spoofed calls, manage disposable identities, and review recorded calls in a sleek, dark, and professional interface inspired by 21st.dev design principles.
+- **Bypass a commercial service's payment system:** Successfully recreated the signaling logic to trigger calls without depleting or purchasing credits.
+- **Session Handshake:** Recreated `create.lua` and `get_user.lua` flows to automate account registration.
+- **Resilient Signaling:** Integrated a semaphore system to manage API concurrency and handle `429` rate-limiting.
 
 ## Features
 
-- **Launch Call:**
-  - Fill in a name, phone number, language, and prank scenario.
-  - Each call uses a new, disposable identity (DID/UID) for privacy and bypassing backend restrictions.
-  - Real-time feedback and error handling.
+- **Unlimited Call Logic:** Direct signaling that ignores client-side and server-side credit constraints.
+- **Massive Audio Library:** Access to over **2,129 different voicelines** spanning a wide variety of countries and localized scenarios.
+- **Device Spoofing:** Randomizes iOS metadata (versions 16.2–17.4) and hardware identifiers to appear as a legitimate Apple device.
+- **International Reach:** Support for global signaling gateways including ES, US, FR, IT, FI, and MANY MANY more.
+- **Smart JSON Extraction:** Custom logic to peel away the `0day:` response prefix and extract hidden payload blocks.
 
-- **Recorded Calls Panel:**
-  - View all running, accepted, and declined calls across all generated accounts.
-  - Save or delete recordings directly from the UI.
-  - Copy/share call links with one click.
+## Technical Stack
 
-- **Modern UI:**
-  - Flat, dark, and minimal design using shadcn/ui and 21st.dev component patterns.
-  - Responsive layout for desktop and mobile.
-  - No glassmorphism or glossy effects—just clean, accessible, and professional.
+- **Instrumentation:** Frida, FLEX, Objection
+- **Language:** JavaScript (Node.js / Browser)
+- **API Handling:** Fetch with custom concurrency control
+- **Environment:** Jailbroken iOS (Initial Research), Standalone Web Client (Final Implementation)
 
-- **Tech Stack:**
-  - React + Vite for fast development and HMR
-  - Tailwind CSS for utility-first styling
-  - shadcn/ui for accessible, composable UI primitives
-  - Framer Motion for subtle animations
-  - Lucide React for icons
+## Installation
 
-## Getting Started
+```bash
+git clone https://github.com/xtofuub/Sentinel-VOIP.git
+cd Sentinel-VOIP
+npm install
+````
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/xtofuub/Sentinel-VOIP.git
-   cd Sentinel-VOIP
-   ```
+## Usage
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+```bash
+# Start the signaling bridge
+npm start
+```
 
-3. **Run the development server:**
-   ```bash
-   npm run dev
-   ```
-   The app will be available at [http://localhost:5173](http://localhost:5173)
+The dashboard will be available at:
+[http://localhost:3000](http://localhost:3000)
 
-## Project Structure
+## Disclaimer
 
-- `/src/components/ui/` — All UI primitives and custom components (shadcn/21st.dev style)
-- `/src/components/` — App-specific panels and logic (e.g., RecordedCallsPanel)
-- `/src/services/` — API logic and identity management
-- `/src/App.jsx` — Main application shell
-- `/src/index.css` — Tailwind and theme setup
+This project is for educational and security research purposes only. It demonstrates vulnerabilities in client-side trust models and the potential to bypass commercial payment systems through protocol reversal. Use at your own risk.
 
-## Customization
-- **Prank Scenarios:** Add or modify prank templates in the backend or via the prank list logic.
-- **Branding:** Update the hero section, logo cloud, and header for your organization or use case.
+## Author
 
-## Credits
-- UI inspired by [shadcn/ui](https://ui.shadcn.com/) and [21st.dev](https://21st.dev/)
-- Icons by [Lucide](https://lucide.dev/)
-- Animations by [Framer Motion](https://www.framer.com/motion/)
-
-## Recent Updates
-
-### March 29, 2026
-- Major refactor and feature update:
-  - Added `recording-audio-player.jsx` for in-app audio playback of recorded calls.
-  - Improved `recorded-calls-panel.jsx` to support audio playback, sharing, and deleting recordings.
-  - Enhanced UI and logic in `App.jsx` for call launching, prank selection, and log viewing.
-  - Updated API integration and error handling.
-  - Various bug fixes and UI improvements.
-
-See commit history for full details.
+xtofuub

@@ -1,0 +1,128 @@
+import customtkinter as ctk
+import requests
+import uuid
+import random
+import time
+import threading
+import string
+
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
+class JuasAppGhost(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title("Sentinel Helsinki - JuasApp Ghost")
+        self.geometry("700x900")
+        
+        # 1. Forge the identity as a UUID (This is what the server actually wants as a UID)
+        self.did = str(uuid.uuid4()).upper()
+        self.uid = self.did # Forcing UID to match DID per your successful CURL
+        self.pranks = []
+        self.base_url = "https://master.appha.es/lua/bromapp/user"
+        
+        self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "JuasApp/6.7 (iPhone; iOS 16.2; Scale/3.00)",
+            "Content-Type": "application/json",
+            "Accept": "*/*",
+            "Accept-Language": "fi-FI;q=1", # Force Finnish
+            "Connection": "keep-alive"
+        })
+        
+        self.setup_ui()
+        threading.Thread(target=self.initialize_ghost, daemon=True).start()
+
+    def setup_ui(self):
+        self.label = ctk.CTkLabel(self, text="SENTINEL HELSINKI", font=("Courier", 26, "bold"))
+        self.label.pack(pady=20)
+
+        self.debug_log = ctk.CTkTextbox(self, height=150, font=("Consolas", 12))
+        self.debug_log.pack(fill="x", padx=30, pady=10)
+
+        self.status_box = ctk.CTkFrame(self)
+        self.status_box.pack(fill="x", padx=30, pady=10)
+        self.status_led = ctk.CTkLabel(self.status_box, text="●", text_color="orange")
+        self.status_led.pack(side="left", padx=10)
+        self.status_text = ctk.CTkLabel(self.status_box, text="Status: Forging Identity...")
+        self.status_text.pack(side="left")
+
+        self.name_entry = ctk.CTkEntry(self, placeholder_text="Victim's Name", height=40)
+        self.name_entry.pack(fill="x", padx=50, pady=5)
+        self.phone_entry = ctk.CTkEntry(self, placeholder_text="Victim's Phone (e.g. 0442006284)", height=40)
+        self.phone_entry.pack(fill="x", padx=50, pady=5)
+
+        self.prank_scroll = ctk.CTkScrollableFrame(self, height=250, label_text="SELECT FINNISH PRANK")
+        self.prank_scroll.pack(fill="both", padx=30, pady=15, expand=True)
+
+        self.send_btn = ctk.CTkButton(self, text="LAUNCH GHOST CALL", state="disabled", height=50, command=self.send_call_threaded)
+        self.send_btn.pack(pady=30)
+
+    def log(self, message):
+        timestamp = time.strftime("%H:%M:%S")
+        self.debug_log.insert("end", f"[{timestamp}] {message}\n")
+        self.debug_log.see("end")
+
+    def initialize_ghost(self):
+        try:
+            # 1. Create Identity (Forcing Finnish Tags)
+            self.log("Creating Finnish Account...")
+            payload = {
+                "did": self.did, "dtype": "uid", "route": "jl_azul",
+                "tags": {"c": "FI", "l": "fi_FI", "v": "6.7", "r": "16.2", "mf": "Apple"},
+                "timezone": "Europe/Helsinki"
+            }
+            r = self.session.post(f"{self.base_url}/create.lua", json=payload)
+            self.log(f"Server Response: {r.text}")
+
+            # 2. Activate Account
+            self.log("Syncing Identity...")
+            self.session.post(f"{self.base_url}/get_user.lua", json={"did": self.did, "uid": self.uid})
+            
+            # 3. Fetch Dialplan (Explicitly asking for FI)
+            dp_r = self.session.post(f"{self.base_url}/get_dialplan_ios.lua", json={"c":"fi","uid":self.uid})
+            self.pranks = dp_r.json()
+            
+            self.status_led.configure(text_color="green")
+            self.status_text.configure(text="Ready: Finland Account Active")
+            self.after(0, self.populate_list)
+        except Exception as e:
+            self.log(f"Error: {e}")
+
+    def populate_list(self):
+        self.selection = ctk.StringVar(value="")
+        for p in self.pranks:
+            btn = ctk.CTkRadioButton(self.prank_scroll, text=p['titulo'], variable=self.selection, value=p['_id'])
+            btn.pack(anchor="w", padx=10, pady=5)
+        self.send_btn.configure(state="normal")
+
+    def send_call_threaded(self):
+        threading.Thread(target=self.send_call, daemon=True).start()
+
+    def send_call(self):
+        prank_id = self.selection.get()
+        victim = self.name_entry.get()
+        phone = self.phone_entry.get()
+        title = next(p['titulo'] for p in self.pranks if p['_id'] == prank_id)
+        ts = time.strftime("%d-%m-%YT%H:%M:%S")
+        
+        # Exact Task ID logic from your working CURL
+        task_id = "".join(random.choices(string.ascii_letters + string.digits, k=18))
+        
+        payload = {
+            "_id": task_id, "c": "fi", "dial": prank_id, "dst": phone,
+            "f": ts, "nombre": victim, "real_f": ts, "titulo": title, "uid": self.uid
+        }
+
+        self.log("Submitting Task to Finnish Dialing Server...")
+        r = self.session.post(f"{self.base_url}/create_task_ios.lua", json=payload)
+        self.log(f"Task Response: {r.text}")
+        
+        if r.json().get("res") == "OK":
+            self.log("SUCCESS: Ghost Call Queued!")
+        else:
+            self.log("REJECTED: Check terminal/logs.")
+
+if __name__ == "__main__":
+    app = JuasAppGhost()
+    app.mainloop()

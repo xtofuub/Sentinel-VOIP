@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Link } from "../context/RouterContext";
 import Icon from "../components/Icon";
 import Flag from "../components/Flag";
@@ -116,7 +115,7 @@ const ConsoleMock = () => {
         <div className="field"><label className="field-label">Locale</label><div className="control" style={{ display: "flex", alignItems: "center", gap: 8 }}><Flag code="US" /><span style={{ fontSize: 13.5 }}>English (United States)</span><span style={{ flex: 1 }} /><Icon name="chev-d" size={14} style={{ color: "var(--ink-4)" }} /></div></div>
         <div className="field"><label className="field-label">Scenario<span className="field-hint">selected</span></label><div style={{ padding: "10px 12px", border: "1px solid var(--accent-line)", background: "var(--accent-soft)", borderRadius: 8 }}><span className="mono" style={{ fontSize: 10.5, color: "oklch(0.88 0.08 14)" }}>scn_002</span><div style={{ fontSize: 13.5, color: "var(--ink)", marginTop: 2 }}>Tier-3 IT Escalation</div></div></div>
         <div style={{ flex: 1 }} />
-        <button className="btn btn-primary" type="button"><Icon name="phone-out" size={14} stroke={2} />Initiate mischief</button>
+        <button className="btn btn-primary" type="button"><Icon name="phone-out" size={14} stroke={2} />Start run</button>
         <span className="micro" style={{ color: "var(--ink-5)", textAlign: "center" }}>Cost: 1 credit · 248 remaining</span>
       </div>
       <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -184,7 +183,7 @@ const CatalogPreview = () => {
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <span className="kicker">Catalog</span>
             <h2 className="section-title">A library of scripts, not a bag of bits.</h2>
-            <p className="lead">Every scenario is locale-bound, peer-reviewed, and labelled with its category and runtime. Preview the audio in-line; route to a subject in one click.</p>
+            <p className="lead">Every scenario is locale-bound, peer-reviewed, and labelled with its category and runtime. Audio previews appear inline when a source is attached.</p>
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
               <Link to="/catalog" className="btn btn-secondary"><Icon name="book" size={14} />Browse all 1,284</Link>
               <button className="btn btn-ghost" type="button">Submit a script <Icon name="arrow-up-right" size={13} /></button>

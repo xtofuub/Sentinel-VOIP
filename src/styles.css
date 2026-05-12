@@ -64,7 +64,14 @@ body {
 
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+button:disabled { cursor: not-allowed; }
 input, select, textarea { font: inherit; color: inherit; }
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 ::selection { background: var(--accent-soft); color: var(--ink); }
 
@@ -332,9 +339,80 @@ input, select, textarea { font: inherit; color: inherit; }
   box-shadow: 0 0 0 3px color-mix(in oklch, currentColor 18%, transparent);
 }
 .pill-ok      { color: var(--ok);  border-color: color-mix(in oklch, var(--ok) 35%, var(--line)); background: color-mix(in oklch, var(--ok) 8%, var(--panel)); }
+.pill-info    { color: oklch(0.76 0.11 225); border-color: color-mix(in oklch, oklch(0.76 0.11 225) 35%, var(--line)); background: color-mix(in oklch, oklch(0.76 0.11 225) 8%, var(--panel)); }
 .pill-warn    { color: var(--warn);border-color: color-mix(in oklch, var(--warn) 35%, var(--line)); background: color-mix(in oklch, var(--warn) 8%, var(--panel)); }
 .pill-bad     { color: var(--bad); border-color: color-mix(in oklch, var(--bad) 35%, var(--line)); background: color-mix(in oklch, var(--bad) 8%, var(--panel)); }
 .pill-routing .dot { animation: pulse 1.2s ease-in-out infinite; }
+
+.api-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -8px 0 20px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: oklch(0.18 0.010 30 / 0.78);
+}
+.api-notice svg { flex-shrink: 0; }
+.api-notice-ok {
+  border-color: color-mix(in oklch, var(--ok) 26%, var(--line));
+  background: color-mix(in oklch, var(--ok) 6%, var(--panel));
+}
+.api-notice-warn {
+  border-color: color-mix(in oklch, var(--warn) 24%, var(--line));
+  background: color-mix(in oklch, var(--warn) 5%, var(--panel));
+}
+
+.audio-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+.audio-player-button {
+  border-radius: 99px;
+  border: 1px solid var(--line-2);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease;
+}
+.audio-player-button:not(:disabled):hover { transform: translateY(-1px); }
+.audio-player-button:not(:disabled):active { transform: translateY(0); }
+.audio-player-button:disabled {
+  opacity: 0.52;
+  color: var(--ink-5) !important;
+  background: oklch(0.18 0.010 30) !important;
+}
+.audio-wave {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 1.5px;
+  min-width: 44px;
+}
+.audio-wave span {
+  flex: 1;
+  min-height: 2px;
+  border-radius: 1.5px;
+  transition: background 180ms ease, opacity 180ms ease;
+}
+.audio-player-time {
+  font-size: 11.5px;
+  color: var(--ink-4);
+  min-width: 78px;
+  max-width: 160px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.audio-player-disabled .audio-player-time {
+  min-width: 118px;
+}
 
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
@@ -491,6 +569,27 @@ input, select, textarea { font: inherit; color: inherit; }
   .nav-hide-mobile { display: none !important; }
 }
 
+@media (max-width: 760px) {
+  .nav-shell {
+    height: auto !important;
+    min-height: 64px;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    flex-wrap: wrap;
+    gap: 10px !important;
+  }
+  .nav-main {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .nav-actions .btn-primary,
+  .nav-actions .btn-secondary {
+    display: none;
+  }
+}
+
 @media (max-width: 1100px) {
   .cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
   .cols-3 { grid-template-columns: repeat(2, 1fr) !important; }
@@ -516,7 +615,7 @@ input, select, textarea { font: inherit; color: inherit; }
 
 .activity-wrap { overflow-x: auto; }
 .activity-row,
-.activity-head { min-width: 980px; }
+.activity-head { min-width: 1040px; }
 
 @media (max-width: 960px) {
   .pricing-tiers { grid-template-columns: 1fr !important; }

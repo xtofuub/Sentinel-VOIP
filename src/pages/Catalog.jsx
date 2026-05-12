@@ -35,7 +35,7 @@ const Catalog = () => {
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32, maxWidth: 760 }}>
           <span className="kicker">Catalog · v 4.2</span>
           <h1 className="h-1">Scenario library</h1>
-          <p className="lead">Peer-reviewed, locale-bound voice scripts. Preview any entry; one click hands it to the console.</p>
+          <p className="lead">Peer-reviewed, locale-bound voice scripts. Review metadata and attach playable previews when audio sources are available.</p>
         </div>
 
         {/* Search row */}
@@ -139,17 +139,20 @@ const CatalogCard = ({ scenario, seed }) => (
 );
 
 const ScenarioArtwork = ({ seed, category }) => {
-  let s = (seed + 1) * 2654435761 >>> 0;
-  const r = () => { s = (s * 1664525 + 1013904223) >>> 0; return (s & 0xffff) / 0xffff; };
+  const base = (seed + 1) * 2654435761;
+  const r = (index) => {
+    const value = Math.sin((base + index * 37) * 12.9898) * 43758.5453;
+    return value - Math.floor(value);
+  };
   const palette = { Bureaucratic: ["oklch(0.62 0.10 60)", "oklch(0.40 0.08 50)"], Corporate: ["oklch(0.55 0.13 240)", "oklch(0.35 0.10 250)"], Domestic: ["oklch(0.68 0.13 130)", "oklch(0.45 0.10 140)"], Utility: ["oklch(0.65 0.13 80)", "oklch(0.42 0.09 75)"], Absurd: ["oklch(0.62 0.16 320)", "oklch(0.40 0.12 300)"] }[category] || ["oklch(0.55 0.10 30)", "oklch(0.35 0.08 30)"];
-  const elements = Array.from({ length: 4 }, () => ({ cx: r() * 100, cy: r() * 100, rx: 18 + r() * 28, ry: 18 + r() * 28, c: r() > 0.5 ? palette[0] : palette[1], o: 0.45 + r() * 0.45 }));
-  const lines = Array.from({ length: 5 }, (_, i) => ({ y: 18 + i * 14 + r() * 4, x1: -8 + r() * 15, x2: 92 + r() * 15, o: 0.08 + r() * 0.12 }));
+  const elements = Array.from({ length: 4 }, (_, i) => ({ cx: r(i * 6) * 100, cy: r(i * 6 + 1) * 100, rx: 18 + r(i * 6 + 2) * 28, ry: 18 + r(i * 6 + 3) * 28, c: r(i * 6 + 4) > 0.5 ? palette[0] : palette[1], o: 0.45 + r(i * 6 + 5) * 0.45 }));
+  const lines = Array.from({ length: 5 }, (_, i) => ({ y: 18 + i * 14 + r(40 + i * 4) * 4, x1: -8 + r(41 + i * 4) * 15, x2: 92 + r(42 + i * 4) * 15, o: 0.08 + r(43 + i * 4) * 0.12 }));
   return (
     <div style={{ width: "100%", height: "100%", background: "oklch(0.17 0.010 30)", position: "relative", overflow: "hidden" }}>
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: "100%", height: "100%", display: "block" }}>
         <defs><filter id={`blur-${seed}`}><feGaussianBlur stdDeviation="6" /></filter></defs>
         <g filter={`url(#blur-${seed})`}>{elements.map((e, i) => <ellipse key={i} cx={e.cx} cy={e.cy} rx={e.rx} ry={e.ry} fill={e.c} opacity={e.o} />)}</g>
-        {lines.map((l, i) => <path key={i} d={`M ${l.x1} ${l.y} Q 50 ${l.y - 8 + r() * 16}, ${l.x2} ${l.y}`} fill="none" stroke="oklch(0.96 0.005 60)" strokeOpacity={l.o} strokeWidth="0.3" />)}
+        {lines.map((l, i) => <path key={i} d={`M ${l.x1} ${l.y} Q 50 ${l.y - 8 + r(70 + i) * 16}, ${l.x2} ${l.y}`} fill="none" stroke="oklch(0.96 0.005 60)" strokeOpacity={l.o} strokeWidth="0.3" />)}
       </svg>
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, oklch(0.16 0.010 30) 100%)" }} />
     </div>

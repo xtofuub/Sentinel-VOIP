@@ -40,22 +40,22 @@ const NavBar = () => {
       borderBottom: `1px solid ${scrolled ? "var(--line)" : "transparent"}`,
       transition: "background 200ms ease, border-color 200ms ease",
     }}>
-      <div className="shell" style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
+      <div className="shell nav-shell" style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <LogoMark size={28} />
           <Wordmark size={16} />
         </Link>
-        <nav style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <nav className="nav-main" style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <NavLink to="/catalog">Catalog</NavLink>
           <NavLink to="/dashboard">Console</NavLink>
           <NavLink to="/pricing">Pricing</NavLink>
           <NavLink to="/docs" external className="nav-hide-mobile">Docs</NavLink>
           <NavLink to="/changelog" external className="nav-hide-mobile">Changelog</NavLink>
         </nav>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="nav-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button className="btn btn-ghost btn-sm" type="button">
             <Icon name="command" size={14} />
-            <span className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>⌘K</span>
+            <span className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>Ctrl K</span>
           </button>
           <Link to="/dashboard" className="btn btn-secondary btn-sm">Sign in</Link>
           <Link to="/dashboard" className="btn btn-primary btn-sm">

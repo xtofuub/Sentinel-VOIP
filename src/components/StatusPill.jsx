@@ -1,6 +1,8 @@
 const StatusPill = ({ status }) => {
   const map = {
     recorded: { cls: "pill-ok", label: "Recorded" },
+    queued: { cls: "pill-info", label: "Queued" },
+    no_audio: { cls: "pill-bad", label: "No audio" },
     routing: { cls: "pill-warn pill-routing", label: "Routing" },
     failed: { cls: "pill-bad", label: "Failed" },
   };

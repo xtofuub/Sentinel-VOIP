@@ -240,7 +240,7 @@ const FinalCTA = () => (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 32, position: "relative", flexWrap: "wrap" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 540 }}>
         <span className="kicker" style={{ color: "var(--accent)" }}>Ready when you are</span>
-        <h2 className="h-2" style={{ margin: 0 }}>Initiate mischief, audited.</h2>
+        <h2 className="h-2" style={{ margin: 0 }}>Start audited runs.</h2>
         <p className="small" style={{ color: "var(--ink-3)", margin: 0 }}>25 runs free, no card. Everything else is metered.</p>
       </div>
       <div style={{ display: "flex", gap: 12 }}>

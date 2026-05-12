@@ -1,10 +1,32 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LOCALES, SCENARIOS, localeToCountry, localeToLanguage } from "../lib/data";
 import { createSession, getDialplan, createTask } from "../lib/api";
 import Icon from "../components/Icon";
 import Flag from "../components/Flag";
 import AudioPlayer from "../components/AudioPlayer";
 import StatusPill from "../components/StatusPill";
+
+const scenarioToDialplan = (scenario) => ({
+  _id: scenario.id,
+  titulo: scenario.title,
+  descripcion: scenario.desc,
+  duracion: scenario.duration,
+  categoria: scenario.category,
+  previewUrl: scenario.previewUrl,
+  source: "local",
+});
+
+const fallbackDialplanForLocale = (locale) => {
+  const exact = SCENARIOS.filter((scenario) => scenario.locale === locale);
+  if (exact.length) return exact.map(scenarioToDialplan);
+
+  const country = localeToCountry(locale).toUpperCase();
+  const sameCountry = SCENARIOS.filter((scenario) => scenario.region === country);
+  return (sameCountry.length ? sameCountry : SCENARIOS).map(scenarioToDialplan);
+};
+
+const isValidDialPrefix = (value) => /^\+?\d{1,4}$/.test(value.trim());
+const normaliseDialString = (prefix, value) => `+${prefix.replace(/\D/g, "")}${value.replace(/\D/g, "")}`;
 
 const Dashboard = () => {
   const [subject, setSubject] = useState("Marcus Cole");
@@ -14,7 +36,6 @@ const Dashboard = () => {
   const [scenarioId, setScenarioId] = useState(null);
   const [vaultQuery, setVaultQuery] = useState("");
   const [vaultCategory, setVaultCategory] = useState("All");
-  const [playingPreview, setPlayingPreview] = useState(null);
   const [activity, setActivity] = useState([]);
   const [toast, setToast] = useState(null);
   const [logFilter, setLogFilter] = useState("All");
@@ -26,6 +47,8 @@ const Dashboard = () => {
   const [status, setStatus] = useState("initialising");
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [launching, setLaunching] = useState(false);
+  const [planSource, setPlanSource] = useState("local");
+  const [apiMessage, setApiMessage] = useState("Connecting to backend...");
 
   // Toast lifetime
   useEffect(() => {
@@ -37,6 +60,9 @@ const Dashboard = () => {
   // 1. Session init
   useEffect(() => {
     let cancelled = false;
+    setStatus("initialising");
+    setSession(null);
+    setApiMessage("Connecting to backend...");
     (async () => {
       try {
         const s = await createSession({
@@ -46,26 +72,52 @@ const Dashboard = () => {
         if (cancelled) return;
         setSession(s);
         setStatus("ready");
-      } catch {
-        if (!cancelled) { setStatus("error"); setToast({ type: "error", msg: "Failed to initialise session" }); }
+        setApiMessage("Backend session is ready.");
+      } catch (error) {
+        if (!cancelled) {
+          setSession(null);
+          setStatus("error");
+          setApiMessage(error?.message || "Backend is not reachable.");
+          setToast({ type: "error", msg: "Backend offline. The vault is available in local preview mode." });
+        }
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [locale]);
 
   // 2. Fetch dial plan when locale or session changes
   useEffect(() => {
-    if (!session) return;
+    const fallbackPlan = fallbackDialplanForLocale(locale);
+    const ensureSelection = (plan) => {
+      setScenarioId((current) => (plan.some((item) => item._id === current) ? current : plan[0]?._id || null));
+    };
+
+    if (!session) {
+      setDialplan(fallbackPlan);
+      setPlanSource("local");
+      ensureSelection(fallbackPlan);
+      return;
+    }
+
     let cancelled = false;
     setLoadingPlan(true);
     (async () => {
       try {
         const plan = await getDialplan({ country: localeToCountry(locale), uid: session.uid });
         if (cancelled) return;
-        setDialplan(plan);
-        if (plan.length && !plan.find(p => p._id === scenarioId)) setScenarioId(plan[0]._id);
-      } catch {
-        if (!cancelled) setToast({ type: "error", msg: "Failed to load dial plan" });
+        const usablePlan = plan.length ? plan : fallbackPlan;
+        setDialplan(usablePlan);
+        setPlanSource(plan.length ? "api" : "local");
+        setApiMessage(plan.length ? "Live dial plan loaded." : "Backend returned an empty dial plan; showing local preview data.");
+        ensureSelection(usablePlan);
+      } catch (error) {
+        if (!cancelled) {
+          setDialplan(fallbackPlan);
+          setPlanSource("local");
+          setApiMessage(error?.message || "Dial plan could not be loaded.");
+          ensureSelection(fallbackPlan);
+          setToast({ type: "error", msg: "Dial plan unavailable. Showing local preview data." });
+        }
       } finally {
         if (!cancelled) setLoadingPlan(false);
       }
@@ -74,15 +126,17 @@ const Dashboard = () => {
   }, [locale, session]);
 
   // Map dialplan items to card format
-  const toCard = (p) => ({
+  const toCard = useCallback((p) => ({
     id: p._id,
-    title: p.titulo,
-    desc: p.descripcion || p.titulo,
+    title: p.titulo || "Untitled scenario",
+    desc: p.descripcion || p.titulo || "No description provided.",
     duration: p.duracion || 120,
     flag: LOCALES.find(l => l.code === locale)?.flag || "US",
     locale,
     category: p.categoria || "Scenario",
-  });
+    previewUrl: p.previewUrl || p.audio_url || p.audioUrl || p.recording_url || p.recordingUrl || "",
+    source: p.source || "api",
+  }), [locale]);
 
   const vaultScenarios = useMemo(() => {
     let s = dialplan.map(toCard);
@@ -92,37 +146,61 @@ const Dashboard = () => {
       s = s.filter(x => x.title.toLowerCase().includes(q) || x.desc.toLowerCase().includes(q));
     }
     return s;
-  }, [dialplan, locale, vaultCategory, vaultQuery]);
+  }, [dialplan, toCard, vaultCategory, vaultQuery]);
 
   const allCats = useMemo(() => ["All", ...new Set(dialplan.map(p => p.categoria || "Scenario"))], [dialplan]);
 
   const selectedScenario = useMemo(() => {
     const p = dialplan.find(x => x._id === scenarioId);
     return p ? toCard(p) : null;
-  }, [dialplan, scenarioId, locale]);
+  }, [dialplan, scenarioId, toCard]);
 
   // 3. Real initiate
   const initiate = async () => {
     if (!subject.trim() || !number.trim()) { setToast({ type: "error", msg: "Subject and destination are required." }); return; }
+    if (!isValidDialPrefix(dialPrefix)) { setToast({ type: "error", msg: "Use a numeric country prefix, such as +1." }); return; }
+    const dialString = normaliseDialString(dialPrefix, number);
+    if (dialString.replace(/\D/g, "").length < 8) { setToast({ type: "error", msg: "Enter a full destination number." }); return; }
     const scenario = dialplan.find(p => p._id === scenarioId) || dialplan[0];
     if (!scenario) { setToast({ type: "error", msg: "No scenario selected." }); return; }
     if (!session) { setToast({ type: "error", msg: "Session not ready." }); return; }
+    if (planSource !== "api") { setToast({ type: "error", msg: "Connect a live backend before starting a run." }); return; }
 
     setLaunching(true);
     const localeObj = LOCALES.find(l => l.code === locale);
     const rowId = "evt_" + Date.now().toString(36);
-    const row = { id: rowId, scenario: scenario.titulo, subject, number: `${dialPrefix} ${number}`, locale, flag: localeObj?.flag || "US", status: "routing", duration: 0, started: new Date().toISOString() };
+    const row = {
+      id: rowId,
+      scenario: scenario.titulo,
+      subject,
+      number: dialString,
+      locale,
+      flag: localeObj?.flag || "US",
+      status: "routing",
+      duration: 0,
+      started: new Date().toISOString(),
+      message: "Submitting request to backend.",
+      audioUrl: null,
+    };
     setActivity(prev => [row, ...prev]);
     setSelectedLogId(rowId);
 
     try {
-      const { res } = await createTask({ uid: session.uid, country: localeToCountry(locale), scenario, subject, phone: `${dialPrefix}${number}` });
-      const ok = res?.res === "OK" || res?.ok === true;
-      setActivity(prev => prev.map(a => a.id === rowId ? { ...a, status: ok ? "recorded" : "failed", duration: ok ? scenario.duracion || 120 : 0 } : a));
-      setToast({ type: ok ? "success" : "error", msg: ok ? `Call queued — ${scenario.titulo}` : `Rejected: ${res?.res || "unknown"}` });
-    } catch {
-      setActivity(prev => prev.map(a => a.id === rowId ? { ...a, status: "failed" } : a));
-      setToast({ type: "error", msg: "Network error" });
+      const { outcome } = await createTask({ uid: session.uid, country: localeToCountry(locale), scenario, subject, phone: dialString });
+      setActivity(prev => prev.map(a => a.id === rowId ? {
+        ...a,
+        status: outcome.status,
+        duration: outcome.status === "recorded" ? outcome.duration || scenario.duracion || 0 : 0,
+        audioUrl: outcome.audioUrl,
+        message: outcome.message,
+      } : a));
+
+      const toastType = outcome.status === "recorded" ? "success" : outcome.status === "queued" ? "neutral" : "error";
+      setToast({ type: toastType, msg: outcome.message });
+    } catch (error) {
+      const message = error?.message || "Network error";
+      setActivity(prev => prev.map(a => a.id === rowId ? { ...a, status: "failed", message } : a));
+      setToast({ type: "error", msg: message });
     } finally {
       setLaunching(false);
     }
@@ -130,6 +208,9 @@ const Dashboard = () => {
 
   const purgeAll = () => { setActivity([]); setToast({ type: "neutral", msg: "Activity log purged" }); };
   const localeObj = LOCALES.find(l => l.code === locale);
+  const launchDisabled = launching || status !== "ready" || planSource !== "api" || !dialplan.length;
+  const selectedLogStatus = logFilter.toLowerCase().replace(/\s+/g, "_");
+  const visibleActivity = activity.filter((item) => logFilter === "All" || item.status === selectedLogStatus);
 
   return (
     <main style={{ paddingTop: 24, paddingBottom: 64 }}>
@@ -148,6 +229,14 @@ const Dashboard = () => {
             </div>
             <button className="btn btn-ghost btn-sm" type="button"><Icon name="settings" size={14} />Settings</button>
           </div>
+        </div>
+
+        <div className={`api-notice ${status === "ready" && planSource === "api" ? "api-notice-ok" : "api-notice-warn"}`}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            <Icon name={status === "ready" && planSource === "api" ? "check" : "shield"} size={14} />
+            <span className="small" style={{ color: "var(--ink-2)" }}>{apiMessage}</span>
+          </div>
+          <span className="chip mono">{planSource === "api" ? "live backend" : "local preview"}</span>
         </div>
 
         {/* Top grid */}
@@ -187,9 +276,9 @@ const Dashboard = () => {
                 <div className="surface-flat" style={{ padding: 12, color: "var(--ink-4)", fontSize: 13 }}>{loadingPlan ? "Loading…" : "Pick one from the vault →"}</div>
               )}
             </div>
-            <button className="btn btn-primary btn-lg" onClick={initiate} type="button" disabled={launching || status !== "ready" || !dialplan.length} style={{ opacity: (launching || status !== "ready" || !dialplan.length) ? 0.5 : 1 }}>
+            <button className="btn btn-primary btn-lg" onClick={initiate} type="button" disabled={launchDisabled} style={{ opacity: launchDisabled ? 0.55 : 1 }}>
               <Icon name="phone-out" size={14} stroke={2} />
-              {launching ? "Launching…" : "Initiate mischief"}
+              {launching ? "Starting..." : planSource !== "api" ? "Connect backend" : "Start run"}
             </button>
           </div>
 
@@ -239,14 +328,14 @@ const Dashboard = () => {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ display: "flex", border: "1px solid var(--line)", borderRadius: 8, overflow: "hidden", background: "oklch(0.175 0.010 30)" }}>
-                {["All", "Recorded", "Routing", "Failed"].map((f, idx) => (
+                {["All", "Recorded", "Queued", "Routing", "No audio", "Failed"].map((f, idx) => (
                   <button key={f} type="button" onClick={() => setLogFilter(f)} style={{ height: 30, padding: "0 12px", borderLeft: idx === 0 ? "none" : "1px solid var(--line)", background: logFilter === f ? "var(--bg-3)" : "transparent", color: logFilter === f ? "var(--ink)" : "var(--ink-4)", fontSize: 12 }}>{f}</button>
                 ))}
               </div>
               <button className="btn btn-ghost btn-sm" onClick={purgeAll} type="button" style={{ color: "var(--bad)" }}><Icon name="trash" size={14} />Purge</button>
             </div>
           </div>
-          <ActivityList items={activity.filter(a => logFilter === "All" || a.status === logFilter.toLowerCase())} selectedId={selectedLogId} onSelect={setSelectedLogId} onDelete={(id) => setActivity(prev => prev.filter(a => a.id !== id))} />
+          <ActivityList items={visibleActivity} selectedId={selectedLogId} onSelect={setSelectedLogId} onDelete={(id) => setActivity(prev => prev.filter(a => a.id !== id))} />
         </div>
       </div>
 
@@ -284,7 +373,7 @@ const ScenarioCard = ({ scenario, selected, onSelect, seed }) => (
     <h4 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 14.5, color: "var(--ink)", letterSpacing: "-0.012em", lineHeight: 1.3 }}>{scenario.title}</h4>
     <p className="micro" style={{ color: "var(--ink-3)", margin: 0, lineHeight: 1.5, minHeight: 32 }}>{scenario.desc}</p>
     <div onClick={(e) => e.stopPropagation()}>
-      <AudioPlayer id={scenario.id} duration={scenario.duration} compact autoSeed={seed * 17} />
+      <AudioPlayer id={scenario.id} src={scenario.previewUrl} duration={scenario.duration} compact autoSeed={seed * 17} emptyLabel="Preview unavailable" />
     </div>
   </div>
 );
@@ -355,14 +444,14 @@ const ActivityList = ({ items, selectedId, onSelect, onDelete }) => {
     return (
       <div style={{ padding: 64, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "var(--ink-4)" }}>
         <Icon name="activity" size={22} style={{ color: "var(--ink-5)" }} />
-        <span className="small">No runs to show. Initiate one to see the log fill in.</span>
+        <span className="small">No runs to show. Start a run to see the log fill in.</span>
       </div>
     );
   }
 
   return (
     <div className="activity-wrap">
-      <div className="activity-head" style={{ display: "grid", gridTemplateColumns: "100px 80px 1.4fr 1fr 130px 110px 90px 70px", gap: 16, padding: "10px 20px", borderBottom: "1px solid var(--line)", background: "oklch(0.165 0.010 30)" }}>
+      <div className="activity-head" style={{ display: "grid", gridTemplateColumns: "100px 80px 1.4fr 1fr 130px 110px 90px 100px", gap: 16, padding: "10px 20px", borderBottom: "1px solid var(--line)", background: "oklch(0.165 0.010 30)" }}>
         {["Run ID", "Locale", "Scenario", "Subject", "Number", "Started", "Duration", "Status"].map((h) => (
           <span key={h} className="micro" style={{ color: "var(--ink-5)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 500 }}>{h}</span>
         ))}
@@ -371,7 +460,7 @@ const ActivityList = ({ items, selectedId, onSelect, onDelete }) => {
         const isSelected = a.id === selectedId;
         return (
           <div key={a.id}>
-            <div className="activity-row" onClick={() => onSelect(a.id)} style={{ display: "grid", gridTemplateColumns: "100px 80px 1.4fr 1fr 130px 110px 90px 70px", gap: 16, padding: "12px 20px", alignItems: "center", borderTop: i === 0 ? "none" : "1px solid var(--line-soft)", background: isSelected ? "oklch(0.205 0.011 30)" : "transparent", cursor: "pointer", transition: "background 120ms ease" }}
+            <div className="activity-row" onClick={() => onSelect(a.id)} style={{ display: "grid", gridTemplateColumns: "100px 80px 1.4fr 1fr 130px 110px 90px 100px", gap: 16, padding: "12px 20px", alignItems: "center", borderTop: i === 0 ? "none" : "1px solid var(--line-soft)", background: isSelected ? "oklch(0.205 0.011 30)" : "transparent", cursor: "pointer", transition: "background 120ms ease" }}
               onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "oklch(0.185 0.010 30)"; }}
               onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}>
               <span className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>{a.id}</span>
@@ -386,17 +475,39 @@ const ActivityList = ({ items, selectedId, onSelect, onDelete }) => {
             {isSelected && a.status === "recorded" && (
               <div style={{ padding: "16px 20px", background: "oklch(0.17 0.010 30)", borderTop: "1px solid var(--line-soft)", borderBottom: "1px solid var(--line-soft)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  <div style={{ flex: 1 }}><AudioPlayer id={a.id} duration={a.duration || 120} autoSeed={i * 13} /></div>
-                  <button className="btn btn-ghost btn-sm" type="button"><Icon name="download" size={14} />Download</button>
+                  <div style={{ flex: 1 }}><AudioPlayer id={a.id} src={a.audioUrl} duration={a.duration || 120} autoSeed={i * 13} emptyLabel="Recording unavailable" /></div>
+                  {a.audioUrl ? (
+                    <a className="btn btn-ghost btn-sm" href={a.audioUrl} download onClick={(e) => e.stopPropagation()}><Icon name="download" size={14} />Download</a>
+                  ) : (
+                    <button className="btn btn-ghost btn-sm" type="button" disabled><Icon name="download" size={14} />Download</button>
+                  )}
                   <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); onDelete(a.id); }} type="button" style={{ color: "var(--bad)" }}><Icon name="trash" size={14} />Delete</button>
+                </div>
+              </div>
+            )}
+            {isSelected && a.status === "queued" && (
+              <div style={{ padding: "14px 20px", background: "oklch(0.18 0.010 30)", borderTop: "1px solid var(--line-soft)", borderBottom: "1px solid var(--line-soft)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span className="pill pill-info"><span className="dot" />Queued</span>
+                  <span className="micro mono" style={{ color: "var(--ink-4)" }}>{a.message || "Waiting for recording metadata from the backend."}</span>
                 </div>
               </div>
             )}
             {isSelected && a.status === "routing" && (
               <div style={{ padding: "14px 20px", background: "oklch(0.18 0.010 30)", borderTop: "1px solid var(--line-soft)", borderBottom: "1px solid var(--line-soft)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span className="pill pill-warn pill-routing"><span className="dot" />Acquiring trunk</span>
-                  <span className="micro mono" style={{ color: "var(--ink-4)" }}>locale={a.locale}</span>
+                  <span className="pill pill-warn pill-routing"><span className="dot" />Submitting</span>
+                  <span className="micro mono" style={{ color: "var(--ink-4)" }}>{a.message || `locale=${a.locale}`}</span>
+                </div>
+              </div>
+            )}
+            {isSelected && a.status === "no_audio" && (
+              <div style={{ padding: "14px 20px", background: "oklch(0.18 0.010 30)", borderTop: "1px solid var(--line-soft)", borderBottom: "1px solid var(--line-soft)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span className="pill pill-bad"><span className="dot" />No audio</span>
+                  <span className="micro mono" style={{ color: "var(--ink-4)" }}>{a.message || "The backend did not return a playable recording URL."}</span>
+                  <span style={{ flex: 1 }} />
+                  <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); onDelete(a.id); }} type="button" style={{ color: "var(--bad)" }}><Icon name="trash" size={14} />Delete</button>
                 </div>
               </div>
             )}
@@ -404,7 +515,7 @@ const ActivityList = ({ items, selectedId, onSelect, onDelete }) => {
               <div style={{ padding: "14px 20px", background: "oklch(0.18 0.010 30)", borderTop: "1px solid var(--line-soft)", borderBottom: "1px solid var(--line-soft)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span className="pill pill-bad"><span className="dot" />Failed</span>
-                  <span className="micro mono" style={{ color: "var(--ink-4)" }}>subject unavailable</span>
+                  <span className="micro mono" style={{ color: "var(--ink-4)" }}>{a.message || "Request failed."}</span>
                   <span style={{ flex: 1 }} />
                   <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); onDelete(a.id); }} type="button" style={{ color: "var(--bad)" }}><Icon name="trash" size={14} />Delete</button>
                 </div>

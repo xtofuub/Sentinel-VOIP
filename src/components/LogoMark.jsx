@@ -42,6 +42,6 @@ export const LogoMark = ({ size = 28, animated = true }) => (
 
 export const Wordmark = ({ size = 16 }) => (
   <span style={{ fontFamily: "var(--font-display)", fontSize: size, fontWeight: 600, letterSpacing: "-0.022em", color: "var(--ink)" }}>
-    Sentinel<span style={{ color: "var(--accent)", margin: "0 1px", fontWeight: 500 }}>·</span>VOIP
+    Sentinel<span style={{ color: "var(--accent)", margin: "0 1px", fontWeight: 500 }}>.</span>VOIP
   </span>
 );

@@ -43,17 +43,17 @@ const localApiMock = () => ({
       }
 
       if (endpoint === "get_dialplan_ios.lua") {
-        const country = String(body.c || "us").toUpperCase();
-        const exact = SCENARIOS.filter((scenario) => scenario.region === country);
-        const pool = exact.length ? exact : SCENARIOS;
         sendJson(
           res,
-          pool.map((scenario) => ({
+          SCENARIOS.map((scenario) => ({
             _id: scenario.id,
             titulo: scenario.title,
             descripcion: scenario.desc,
             duracion: scenario.duration,
             categoria: scenario.category,
+            locale: scenario.locale,
+            flag: scenario.flag,
+            region: scenario.region,
           })),
         );
         return;

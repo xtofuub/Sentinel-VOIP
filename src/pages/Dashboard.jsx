@@ -12,18 +12,14 @@ const scenarioToDialplan = (scenario) => ({
   descripcion: scenario.desc,
   duracion: scenario.duration,
   categoria: scenario.category,
+  locale: scenario.locale,
+  flag: scenario.flag,
+  region: scenario.region,
   previewUrl: scenario.previewUrl,
   source: "local",
 });
 
-const fallbackDialplanForLocale = (locale) => {
-  const exact = SCENARIOS.filter((scenario) => scenario.locale === locale);
-  if (exact.length) return exact.map(scenarioToDialplan);
-
-  const country = localeToCountry(locale).toUpperCase();
-  const sameCountry = SCENARIOS.filter((scenario) => scenario.region === country);
-  return (sameCountry.length ? sameCountry : SCENARIOS).map(scenarioToDialplan);
-};
+const fallbackDialplanForLocale = () => SCENARIOS.map(scenarioToDialplan);
 
 const isValidDialPrefix = (value) => /^\+?\d{1,4}$/.test(value.trim());
 const normaliseDialString = (prefix, value) => `+${prefix.replace(/\D/g, "")}${value.replace(/\D/g, "")}`;
@@ -131,8 +127,9 @@ const Dashboard = () => {
     title: p.titulo || "Untitled scenario",
     desc: p.descripcion || p.titulo || "No description provided.",
     duration: p.duracion || 120,
-    flag: LOCALES.find(l => l.code === locale)?.flag || "US",
-    locale,
+    flag: p.flag || LOCALES.find(l => l.code === p.locale || l.code === locale)?.flag || "US",
+    locale: p.locale || locale,
+    region: p.region || localeToCountry(p.locale || locale).toUpperCase(),
     category: p.categoria || "Scenario",
     previewUrl: p.previewUrl || p.audio_url || p.audioUrl || p.recording_url || p.recordingUrl || "",
     source: p.source || "api",
@@ -167,15 +164,17 @@ const Dashboard = () => {
     if (planSource !== "api") { setToast({ type: "error", msg: "Connect a live backend before starting a run." }); return; }
 
     setLaunching(true);
-    const localeObj = LOCALES.find(l => l.code === locale);
+    const scenarioLocale = scenario.locale || locale;
+    const scenarioCountry = (scenario.region || localeToCountry(scenarioLocale)).toLowerCase();
+    const localeObj = LOCALES.find(l => l.code === scenarioLocale) || LOCALES.find(l => l.code === locale);
     const rowId = "evt_" + Date.now().toString(36);
     const row = {
       id: rowId,
       scenario: scenario.titulo,
       subject,
       number: dialString,
-      locale,
-      flag: localeObj?.flag || "US",
+      locale: scenarioLocale,
+      flag: scenario.flag || localeObj?.flag || "US",
       status: "routing",
       duration: 0,
       started: new Date().toISOString(),
@@ -186,7 +185,7 @@ const Dashboard = () => {
     setSelectedLogId(rowId);
 
     try {
-      const { outcome } = await createTask({ uid: session.uid, country: localeToCountry(locale), scenario, subject, phone: dialString });
+      const { outcome } = await createTask({ uid: session.uid, country: scenarioCountry, scenario, subject, phone: dialString });
       setActivity(prev => prev.map(a => a.id === rowId ? {
         ...a,
         status: outcome.status,
@@ -283,18 +282,21 @@ const Dashboard = () => {
           </div>
 
           {/* Vault */}
-          <div className="surface" style={{ padding: 0, display: "flex", flexDirection: "column", minHeight: 720 }}>
+          <div className="surface dash-vault" style={{ padding: 0, display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14, borderBottom: "1px solid var(--line)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <span className="kicker">Scenario vault</span>
                   <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 19, letterSpacing: "-0.015em", color: "var(--ink)" }}>
-                    Routed to <Flag code={localeObj?.flag} size={16} /> <span style={{ color: "var(--ink-2)" }}>{localeObj?.label}</span>
+                    All scenarios <span style={{ color: "var(--ink-3)", fontSize: 13, marginLeft: 8 }}><Flag code={localeObj?.flag} size={15} /> running as {localeObj?.label}</span>
                   </h2>
                 </div>
-                <div className="control-prefix-wrap" style={{ width: 240 }}>
-                  <span className="prefix"><Icon name="search" size={13} /></span>
-                  <input className="control" placeholder="Find a scenario…" value={vaultQuery} onChange={(e) => setVaultQuery(e.target.value)} style={{ height: 34, paddingLeft: 34 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <a className="btn btn-ghost btn-sm" href="#call-logs"><Icon name="activity" size={14} />Call logs</a>
+                  <div className="control-prefix-wrap" style={{ width: 240 }}>
+                    <span className="prefix"><Icon name="search" size={13} /></span>
+                    <input className="control" placeholder="Find a scenario..." value={vaultQuery} onChange={(e) => setVaultQuery(e.target.value)} style={{ height: 34, paddingLeft: 34 }} />
+                  </div>
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -305,7 +307,7 @@ const Dashboard = () => {
                 ))}
               </div>
             </div>
-            <div style={{ padding: 20, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(264px, 1fr))", gap: 12, alignContent: "flex-start", flex: 1 }}>
+            <div className="dash-vault-grid" style={{ padding: 20, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(264px, 1fr))", gap: 12, alignContent: "flex-start", flex: 1 }}>
               {vaultScenarios.length === 0 && (
                 <div style={{ gridColumn: "1 / -1", padding: 48, textAlign: "center", color: "var(--ink-4)", display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
                   <Icon name="search" size={22} style={{ color: "var(--ink-5)" }} />
@@ -320,7 +322,7 @@ const Dashboard = () => {
         </div>
 
         {/* Activity log */}
-        <div className="surface" style={{ marginTop: 20, padding: 0 }}>
+        <div id="call-logs" className="surface" style={{ marginTop: 20, padding: 0, scrollMarginTop: 96 }}>
           <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--line)" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span className="kicker">Activity log</span>
@@ -350,30 +352,64 @@ const Dashboard = () => {
   );
 };
 
+const THUMB_PALETTES = {
+  Bureaucratic: ["oklch(0.36 0.065 224)", "oklch(0.22 0.030 35)", "oklch(0.78 0.115 66)"],
+  Corporate: ["oklch(0.34 0.055 255)", "oklch(0.20 0.020 245)", "oklch(0.72 0.100 185)"],
+  Domestic: ["oklch(0.42 0.075 145)", "oklch(0.22 0.032 72)", "oklch(0.80 0.090 128)"],
+  Utility: ["oklch(0.43 0.065 88)", "oklch(0.21 0.025 35)", "oklch(0.82 0.120 84)"],
+  Absurd: ["oklch(0.48 0.090 20)", "oklch(0.24 0.026 325)", "oklch(0.83 0.105 34)"],
+  Scenario: ["oklch(0.36 0.045 225)", "oklch(0.20 0.018 30)", "oklch(0.72 0.085 160)"],
+};
+
+const ScenarioThumb = ({ scenario, seed }) => {
+  const palette = THUMB_PALETTES[scenario.category] || THUMB_PALETTES.Scenario;
+  const angle = 118 + ((seed * 31) % 48);
+  return (
+    <div
+      className="scenario-thumb"
+      style={{
+        "--thumb-a": palette[0],
+        "--thumb-b": palette[1],
+        "--thumb-c": palette[2],
+        "--thumb-angle": `${angle}deg`,
+      }}
+    >
+      <div className="scenario-thumb-mark">
+        <Flag code={scenario.flag} size={18} />
+        <span className="mono">{scenario.region || scenario.locale}</span>
+      </div>
+      <span className="scenario-thumb-label">{scenario.category}</span>
+    </div>
+  );
+};
+
 // ── Scenario card (vault) ───────────────────────────────────────────
 const ScenarioCard = ({ scenario, selected, onSelect, seed }) => (
   <div onClick={onSelect} role="button" tabIndex={0}
     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(); } }}
     style={{
-      padding: 14, border: `1px solid ${selected ? "var(--accent-line)" : "var(--line)"}`,
+      padding: 0, border: `1px solid ${selected ? "var(--accent-line)" : "var(--line)"}`,
       background: selected ? "var(--accent-soft)" : "oklch(0.175 0.010 30)",
-      borderRadius: 12, display: "flex", flexDirection: "column", gap: 10,
+      borderRadius: 12, display: "flex", flexDirection: "column", overflow: "hidden",
       cursor: "pointer", transition: "all 160ms ease",
       boxShadow: selected ? "0 0 0 3px var(--accent-soft)" : "none",
     }}
     onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = "var(--line-2)"; e.currentTarget.style.background = "oklch(0.195 0.010 30)"; } }}
     onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = "var(--line)"; e.currentTarget.style.background = "oklch(0.175 0.010 30)"; } }}
   >
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <Flag code={scenario.flag} size={14} />
-      <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-5)" }}>{scenario.id?.slice(0, 10)}</span>
-      <span style={{ flex: 1 }} />
-      <span className="chip" style={{ height: 18, fontSize: 10, padding: "0 7px" }}>{scenario.category}</span>
-    </div>
-    <h4 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 14.5, color: "var(--ink)", letterSpacing: "-0.012em", lineHeight: 1.3 }}>{scenario.title}</h4>
-    <p className="micro" style={{ color: "var(--ink-3)", margin: 0, lineHeight: 1.5, minHeight: 32 }}>{scenario.desc}</p>
-    <div onClick={(e) => e.stopPropagation()}>
-      <AudioPlayer id={scenario.id} src={scenario.previewUrl} duration={scenario.duration} compact autoSeed={seed * 17} emptyLabel="Preview unavailable" />
+    <ScenarioThumb scenario={scenario} seed={seed} />
+    <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Flag code={scenario.flag} size={14} />
+        <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-5)" }}>{scenario.id?.slice(0, 10)}</span>
+        <span style={{ flex: 1 }} />
+        <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-5)" }}>{scenario.locale}</span>
+      </div>
+      <h4 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 14.5, color: "var(--ink)", letterSpacing: "-0.012em", lineHeight: 1.3 }}>{scenario.title}</h4>
+      <p className="micro" style={{ color: "var(--ink-3)", margin: 0, lineHeight: 1.5, minHeight: 32 }}>{scenario.desc}</p>
+      <div onClick={(e) => e.stopPropagation()}>
+        <AudioPlayer id={scenario.id} src={scenario.previewUrl} duration={scenario.duration} compact autoSeed={seed * 17} emptyLabel="Preview unavailable" />
+      </div>
     </div>
   </div>
 );

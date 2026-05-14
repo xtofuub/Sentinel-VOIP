@@ -44,9 +44,19 @@ const FLAG_PATTERNS = {
 };
 
 const Flag = ({ code, size = 18 }) => {
-  const p = FLAG_PATTERNS[code];
+  const key = String(code || "").toUpperCase();
+  const p = FLAG_PATTERNS[key];
   const bg = p ? (p[1] ? `${p[1]}, ${p[0]}` : p[0]) : "var(--bg-3)";
-  return <span className="flag" style={{ width: size, height: Math.round(size * 0.72), background: bg, backgroundSize: "100% 100%" }} title={code} />;
+  return (
+    <span
+      className="flag"
+      style={{ width: size, height: Math.round(size * 0.72), background: bg, backgroundSize: "100% 100%" }}
+      title={key}
+      aria-label={`${key || "Unknown"} flag`}
+    >
+      {!p && <span className="flag-code">{key.slice(0, 2) || "??"}</span>}
+    </span>
+  );
 };
 
 export default Flag;

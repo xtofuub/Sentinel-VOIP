@@ -479,6 +479,41 @@ a:focus-visible,
   min-width: 118px;
 }
 
+.audio-player-button {
+  min-width: 34px;
+  padding: 0 11px;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.audio-player:not(.audio-player-compact) .audio-player-button {
+  min-width: 86px;
+}
+
+.audio-player-compact .audio-player-button {
+  min-width: 28px;
+  padding: 0;
+}
+
+.audio-progress-track {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: oklch(0.30 0.010 30);
+}
+
+.audio-progress-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 160ms ease;
+}
+
 .scenario-card-compact .audio-player {
   gap: 8px;
 }
@@ -777,6 +812,167 @@ a:focus-visible,
   font-size: 10.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.dash-vault-grid {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 22px;
+}
+
+.dash-vault-grid-compact {
+  grid-template-columns: 1fr;
+  gap: 9px;
+  padding: 12px;
+}
+
+.scenario-card {
+  padding: 22px;
+  min-height: 308px;
+  background: oklch(0.118 0.007 30);
+  border-color: oklch(0.25 0.012 30);
+  border-radius: 22px;
+  gap: 18px;
+}
+
+.scenario-card:hover {
+  background: oklch(0.136 0.008 30);
+}
+
+.scenario-card-head {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.scenario-card-head-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.scenario-card:not(.scenario-card-compact) .scenario-thumb {
+  width: 78px;
+  height: 78px;
+  min-height: 78px;
+  border: 0;
+  border-radius: 10px;
+}
+
+.scenario-card:not(.scenario-card-compact) .scenario-thumb::before,
+.scenario-card:not(.scenario-card-compact) .scenario-thumb::after,
+.scenario-card:not(.scenario-card-compact) .scenario-thumb-label {
+  display: none;
+}
+
+.scenario-card:not(.scenario-card-compact) .scenario-thumb-mark {
+  left: auto;
+  right: -4px;
+  bottom: -4px;
+  padding: 3px 5px;
+  border-radius: 5px;
+}
+
+.scenario-card:not(.scenario-card-compact) .scenario-thumb-mark .mono {
+  display: none;
+}
+
+.scenario-card-meta {
+  min-height: 24px;
+}
+
+.script-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--accent-line);
+  border-radius: 7px;
+  background: color-mix(in oklch, var(--accent) 20%, transparent);
+  color: oklch(0.92 0.08 14);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.scenario-card:not(.scenario-card-compact) .scenario-card-title {
+  font-size: 20px;
+  line-height: 1.08;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.scenario-card:not(.scenario-card-compact) .scenario-card-desc {
+  min-height: 94px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: oklch(0.78 0.012 45);
+}
+
+.scenario-card-footer {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.scenario-card-footer .scenario-card-audio {
+  flex: 0 0 auto;
+}
+
+.scenario-card-footer .audio-player {
+  width: auto;
+  min-width: 0;
+}
+
+.scenario-card-footer .audio-wave,
+.scenario-card-footer .audio-player-time {
+  display: none;
+}
+
+.scenario-card-footer .audio-player-button {
+  height: 42px !important;
+  min-width: 96px;
+  border-radius: 999px;
+}
+
+.scenario-arm {
+  margin-left: auto;
+  color: var(--ink-5);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.scenario-card-compact {
+  padding: 0;
+  grid-template-columns: 90px minmax(0, 1fr);
+  min-height: 126px;
+  border-radius: 10px;
+}
+
+.scenario-card-compact .scenario-thumb {
+  min-height: 126px;
+}
+
+.scenario-card-compact .scenario-card-body {
+  padding: 12px 14px 10px;
+}
+
+.scenario-card-compact .scenario-card-title {
+  font-size: 15px;
+}
+
+.scenario-card-compact .scenario-card-desc {
+  font-size: 12.5px;
+  color: oklch(0.76 0.010 45);
 }
 
 /* ── Animations ─────────────────────────────────────────────────────── */

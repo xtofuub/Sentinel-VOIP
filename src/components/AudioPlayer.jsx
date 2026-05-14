@@ -84,7 +84,7 @@ const AudioPlayer = ({
   };
 
   return (
-    <div className={`audio-player${canPlay ? "" : " audio-player-disabled"}`}>
+    <div className={`audio-player${compact ? " audio-player-compact" : ""}${canPlay ? "" : " audio-player-disabled"}`}>
       {src && (
         <audio
           ref={audioRef}
@@ -112,35 +112,48 @@ const AudioPlayer = ({
         title={activeError || (!src ? emptyLabel : undefined)}
         className="audio-player-button"
         style={{
-          width: compact ? 28 : 34,
+          width: compact ? 28 : undefined,
           height: compact ? 28 : 34,
-          background: isPlaying ? color : "var(--bg-3)",
-          color: isPlaying ? "var(--on-accent)" : "var(--ink)",
-          borderColor: isPlaying ? color : "var(--line-2)",
+          background: isPlaying ? color : compact ? "var(--bg-3)" : "var(--accent-soft)",
+          color: isPlaying ? "var(--on-accent)" : compact ? "var(--ink)" : "oklch(0.94 0.08 14)",
+          borderColor: isPlaying ? color : compact ? "var(--line-2)" : "var(--accent-line)",
         }}
       >
         <Icon name={isPlaying ? "pause" : "play"} size={compact ? 12 : 14} stroke={2} />
+        {!compact && <span>{isPlaying ? "Pause" : "Play"}</span>}
       </button>
 
-      <div
-        ref={wrapRef}
-        onClick={handleSeek}
-        className={isPlaying ? "audio-wave wave-active" : "audio-wave"}
-        style={{ height: compact ? 28 : 36, cursor: canPlay ? "pointer" : "default" }}
-        aria-hidden="true"
-      >
-        {bars.map((bar, i) => (
-          <span
-            key={i}
-            style={{
-              height: `${bar * 100}%`,
-              background: canPlay && i / bars.length < pct ? color : "oklch(0.34 0.012 30)",
-              opacity: canPlay ? 1 : 0.28,
-              animationDelay: isPlaying ? `${(i % 9) * 70}ms` : undefined,
-            }}
-          />
-        ))}
-      </div>
+      {compact ? (
+        <div
+          ref={wrapRef}
+          onClick={handleSeek}
+          className="audio-progress-track"
+          style={{ cursor: canPlay ? "pointer" : "default" }}
+          aria-hidden="true"
+        >
+          <span style={{ width: `${pct * 100}%`, background: color }} />
+        </div>
+      ) : (
+        <div
+          ref={wrapRef}
+          onClick={handleSeek}
+          className={isPlaying ? "audio-wave wave-active" : "audio-wave"}
+          style={{ height: 36, cursor: canPlay ? "pointer" : "default" }}
+          aria-hidden="true"
+        >
+          {bars.map((bar, i) => (
+            <span
+              key={i}
+              style={{
+                height: `${bar * 100}%`,
+                background: canPlay && i / bars.length < pct ? color : "oklch(0.34 0.012 30)",
+                opacity: canPlay ? 1 : 0.28,
+                animationDelay: isPlaying ? `${(i % 9) * 70}ms` : undefined,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       <span className="numeric audio-player-time">
         {canPlay ? (

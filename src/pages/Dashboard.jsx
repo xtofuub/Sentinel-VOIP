@@ -427,27 +427,64 @@ const ScenarioThumb = ({ scenario, seed, compact = false }) => {
 };
 
 // ── Scenario card (vault) ───────────────────────────────────────────
-const ScenarioCard = ({ scenario, selected, onSelect, seed, compact }) => (
-  <div onClick={onSelect} role="button" tabIndex={0}
-    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(); } }}
-    className={`scenario-card${selected ? " scenario-card-selected" : ""}${compact ? " scenario-card-compact" : ""}`}
-  >
-    <ScenarioThumb scenario={scenario} seed={seed} compact={compact} />
-    <div className="scenario-card-body">
-      <div className="scenario-card-meta">
-        <Flag code={scenario.flag} size={20} />
-        <span className="mono">{scenario.dialId || scenario.id?.slice(0, 12)}</span>
-        <span style={{ flex: 1 }} />
-        <span className="mono">{scenario.locale}</span>
+const ScenarioCard = ({ scenario, selected, onSelect, seed, compact }) => {
+  const commonProps = {
+    onClick: onSelect,
+    role: "button",
+    tabIndex: 0,
+    onKeyDown: (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onSelect();
+      }
+    },
+  };
+
+  if (compact) {
+    return (
+      <div {...commonProps} className={`scenario-card scenario-card-compact${selected ? " scenario-card-selected" : ""}`}>
+        <ScenarioThumb scenario={scenario} seed={seed} compact />
+        <div className="scenario-card-body">
+          <div className="scenario-card-meta">
+            <Flag code={scenario.flag} size={18} />
+            <span className="mono">{scenario.dialId || scenario.id?.slice(0, 12)}</span>
+            <span style={{ flex: 1 }} />
+            <span className="mono">{scenario.locale}</span>
+          </div>
+          <h4 className="scenario-card-title">{scenario.title}</h4>
+          <p className="scenario-card-desc">{scenario.desc}</p>
+          <div className="scenario-card-audio" onClick={(e) => e.stopPropagation()}>
+            <AudioPlayer id={scenario.id} src={scenario.previewUrl} duration={scenario.duration} compact autoSeed={seed * 17} emptyLabel="Preview unavailable" />
+          </div>
+        </div>
       </div>
-      <h4 className="scenario-card-title">{scenario.title}</h4>
+    );
+  }
+
+  return (
+    <div {...commonProps} className={`scenario-card${selected ? " scenario-card-selected" : ""}`}>
+      <div className="scenario-card-head">
+        <ScenarioThumb scenario={scenario} seed={seed} />
+        <div className="scenario-card-head-copy">
+          <div className="scenario-card-meta">
+            <span className="script-badge">Script</span>
+            <span style={{ flex: 1 }} />
+            <Flag code={scenario.flag} size={18} />
+            <span className="mono">{scenario.locale}</span>
+          </div>
+          <h4 className="scenario-card-title">{scenario.title}</h4>
+        </div>
+      </div>
       <p className="scenario-card-desc">{scenario.desc}</p>
-      <div className="scenario-card-audio" onClick={(e) => e.stopPropagation()}>
-        <AudioPlayer id={scenario.id} src={scenario.previewUrl} duration={scenario.duration} compact={compact} autoSeed={seed * 17} emptyLabel="Preview unavailable" />
+      <div className="scenario-card-footer">
+        <div className="scenario-card-audio" onClick={(e) => e.stopPropagation()}>
+          <AudioPlayer id={scenario.id} src={scenario.previewUrl} duration={scenario.duration} autoSeed={seed * 17} emptyLabel="Preview unavailable" />
+        </div>
+        <span className="scenario-arm mono">Tap card to arm</span>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 
 export default Dashboard;

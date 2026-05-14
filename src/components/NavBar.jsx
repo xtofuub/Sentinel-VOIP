@@ -8,16 +8,9 @@ const NavLink = ({ to, children, external, className = "" }) => {
   const active = path === to;
   return (
     <a href={`#${to}`}
-       className={className}
+       className={`nav-link ${active ? "nav-link-active" : ""} ${className}`}
        onClick={(e) => { if (!external) { e.preventDefault(); navigate(to); } else { e.preventDefault(); } }}
-       style={{
-         padding: "6px 10px", borderRadius: 7, fontSize: 13.5,
-         color: active ? "var(--ink)" : "var(--ink-3)",
-         background: active ? "var(--bg-2)" : "transparent",
-         transition: "color 150ms ease, background 150ms ease",
-       }}
-       onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = "var(--ink)"; }}
-       onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = "var(--ink-3)"; }}>
+       aria-current={active ? "page" : undefined}>
       {children}
     </a>
   );
@@ -36,31 +29,32 @@ const NavBar = () => {
       position: "sticky", top: 0, zIndex: 50,
       backdropFilter: "blur(14px) saturate(160%)",
       WebkitBackdropFilter: "blur(14px) saturate(160%)",
-      background: scrolled ? "oklch(0.155 0.008 30 / 0.78)" : "oklch(0.155 0.008 30 / 0.4)",
-      borderBottom: `1px solid ${scrolled ? "var(--line)" : "transparent"}`,
-      transition: "background 200ms ease, border-color 200ms ease",
+      background: scrolled ? "oklch(0.155 0.008 30 / 0.92)" : "oklch(0.155 0.008 30 / 0.74)",
+      borderBottom: `1px solid ${scrolled ? "var(--line)" : "var(--line-soft)"}`,
+      boxShadow: scrolled ? "0 14px 36px -28px rgba(0,0,0,0.75)" : "none",
+      transition: "background 200ms ease, border-color 200ms ease, box-shadow 200ms ease",
     }}>
-      <div className="shell nav-shell" style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
-        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <LogoMark size={28} />
-          <Wordmark size={16} />
+      <div className="shell nav-shell">
+        <Link to="/" className="nav-brand">
+          <LogoMark size={36} />
+          <Wordmark size={19} />
         </Link>
-        <nav className="nav-main" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <nav className="nav-main">
           <NavLink to="/catalog">Catalog</NavLink>
           <NavLink to="/dashboard">Console</NavLink>
           <NavLink to="/pricing">Pricing</NavLink>
           <NavLink to="/docs" external className="nav-hide-mobile">Docs</NavLink>
           <NavLink to="/changelog" external className="nav-hide-mobile">Changelog</NavLink>
         </nav>
-        <div className="nav-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button className="btn btn-ghost btn-sm" type="button">
-            <Icon name="command" size={14} />
-            <span className="mono" style={{ fontSize: 11.5, color: "var(--ink-3)" }}>Ctrl K</span>
+        <div className="nav-actions">
+          <button className="btn btn-ghost nav-command" type="button">
+            <Icon name="command" size={16} />
+            <span className="mono">Ctrl K</span>
           </button>
-          <Link to="/dashboard" className="btn btn-secondary btn-sm">Sign in</Link>
-          <Link to="/dashboard" className="btn btn-primary btn-sm">
+          <Link to="/dashboard" className="btn btn-secondary nav-action">Sign in</Link>
+          <Link to="/dashboard" className="btn btn-primary nav-action">
             Open console
-            <Icon name="arrow" size={13} />
+            <Icon name="arrow" size={15} />
           </Link>
         </div>
       </div>

@@ -168,6 +168,71 @@ a:focus-visible,
 .shell { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
 @media (max-width: 640px) { .shell { padding: 0 20px; } }
 
+.nav-shell {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 4px 0;
+}
+.nav-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 48px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: oklch(0.175 0.010 30 / 0.68);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset;
+}
+.nav-link {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 15px;
+  border-radius: 9px;
+  color: var(--ink-3);
+  font-size: 15px;
+  font-weight: 540;
+  letter-spacing: -0.006em;
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+.nav-link:hover {
+  color: var(--ink);
+  background: oklch(0.215 0.012 30 / 0.72);
+}
+.nav-link-active {
+  color: var(--ink);
+  background: var(--bg-3);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 8px 24px -18px var(--accent-glow);
+}
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.nav-command,
+.nav-action {
+  min-height: 40px;
+  padding-inline: 14px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+.nav-command .mono {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
 .row { display: flex; align-items: center; }
 .col { display: flex; flex-direction: column; }
 .grow { flex: 1; }
@@ -572,21 +637,44 @@ a:focus-visible,
 @media (max-width: 760px) {
   .nav-shell {
     height: auto !important;
-    min-height: 64px;
-    padding-top: 10px !important;
-    padding-bottom: 10px !important;
+    min-height: 76px;
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
     flex-wrap: wrap;
-    gap: 10px !important;
+    gap: 12px !important;
+  }
+  .nav-brand {
+    min-height: 44px;
   }
   .nav-main {
     order: 3;
     width: 100%;
     overflow-x: auto;
-    padding-bottom: 2px;
+    justify-content: flex-start;
+    min-height: 46px;
+    padding: 4px;
   }
-  .nav-actions .btn-primary,
+  .nav-link {
+    min-height: 36px;
+    padding-inline: 13px;
+    font-size: 14.5px;
+  }
   .nav-actions .btn-secondary {
     display: none;
+  }
+  .nav-command {
+    min-height: 38px;
+  }
+}
+
+@media (max-width: 520px) {
+  .nav-command {
+    display: none;
+  }
+  .nav-action {
+    min-height: 38px;
+    padding-inline: 12px;
+    font-size: 13.5px;
   }
 }
 

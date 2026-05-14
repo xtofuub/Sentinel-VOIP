@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LOCALES, SCENARIOS, localeToCountry, localeToLanguage } from "../lib/data";
-import { createSession, getDialplan, createTask } from "../lib/api";
+import { API_CONFIG, createSession, getDialplan, createTask } from "../lib/api";
 import Icon from "../components/Icon";
 import Flag from "../components/Flag";
 import AudioPlayer from "../components/AudioPlayer";
@@ -63,6 +63,11 @@ const Dashboard = () => {
     setStatus("initialising");
     setSession(null);
     setApiMessage("Connecting to backend...");
+    if (API_CONFIG.missingDevProxy) {
+      setStatus("preview");
+      setApiMessage("Local preview mode. Add VITE_API_PROXY_TARGET to .env.local and restart Vite to connect a backend.");
+      return () => { cancelled = true; };
+    }
     (async () => {
       try {
         const s = await createSession({
@@ -225,7 +230,7 @@ const Dashboard = () => {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <div className="surface-flat" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 12px", height: 34 }}>
               <span style={{ width: 6, height: 6, borderRadius: 99, background: status === "ready" ? "var(--ok)" : status === "error" ? "var(--bad)" : "var(--warn)" }} />
-              <span className="micro mono" style={{ color: "var(--ink-3)" }}>{status === "ready" ? `uid ${session?.uid.slice(0, 8)}…` : status === "error" ? "offline" : "connecting…"}</span>
+              <span className="micro mono" style={{ color: "var(--ink-3)" }}>{status === "ready" ? `uid ${session?.uid.slice(0, 8)}...` : status === "preview" ? "preview" : status === "error" ? "offline" : "connecting..."}</span>
             </div>
             <button className="btn btn-ghost btn-sm" type="button"><Icon name="settings" size={14} />Settings</button>
           </div>

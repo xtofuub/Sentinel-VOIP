@@ -1,6 +1,12 @@
 const BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/$/, "");
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 15000);
 
+export const API_CONFIG = {
+  base: BASE,
+  hasExplicitTarget: Boolean(import.meta.env.VITE_API_BASE || import.meta.env.VITE_API_PROXY_TARGET),
+  missingDevProxy: Boolean(import.meta.env.DEV && !import.meta.env.VITE_API_BASE && !import.meta.env.VITE_API_PROXY_TARGET),
+};
+
 const rand = (len = 18) => {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let value = "";

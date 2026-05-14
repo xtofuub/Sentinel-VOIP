@@ -70,6 +70,83 @@ const responseLooksRejected = (payload) => {
   return /\b(error|failed|failure|reject|denied|blocked|invalid|insufficient|unauthorized|forbidden)\b/.test(reason);
 };
 
+const toText = (value) => (value === null || value === undefined ? "" : String(value).trim());
+
+const firstNonEmpty = (item, keys) => {
+  for (const key of keys) {
+    const value = toText(item?.[key]);
+    if (value) return value;
+  }
+  return "";
+};
+
+const firstArrayFromObject = (payload, keys) => {
+  if (Array.isArray(payload)) return payload;
+  for (const key of keys) {
+    const value = payload?.[key];
+    if (Array.isArray(value)) return value;
+  }
+  for (const value of Object.values(payload || {})) {
+    if (Array.isArray(value)) return value;
+    if (value && typeof value === "object") {
+      const nested = firstArrayFromObject(value, keys);
+      if (nested.length) return nested;
+    }
+  }
+  return [];
+};
+
+export const normalizeLanguageItem = (item) => {
+  const id = firstNonEmpty(item, ["_id", "id", "code", "c", "country"]).toLowerCase();
+  if (!id) return null;
+  return {
+    ...item,
+    code: id,
+    country: id,
+    locale: firstNonEmpty(item, ["locale", "language", "lang"]),
+    flag: firstNonEmpty(item, ["flag", "region", "country"]) || id.toUpperCase(),
+    label: firstNonEmpty(item, ["tname", "name", "label", "title"]) || id.toUpperCase(),
+    count: Number(firstNonEmpty(item, ["count", "total", "pranks"])) || 0,
+  };
+};
+
+export const normalizePrankItem = (item) => {
+  if (!item || typeof item !== "object") return null;
+  const id = firstNonEmpty(item, ["_id", "id", "dial", "dial_id"]);
+  const title = firstNonEmpty(item, ["titulo", "title", "name", "nombre", "tname"]);
+  if (!id || !title) return null;
+
+  const desc = firstNonEmpty(item, ["descripcion", "desc", "description", "detalle", "summary"]);
+  const previewUrl = firstNonEmpty(item, ["previewUrl", "example", "preview", "sample", "audio_example", "demo", "audiofile", "audio", "audio_url", "audioUrl"]);
+  const imageUrl = firstNonEmpty(item, ["image_url", "imageUrl", "image", "img", "img_url", "thumbnail"]);
+  const duration = Number(firstNonEmpty(item, ["duracion", "duration", "seconds", "length"]));
+
+  return {
+    ...item,
+    _id: id,
+    dialId: firstNonEmpty(item, ["dialId", "dial_id", "dial"]) || id,
+    titulo: title,
+    descripcion: desc || title,
+    desc: desc || title,
+    previewUrl,
+    example: previewUrl || item.example,
+    image_url: imageUrl,
+    duracion: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 120,
+    categoria: firstNonEmpty(item, ["categoria", "category", "type"]) || "Scenario",
+  };
+};
+
+const normalizeLanguageList = (payload) =>
+  firstArrayFromObject(payload, ["dialplan_list", "dialplans", "languages", "data", "list", "items"])
+    .map(normalizeLanguageItem)
+    .filter(Boolean);
+
+const normalizePrankList = (payload) =>
+  firstArrayFromObject(payload, ["dialplan", "dialplans", "pranks", "data", "list", "items"])
+    .map(normalizePrankItem)
+    .filter(Boolean)
+    .sort((a, b) => (Number(a.order) || 9999) - (Number(b.order) || 9999));
+
 async function post(endpoint, body) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -220,8 +297,22 @@ export async function createSession({ country = "fi", language = "fi_FI", timezo
   return { did, uid };
 }
 
-export async function getDialplan({ country, uid }) {
-  const res = await post("get_dialplan_ios.lua", { c: country, uid });
+export async function getDialplanList({ did, uid } = {}) {
+  const res = await post("get_dialplan_list", { did, uid });
+  if (responseLooksRejected(res)) {
+    throw new ApiError(stringifyReason(res) || "Language list rejected by backend.", {
+      code: "LANGUAGE_LIST_REJECTED",
+      payload: res,
+    });
+  }
+
+  return normalizeLanguageList(res);
+}
+
+export async function getDialplan({ country, uid, selectedCountry = country }) {
+  const payload = { c: country, uid };
+  if (selectedCountry) payload.chc = selectedCountry;
+  const res = await post("get_dialplan_ios.lua", payload);
   if (responseLooksRejected(res)) {
     throw new ApiError(stringifyReason(res) || "Dial plan rejected by backend.", {
       code: "DIALPLAN_REJECTED",
@@ -229,7 +320,7 @@ export async function getDialplan({ country, uid }) {
     });
   }
 
-  return Array.isArray(res) ? res : res?.dialplan || res?.data?.dialplan || [];
+  return normalizePrankList(res);
 }
 
 export async function createTask({ uid, country, scenario, subject, phone }) {
@@ -237,7 +328,7 @@ export async function createTask({ uid, country, scenario, subject, phone }) {
   const payload = {
     _id: rand(18),
     c: country,
-    dial: scenario._id,
+    dial: scenario.dialId || scenario.dial_id || scenario.dial || scenario._id,
     dst: phone.replace(/^\+/, "").replace(/\D/g, ""),
     f: stamp,
     real_f: stamp,

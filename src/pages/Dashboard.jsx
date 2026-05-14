@@ -1,28 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LOCALES, SCENARIOS, localeToCountry, localeToLanguage } from "../lib/data";
-import { API_CONFIG, createSession, getDialplan, createTask } from "../lib/api";
+import { LOCALES, localeToCountry, localeToLanguage } from "../lib/data";
+import { API_CONFIG, createSession, getDialplan, getDialplanList, createTask } from "../lib/api";
+import { LOCAL_LANGUAGE_OPTIONS, countryToLocale, getLocalPranksForCountry } from "../lib/prankLibrary";
 import Icon from "../components/Icon";
 import Flag from "../components/Flag";
 import AudioPlayer from "../components/AudioPlayer";
 import StatusPill from "../components/StatusPill";
 
-const scenarioToDialplan = (scenario) => ({
-  _id: scenario.id,
-  titulo: scenario.title,
-  descripcion: scenario.desc,
-  duracion: scenario.duration,
-  categoria: scenario.category,
-  locale: scenario.locale,
-  flag: scenario.flag,
-  region: scenario.region,
-  previewUrl: scenario.previewUrl,
-  source: "local",
-});
-
-const fallbackDialplanForLocale = () => SCENARIOS.map(scenarioToDialplan);
-
 const isValidDialPrefix = (value) => /^\+?\d{1,4}$/.test(value.trim());
 const normaliseDialString = (prefix, value) => `+${prefix.replace(/\D/g, "")}${value.replace(/\D/g, "")}`;
+
+const normalizeLocale = (value) => String(value || "").replace("_", "-");
 
 const Dashboard = () => {
   const [subject, setSubject] = useState("Marcus Cole");
@@ -45,6 +33,18 @@ const Dashboard = () => {
   const [launching, setLaunching] = useState(false);
   const [planSource, setPlanSource] = useState("local");
   const [apiMessage, setApiMessage] = useState("Connecting to backend...");
+  const [languages, setLanguages] = useState(LOCAL_LANGUAGE_OPTIONS);
+
+  const activeLanguage = useMemo(() => {
+    const country = localeToCountry(locale);
+    return languages.find((item) => normalizeLocale(item.locale) === locale)
+      || languages.find((item) => item.country === country)
+      || LOCAL_LANGUAGE_OPTIONS.find((item) => normalizeLocale(item.locale) === locale)
+      || LOCAL_LANGUAGE_OPTIONS[0];
+  }, [languages, locale]);
+
+  const activeCountry = activeLanguage?.country || localeToCountry(locale);
+  const activeLocale = normalizeLocale(activeLanguage?.locale || locale || countryToLocale(activeCountry));
 
   // Toast lifetime
   useEffect(() => {
@@ -62,8 +62,8 @@ const Dashboard = () => {
     (async () => {
       try {
         const s = await createSession({
-          country: localeToCountry(locale),
-          language: localeToLanguage(locale),
+          country: activeCountry,
+          language: localeToLanguage(activeLocale),
         });
         if (cancelled) return;
         setSession(s);
@@ -79,11 +79,39 @@ const Dashboard = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [locale]);
+  }, [activeCountry, activeLocale]);
 
-  // 2. Fetch dial plan when locale or session changes
+  // 2. Fetch available languages, then load pranks for the selected language.
   useEffect(() => {
-    const fallbackPlan = fallbackDialplanForLocale(locale);
+    if (!session) {
+      setLanguages(LOCAL_LANGUAGE_OPTIONS);
+      return undefined;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await getDialplanList({ did: session.did, uid: session.uid });
+        if (cancelled || !list.length) return;
+        setLanguages(list.map((item) => ({
+          ...item,
+          country: item.country || item.code,
+          code: item.code || item.country,
+          locale: normalizeLocale(item.locale) || countryToLocale(item.country || item.code),
+          flag: item.flag || (item.country || item.code || "us").toUpperCase(),
+          label: item.label || item.tname || item.name || (item.country || item.code || "US").toUpperCase(),
+        })));
+      } catch {
+        if (!cancelled) setLanguages(LOCAL_LANGUAGE_OPTIONS);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [session]);
+
+  // 3. Fetch dial plan when language or session changes
+  useEffect(() => {
+    const fallbackPlan = getLocalPranksForCountry(activeCountry);
     const ensureSelection = (plan) => {
       setScenarioId((current) => (plan.some((item) => item._id === current) ? current : plan[0]?._id || null));
     };
@@ -99,7 +127,7 @@ const Dashboard = () => {
     setLoadingPlan(true);
     (async () => {
       try {
-        const plan = await getDialplan({ country: localeToCountry(locale), uid: session.uid });
+        const plan = await getDialplan({ country: activeCountry, uid: session.uid, selectedCountry: activeCountry });
         if (cancelled) return;
         const usablePlan = plan.length ? plan : fallbackPlan;
         setDialplan(usablePlan);
@@ -119,21 +147,24 @@ const Dashboard = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [locale, session]);
+  }, [activeCountry, session]);
 
   // Map dialplan items to card format
   const toCard = useCallback((p) => ({
     id: p._id,
+    dialId: p.dialId || p.dial_id || p.dial || p._id,
     title: p.titulo || "Untitled scenario",
-    desc: p.descripcion || p.titulo || "No description provided.",
+    desc: p.descripcion || p.desc || p.description || p.titulo || "No description provided.",
     duration: p.duracion || 120,
-    flag: p.flag || LOCALES.find(l => l.code === p.locale || l.code === locale)?.flag || "US",
-    locale: p.locale || locale,
-    region: p.region || localeToCountry(p.locale || locale).toUpperCase(),
+    flag: p.flag || p.region || activeLanguage?.flag || "US",
+    locale: normalizeLocale(p.locale) || activeLocale,
+    region: p.region || p.country?.toUpperCase() || activeCountry.toUpperCase(),
+    languageLabel: p.languageLabel || activeLanguage?.label || activeLocale,
     category: p.categoria || "Scenario",
-    previewUrl: p.previewUrl || p.audio_url || p.audioUrl || p.recording_url || p.recordingUrl || "",
+    imageUrl: p.image_url || p.imageUrl || p.thumbnail || "",
+    previewUrl: p.previewUrl || p.example || p.audiofile || p.audio_url || p.audioUrl || p.recording_url || p.recordingUrl || "",
     source: p.source || "api",
-  }), [locale]);
+  }), [activeCountry, activeLanguage, activeLocale]);
 
   const vaultScenarios = useMemo(() => {
     let s = dialplan.map(toCard);
@@ -164,9 +195,9 @@ const Dashboard = () => {
     if (planSource !== "api") { setToast({ type: "error", msg: "Connect a live backend before starting a run." }); return; }
 
     setLaunching(true);
-    const scenarioLocale = scenario.locale || locale;
-    const scenarioCountry = (scenario.region || localeToCountry(scenarioLocale)).toLowerCase();
-    const localeObj = LOCALES.find(l => l.code === scenarioLocale) || LOCALES.find(l => l.code === locale);
+    const scenarioCountry = String(scenario.country || scenario.region || activeCountry).toLowerCase();
+    const scenarioLocale = normalizeLocale(scenario.locale) || countryToLocale(scenarioCountry);
+    const localeObj = languages.find(l => l.country === scenarioCountry) || LOCALES.find(l => l.code === scenarioLocale) || activeLanguage;
     const rowId = "evt_" + Date.now().toString(36);
     const row = {
       id: rowId,
@@ -174,7 +205,7 @@ const Dashboard = () => {
       subject,
       number: dialString,
       locale: scenarioLocale,
-      flag: scenario.flag || localeObj?.flag || "US",
+      flag: scenario.flag || localeObj?.flag || scenarioCountry.toUpperCase(),
       status: "routing",
       duration: 0,
       started: new Date().toISOString(),
@@ -206,7 +237,7 @@ const Dashboard = () => {
   };
 
   const purgeAll = () => { setActivity([]); setToast({ type: "neutral", msg: "Activity log purged" }); };
-  const localeObj = LOCALES.find(l => l.code === locale);
+  const localeObj = activeLanguage;
   const launchDisabled = launching || status !== "ready" || planSource !== "api" || !dialplan.length;
   const selectedLogStatus = logFilter.toLowerCase().replace(/\s+/g, "_");
   const visibleActivity = activity.filter((item) => logFilter === "All" || item.status === selectedLogStatus);
@@ -218,7 +249,7 @@ const Dashboard = () => {
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <span className="kicker">Console / Run orchestrator</span>
-            <h1 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 30, letterSpacing: "-0.022em", color: "var(--ink)" }}>Configure a run</h1>
+            <h1 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 560, fontSize: 38, letterSpacing: "-0.024em", color: "var(--ink)" }}>Configure a run</h1>
             <p className="small" style={{ color: "var(--ink-4)", margin: 0 }}>Workspace: <span className="mono" style={{ color: "var(--ink-2)" }}>nw-behav-labs / production</span></p>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -239,9 +270,9 @@ const Dashboard = () => {
         </div>
 
         {/* Top grid */}
-        <div className="dash-cols" style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 20, alignItems: "flex-start" }}>
+        <div className="dash-cols" style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 24, alignItems: "flex-start" }}>
           {/* Configure Run sidebar */}
-          <div className="dash-configure surface" style={{ position: "sticky", top: 80, padding: 22, display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="dash-configure surface" style={{ position: "sticky", top: 92, padding: 26, display: "flex", flexDirection: "column", gap: 18 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span className="kicker">Configure run</span>
               <span className="chip mono">draft</span>
@@ -257,19 +288,19 @@ const Dashboard = () => {
                 <input className="control" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="(415) 555-0182" />
               </div>
             </div>
-            <LocaleSelect value={locale} onChange={(v) => { setLocale(v); setScenarioId(null); }} />
+            <LocaleSelect value={locale} options={languages} onChange={(v) => { setLocale(v); setScenarioId(null); }} />
             <div className="field">
               <label className="field-label">Selected scenario</label>
               {selectedScenario ? (
-                <div style={{ padding: 12, border: "1px solid var(--accent-line)", background: "var(--accent-soft)", borderRadius: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ padding: 14, border: "1px solid var(--accent-line)", background: "var(--accent-soft)", borderRadius: 10, display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Flag code={selectedScenario.flag} size={14} />
-                    <span className="mono" style={{ fontSize: 10.5, color: "oklch(0.86 0.08 14)" }}>{selectedScenario.id?.slice(0, 8)}</span>
+                    <Flag code={selectedScenario.flag} size={20} />
+                    <span className="mono" style={{ fontSize: 12, color: "oklch(0.86 0.08 14)" }}>{selectedScenario.dialId || selectedScenario.id?.slice(0, 8)}</span>
                     <span style={{ flex: 1 }} />
-                    <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)" }}>~{Math.round(selectedScenario.duration / 60)}:{String(selectedScenario.duration % 60).padStart(2, "0")}</span>
+                    <span className="mono" style={{ fontSize: 12, color: "var(--ink-4)" }}>~{Math.round(selectedScenario.duration / 60)}:{String(selectedScenario.duration % 60).padStart(2, "0")}</span>
                   </div>
-                  <div style={{ fontSize: 14, color: "var(--ink)" }}>{selectedScenario.title}</div>
-                  <div className="micro" style={{ color: "var(--ink-3)", lineHeight: 1.5 }}>{selectedScenario.desc}</div>
+                  <div style={{ fontSize: 16, color: "var(--ink)", lineHeight: 1.35 }}>{selectedScenario.title}</div>
+                  <div className="small" style={{ color: "var(--ink-3)", lineHeight: 1.5 }}>{selectedScenario.desc}</div>
                 </div>
               ) : (
                 <div className="surface-flat" style={{ padding: 12, color: "var(--ink-4)", fontSize: 13 }}>{loadingPlan ? "Loading…" : "Pick one from the vault →"}</div>
@@ -288,12 +319,12 @@ const Dashboard = () => {
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <span className="kicker">Scenario vault</span>
                   <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 19, letterSpacing: "-0.015em", color: "var(--ink)" }}>
-                    All scenarios <span style={{ color: "var(--ink-3)", fontSize: 13, marginLeft: 8 }}><Flag code={localeObj?.flag} size={15} /> running as {localeObj?.label}</span>
+                    Language library <span style={{ color: "var(--ink-3)", fontSize: 14.5, marginLeft: 8 }}><Flag code={localeObj?.flag} size={20} /> {localeObj?.label}</span>
                   </h2>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
                   <a className="btn btn-ghost btn-sm" href="#call-logs"><Icon name="activity" size={14} />Call logs</a>
-                  <div className="control-prefix-wrap" style={{ width: 240 }}>
+                  <div className="control-prefix-wrap" style={{ width: 320 }}>
                     <span className="prefix"><Icon name="search" size={13} /></span>
                     <input className="control" placeholder="Find a scenario..." value={vaultQuery} onChange={(e) => setVaultQuery(e.target.value)} style={{ height: 34, paddingLeft: 34 }} />
                   </div>
@@ -301,13 +332,13 @@ const Dashboard = () => {
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {allCats.map((c) => (
-                  <button key={c} type="button" onClick={() => setVaultCategory(c)} style={{ height: 28, padding: "0 12px", borderRadius: 99, border: `1px solid ${vaultCategory === c ? "var(--accent-line)" : "var(--line)"}`, background: vaultCategory === c ? "var(--accent-soft)" : "transparent", color: vaultCategory === c ? "oklch(0.92 0.08 14)" : "var(--ink-3)", fontSize: 12, transition: "all 150ms ease" }}>
+                  <button key={c} type="button" onClick={() => setVaultCategory(c)} style={{ height: 34, padding: "0 14px", borderRadius: 99, border: `1px solid ${vaultCategory === c ? "var(--accent-line)" : "var(--line)"}`, background: vaultCategory === c ? "var(--accent-soft)" : "transparent", color: vaultCategory === c ? "oklch(0.92 0.08 14)" : "var(--ink-3)", fontSize: 13, transition: "all 150ms ease" }}>
                     {c}{vaultCategory === c && <span className="mono" style={{ marginLeft: 8, color: "oklch(0.78 0.10 14)", fontSize: 10.5 }}>{vaultScenarios.length}</span>}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="dash-vault-grid" style={{ padding: 20, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(264px, 1fr))", gap: 12, alignContent: "flex-start", flex: 1 }}>
+            <div className="dash-vault-grid" style={{ padding: 22, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: 16, alignContent: "flex-start", flex: 1 }}>
               {vaultScenarios.length === 0 && (
                 <div style={{ gridColumn: "1 / -1", padding: 48, textAlign: "center", color: "var(--ink-4)", display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
                   <Icon name="search" size={22} style={{ color: "var(--ink-5)" }} />
@@ -374,8 +405,9 @@ const ScenarioThumb = ({ scenario, seed }) => {
         "--thumb-angle": `${angle}deg`,
       }}
     >
+      {scenario.imageUrl && <img className="scenario-thumb-img" src={scenario.imageUrl} alt="" loading="lazy" />}
       <div className="scenario-thumb-mark">
-        <Flag code={scenario.flag} size={18} />
+        <Flag code={scenario.flag} size={24} />
         <span className="mono">{scenario.region || scenario.locale}</span>
       </div>
       <span className="scenario-thumb-label">{scenario.category}</span>
@@ -398,17 +430,17 @@ const ScenarioCard = ({ scenario, selected, onSelect, seed }) => (
     onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = "var(--line)"; e.currentTarget.style.background = "oklch(0.175 0.010 30)"; } }}
   >
     <ScenarioThumb scenario={scenario} seed={seed} />
-    <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <Flag code={scenario.flag} size={14} />
-        <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-5)" }}>{scenario.id?.slice(0, 10)}</span>
+        <Flag code={scenario.flag} size={20} />
+        <span className="mono" style={{ fontSize: 12, color: "var(--ink-5)" }}>{scenario.dialId || scenario.id?.slice(0, 12)}</span>
         <span style={{ flex: 1 }} />
-        <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-5)" }}>{scenario.locale}</span>
+        <span className="mono" style={{ fontSize: 12, color: "var(--ink-5)" }}>{scenario.locale}</span>
       </div>
-      <h4 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 14.5, color: "var(--ink)", letterSpacing: "-0.012em", lineHeight: 1.3 }}>{scenario.title}</h4>
-      <p className="micro" style={{ color: "var(--ink-3)", margin: 0, lineHeight: 1.5, minHeight: 32 }}>{scenario.desc}</p>
+      <h4 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 560, fontSize: 18, color: "var(--ink)", letterSpacing: "-0.012em", lineHeight: 1.25 }}>{scenario.title}</h4>
+      <p className="small" style={{ color: "var(--ink-3)", margin: 0, lineHeight: 1.55, minHeight: 52 }}>{scenario.desc}</p>
       <div onClick={(e) => e.stopPropagation()}>
-        <AudioPlayer id={scenario.id} src={scenario.previewUrl} duration={scenario.duration} compact autoSeed={seed * 17} emptyLabel="Preview unavailable" />
+        <AudioPlayer id={scenario.id} src={scenario.previewUrl} duration={scenario.duration} autoSeed={seed * 17} emptyLabel="Preview unavailable" />
       </div>
     </div>
   </div>
@@ -419,11 +451,11 @@ export default Dashboard;
 
 
 // ── Locale select ───────────────────────────────────────────────────
-const LocaleSelect = ({ value, onChange }) => {
+const LocaleSelect = ({ value, options = LOCAL_LANGUAGE_OPTIONS, onChange }) => {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef(null);
-  const cur = LOCALES.find(l => l.code === value);
+  const cur = options.find(l => normalizeLocale(l.locale) === value) || options[0];
 
   useEffect(() => {
     const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -432,16 +464,16 @@ const LocaleSelect = ({ value, onChange }) => {
   }, []);
 
   const filtered = q.trim()
-    ? LOCALES.filter(l => l.label.toLowerCase().includes(q.toLowerCase()) || l.code.toLowerCase().includes(q.toLowerCase()))
-    : LOCALES;
+    ? options.filter(l => `${l.label} ${l.locale} ${l.country}`.toLowerCase().includes(q.toLowerCase()))
+    : options;
 
   return (
     <div className="field" ref={ref} style={{ position: "relative" }}>
-      <label className="field-label">Locale<span className="field-hint">{LOCALES.length} regions</span></label>
+      <label className="field-label">Language<span className="field-hint">{options.length} regions</span></label>
       <button type="button" onClick={() => setOpen(o => !o)} className="control" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textAlign: "left" }}>
-        <Flag code={cur?.flag} />
-        <span style={{ fontSize: 13.5 }}>{cur?.label}</span>
-        <span className="mono" style={{ fontSize: 11, color: "var(--ink-5)", marginLeft: 4 }}>{cur?.code}</span>
+        <Flag code={cur?.flag || cur?.country} size={22} />
+        <span style={{ fontSize: 15 }}>{cur?.label}</span>
+        <span className="mono" style={{ fontSize: 12, color: "var(--ink-5)", marginLeft: 4 }}>{cur?.locale}</span>
         <span style={{ flex: 1 }} />
         <Icon name="chev-d" size={14} style={{ color: "var(--ink-4)" }} />
       </button>
@@ -450,19 +482,19 @@ const LocaleSelect = ({ value, onChange }) => {
           <div style={{ padding: 8, borderBottom: "1px solid var(--line)" }}>
             <div className="control-prefix-wrap">
               <span className="prefix"><Icon name="search" size={13} /></span>
-              <input className="control" autoFocus placeholder="Search locales…" value={q} onChange={(e) => setQ(e.target.value)} style={{ height: 32, paddingLeft: 34, fontSize: 13 }} />
+              <input className="control" autoFocus placeholder="Search languages..." value={q} onChange={(e) => setQ(e.target.value)} style={{ height: 38, paddingLeft: 34, fontSize: 14 }} />
             </div>
           </div>
           <div style={{ overflowY: "auto", flex: 1 }}>
             {filtered.map((l) => (
-              <button key={l.code} type="button" onClick={() => { onChange(l.code); setOpen(false); setQ(""); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 12px", background: l.code === value ? "var(--accent-soft)" : "transparent", color: l.code === value ? "oklch(0.92 0.08 14)" : "var(--ink-2)", textAlign: "left", borderRadius: 0, cursor: "pointer", fontSize: 13 }}
-                onMouseEnter={(e) => { if (l.code !== value) e.currentTarget.style.background = "var(--bg-2)"; }}
-                onMouseLeave={(e) => { if (l.code !== value) e.currentTarget.style.background = "transparent"; }}>
-                <Flag code={l.flag} /><span>{l.label}</span><span style={{ flex: 1 }} /><span className="mono" style={{ fontSize: 11, color: "var(--ink-5)" }}>{l.code}</span>
-                {l.code === value && <Icon name="check" size={13} style={{ color: "var(--accent)" }} />}
+              <button key={l.country || l.code || l.locale} type="button" onClick={() => { onChange(normalizeLocale(l.locale) || countryToLocale(l.country || l.code)); setOpen(false); setQ(""); }} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "11px 12px", background: normalizeLocale(l.locale) === value ? "var(--accent-soft)" : "transparent", color: normalizeLocale(l.locale) === value ? "oklch(0.92 0.08 14)" : "var(--ink-2)", textAlign: "left", borderRadius: 0, cursor: "pointer", fontSize: 14 }}
+                onMouseEnter={(e) => { if (normalizeLocale(l.locale) !== value) e.currentTarget.style.background = "var(--bg-2)"; }}
+                onMouseLeave={(e) => { if (normalizeLocale(l.locale) !== value) e.currentTarget.style.background = "transparent"; }}>
+                <Flag code={l.flag || l.country} size={22} /><span>{l.label}</span><span style={{ flex: 1 }} /><span className="mono" style={{ fontSize: 12, color: "var(--ink-5)" }}>{l.count ? `${l.count} scripts` : l.locale}</span>
+                {normalizeLocale(l.locale) === value && <Icon name="check" size={14} style={{ color: "var(--accent)" }} />}
               </button>
             ))}
-            {filtered.length === 0 && <div style={{ padding: 24, textAlign: "center", color: "var(--ink-5)", fontSize: 13 }}>No locales match "{q}"</div>}
+            {filtered.length === 0 && <div style={{ padding: 24, textAlign: "center", color: "var(--ink-5)", fontSize: 14 }}>No languages match "{q}"</div>}
           </div>
         </div>
       )}

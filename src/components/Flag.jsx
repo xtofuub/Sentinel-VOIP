@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 const FLAG_PATTERNS = {
   US: ["linear-gradient(180deg,#b22 0 15%,#fff 15% 31%,#b22 31% 46%,#fff 46% 62%,#b22 62% 77%,#fff 77% 92%,#b22 92%)", "linear-gradient(45deg,#23386b 0 38%,transparent 38%)"],
   GB: ["#1a3a8a", "linear-gradient(45deg,transparent 45%,#fff 45% 55%,transparent 55%),linear-gradient(-45deg,transparent 45%,#fff 45% 55%,transparent 55%),linear-gradient(90deg,transparent 40%,#fff 40% 60%,transparent 60%),linear-gradient(0deg,transparent 40%,#fff 40% 60%,transparent 60%),linear-gradient(90deg,transparent 45%,#c8102e 45% 55%,transparent 55%),linear-gradient(0deg,transparent 45%,#c8102e 45% 55%,transparent 55%)"],
@@ -43,18 +45,37 @@ const FLAG_PATTERNS = {
   ID: ["linear-gradient(180deg,#ce1126 0 50%,#fff 50%)", ""],
 };
 
+const CODE_ALIASES = {
+  UK: "GB",
+  EL: "GR",
+};
+
+const toFlagCode = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "UN";
+  const fromLocale = /-([a-z]{2})$/i.exec(raw)?.[1];
+  const code = (fromLocale || raw).slice(0, 2).toUpperCase();
+  return CODE_ALIASES[code] || code;
+};
+
 const Flag = ({ code, size = 18 }) => {
-  const key = String(code || "").toUpperCase();
+  const [failed, setFailed] = useState(false);
+  const key = toFlagCode(code);
   const p = FLAG_PATTERNS[key];
   const bg = p ? (p[1] ? `${p[1]}, ${p[0]}` : p[0]) : "var(--bg-3)";
+  const imageCode = key.toLowerCase();
   return (
     <span
-      className="flag"
+      className="flag flag-img-wrap"
       style={{ width: size, height: Math.round(size * 0.72), background: bg, backgroundSize: "100% 100%" }}
       title={key}
       aria-label={`${key || "Unknown"} flag`}
     >
-      {!p && <span className="flag-code">{key.slice(0, 2) || "??"}</span>}
+      {!failed && key !== "UN" ? (
+        <img src={`https://flagcdn.com/w40/${imageCode}.png`} alt="" loading="lazy" onError={() => setFailed(true)} />
+      ) : (
+        <span className="flag-code">{key.slice(0, 2) || "??"}</span>
+      )}
     </span>
   );
 };

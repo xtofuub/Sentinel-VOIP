@@ -165,7 +165,7 @@ a:focus-visible,
 }
 
 /* ── Layout primitives ──────────────────────────────────────────────── */
-.shell { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+.shell { max-width: 1500px; margin: 0 auto; padding: 0 34px; }
 @media (max-width: 640px) { .shell { padding: 0 20px; } }
 
 .nav-shell {
@@ -267,10 +267,10 @@ a:focus-visible,
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 36px;
-  padding: 0 14px;
+  height: 40px;
+  padding: 0 16px;
   border-radius: 8px;
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 500;
   letter-spacing: -0.005em;
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 200ms ease;
@@ -304,8 +304,8 @@ a:focus-visible,
   border: 1px solid transparent;
 }
 .btn-ghost:hover { background: var(--bg-2); color: var(--ink); }
-.btn-lg { height: 44px; padding: 0 18px; font-size: 14.5px; border-radius: 10px; }
-.btn-sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: 7px; }
+.btn-lg { height: 50px; padding: 0 20px; font-size: 15.5px; border-radius: 11px; }
+.btn-sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: 8px; }
 .btn-icon { width: 32px; padding: 0; }
 
 /* ── Form controls ──────────────────────────────────────────────────── */
@@ -315,7 +315,7 @@ a:focus-visible,
   gap: 6px;
 }
 .field-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ink-3);
   letter-spacing: -0.005em;
@@ -328,13 +328,13 @@ a:focus-visible,
 .control {
   appearance: none;
   width: 100%;
-  height: 38px;
-  padding: 0 12px;
+  height: 44px;
+  padding: 0 14px;
   background: oklch(0.175 0.010 30);
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: -0.005em;
   transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
 }
@@ -433,7 +433,7 @@ a:focus-visible,
 .audio-player {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   min-width: 0;
 }
@@ -456,8 +456,8 @@ a:focus-visible,
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 1.5px;
-  min-width: 44px;
+  gap: 3px;
+  min-width: 120px;
 }
 .audio-wave span {
   flex: 1;
@@ -466,10 +466,10 @@ a:focus-visible,
   transition: background 180ms ease, opacity 180ms ease;
 }
 .audio-player-time {
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--ink-4);
-  min-width: 78px;
-  max-width: 160px;
+  min-width: 86px;
+  max-width: 180px;
   text-align: right;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -518,6 +518,13 @@ a:focus-visible,
   vertical-align: -2px;
 }
 
+.flag-img-wrap img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
 .flag-code {
   color: var(--ink-2);
   font-family: var(--font-mono);
@@ -528,8 +535,8 @@ a:focus-visible,
 }
 
 .dash-vault {
-  min-height: 520px;
-  max-height: calc(100dvh - 176px);
+  min-height: 650px;
+  max-height: calc(100dvh - 166px);
 }
 
 .dash-vault-grid {
@@ -538,13 +545,30 @@ a:focus-visible,
 }
 
 .scenario-thumb {
-  min-height: 94px;
+  min-height: 150px;
   position: relative;
   overflow: hidden;
   background:
     linear-gradient(var(--thumb-angle), var(--thumb-a), var(--thumb-b)),
     radial-gradient(circle at 18% 18%, color-mix(in oklch, var(--thumb-c) 68%, transparent), transparent 42%);
   border-bottom: 1px solid var(--line);
+}
+
+.scenario-thumb-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.92) contrast(0.94) brightness(0.78);
+  transform: scale(1.01);
+}
+
+.scenario-thumb::before,
+.scenario-thumb::after,
+.scenario-thumb-mark,
+.scenario-thumb-label {
+  z-index: 1;
 }
 
 .scenario-thumb::before,

@@ -3,7 +3,23 @@ import { Link } from "../context/RouterContext";
 import Icon from "../components/Icon";
 import Flag from "../components/Flag";
 import AudioPlayer from "../components/AudioPlayer";
-import { SCENARIOS } from "../lib/data";
+import { getAllLocalPranks } from "../lib/prankLibrary";
+
+const LIBRARY_SCENARIOS = getAllLocalPranks().map((item) => ({
+  id: item._id,
+  dialId: item.dialId,
+  title: item.titulo,
+  desc: item.desc || item.descripcion,
+  imageUrl: item.image_url,
+  previewUrl: item.previewUrl || item.example,
+  duration: item.duracion,
+  region: item.region,
+  locale: item.locale,
+  flag: item.flag,
+  category: item.categoria,
+  languageLabel: item.languageLabel,
+  order: item.order,
+}));
 
 const Catalog = () => {
   const [query, setQuery] = useState("");
@@ -12,11 +28,11 @@ const Catalog = () => {
   const [sort, setSort] = useState("Newest");
   const [view, setView] = useState("grid");
 
-  const regions = useMemo(() => ["All", ...new Set(SCENARIOS.map(s => s.region))], []);
-  const cats = useMemo(() => ["All", ...new Set(SCENARIOS.map(s => s.category))], []);
+  const regions = useMemo(() => ["All", ...new Set(LIBRARY_SCENARIOS.map(s => s.region))], []);
+  const cats = useMemo(() => ["All", ...new Set(LIBRARY_SCENARIOS.map(s => s.category))], []);
 
   const results = useMemo(() => {
-    let s = [...SCENARIOS];
+    let s = [...LIBRARY_SCENARIOS];
     if (region !== "All") s = s.filter(x => x.region === region);
     if (category !== "All") s = s.filter(x => x.category === category);
     if (query.trim()) {
@@ -42,7 +58,7 @@ const Catalog = () => {
         <div className="catalog-toolbar" style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto auto", gap: 10, marginBottom: 20, alignItems: "center" }}>
           <div className="control-prefix-wrap">
             <span className="prefix"><Icon name="search" size={14} /></span>
-            <input className="control" placeholder="Search 1,284 scenarios by title, locale, or keyword…" value={query} onChange={(e) => setQuery(e.target.value)} style={{ height: 44, paddingLeft: 40, fontSize: 14.5 }} />
+            <input className="control" placeholder="Search 2,129 scenarios by title, locale, or keyword..." value={query} onChange={(e) => setQuery(e.target.value)} style={{ height: 48, paddingLeft: 42, fontSize: 15.5 }} />
           </div>
           <Dropdown label="Region" value={region} options={regions} onChange={setRegion} renderOption={(o) => o === "All" ? <span>All regions</span> : <span style={{ display: "flex", alignItems: "center", gap: 8 }}><Flag code={o} />{o}</span>} />
           <Dropdown label="Category" value={category} options={cats} onChange={setCategory} />
@@ -72,7 +88,7 @@ const Catalog = () => {
 
         {/* Results */}
         {view === "grid" ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: 18 }}>
             {results.map((s, i) => <CatalogCard key={s.id} scenario={s} seed={i} />)}
           </div>
         ) : (
@@ -90,7 +106,7 @@ const Catalog = () => {
                 <span className="small truncate" style={{ color: "var(--ink-4)", minWidth: 0 }}>{s.desc}</span>
                 <span className="chip" style={{ height: 20, fontSize: 10.5 }}>{s.category}</span>
                 <span className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>{`${Math.floor(s.duration / 60)}:${String(s.duration % 60).padStart(2, "0")}`}</span>
-                <AudioPlayer id={s.id} duration={s.duration} compact autoSeed={i * 19} />
+                <AudioPlayer id={s.id} src={s.previewUrl} duration={s.duration} compact autoSeed={i * 19} />
                 <button className="btn btn-secondary btn-sm" type="button">Use →</button>
               </div>
             ))}
@@ -111,8 +127,13 @@ const Catalog = () => {
 
 const CatalogCard = ({ scenario, seed }) => (
   <article className="surface hover-lift" style={{ padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-    <div style={{ height: 120, position: "relative", overflow: "hidden", borderBottom: "1px solid var(--line)" }}>
-      <ScenarioArtwork seed={seed} flag={scenario.flag} category={scenario.category} />
+    <div style={{ height: 180, position: "relative", overflow: "hidden", borderBottom: "1px solid var(--line)" }}>
+      {scenario.imageUrl ? (
+        <img src={scenario.imageUrl} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      ) : (
+        <ScenarioArtwork seed={seed} flag={scenario.flag} category={scenario.category} />
+      )}
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 45%, oklch(0.14 0.008 30 / 0.72) 100%)" }} />
       <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
         <span className="chip mono" style={{ background: "oklch(0.12 0.008 30 / 0.7)", backdropFilter: "blur(8px)" }}><Flag code={scenario.flag} size={12} />{scenario.locale}</span>
       </div>
@@ -126,9 +147,9 @@ const CatalogCard = ({ scenario, seed }) => (
         <span style={{ flex: 1 }} />
         <span className="mono" style={{ fontSize: 10.5, color: "var(--ink-5)" }}>{`${Math.floor(scenario.duration / 60)}:${String(scenario.duration % 60).padStart(2, "0")}`}</span>
       </div>
-      <h3 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 500, fontSize: 16, color: "var(--ink)", letterSpacing: "-0.014em", lineHeight: 1.25 }}>{scenario.title}</h3>
-      <p className="small" style={{ color: "var(--ink-4)", margin: 0, lineHeight: 1.45, flex: 1 }}>{scenario.desc}</p>
-      <div style={{ marginTop: 4 }}><AudioPlayer id={scenario.id} duration={scenario.duration} compact autoSeed={seed * 23} /></div>
+      <h3 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 560, fontSize: 18, color: "var(--ink)", letterSpacing: "-0.014em", lineHeight: 1.25 }}>{scenario.title}</h3>
+      <p className="small" style={{ color: "var(--ink-4)", margin: 0, lineHeight: 1.5, flex: 1 }}>{scenario.desc}</p>
+      <div style={{ marginTop: 4 }}><AudioPlayer id={scenario.id} src={scenario.previewUrl} duration={scenario.duration} compact autoSeed={seed * 23} /></div>
       <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
         <Link to="/dashboard" className="btn btn-secondary btn-sm" style={{ flex: 1 }}>Use in run <Icon name="arrow" size={12} stroke={2} /></Link>
         <button className="btn btn-ghost btn-sm" type="button"><Icon name="share" size={13} /></button>

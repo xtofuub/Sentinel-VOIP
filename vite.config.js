@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
 import process from "node:process";
-import { SCENARIOS } from "./src/lib/data.js";
+import { LOCAL_LANGUAGE_OPTIONS, getLocalPranksForCountry } from "./src/lib/prankLibrary.js";
 
 const readJsonBody = async (req) =>
   new Promise((resolve) => {
@@ -42,19 +42,30 @@ const localApiMock = () => ({
         return;
       }
 
+      if (endpoint === "get_dialplan_list" || endpoint === "get_dialplan_list.lua") {
+        sendJson(res, {
+          ok: true,
+          dialplan_list: LOCAL_LANGUAGE_OPTIONS.map((language, index) => ({
+            _id: language.country,
+            id: language.country,
+            c: language.country,
+            tname: language.label,
+            name: language.label,
+            label: language.label,
+            locale: language.locale,
+            flag: language.flag,
+            count: language.count,
+            order_multi: language.order || index + 1,
+          })),
+        });
+        return;
+      }
+
       if (endpoint === "get_dialplan_ios.lua") {
+        const country = String(body.c || "us").toLowerCase();
         sendJson(
           res,
-          SCENARIOS.map((scenario) => ({
-            _id: scenario.id,
-            titulo: scenario.title,
-            descripcion: scenario.desc,
-            duracion: scenario.duration,
-            categoria: scenario.category,
-            locale: scenario.locale,
-            flag: scenario.flag,
-            region: scenario.region,
-          })),
+          getLocalPranksForCountry(country),
         );
         return;
       }

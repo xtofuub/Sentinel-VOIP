@@ -20,6 +20,7 @@ const Dashboard = () => {
   const [scenarioId, setScenarioId] = useState(null);
   const [vaultQuery, setVaultQuery] = useState("");
   const [vaultCategory, setVaultCategory] = useState("All");
+  const [vaultDensity, setVaultDensity] = useState("auto");
   const [activity, setActivity] = useState([]);
   const [toast, setToast] = useState(null);
   const [logFilter, setLogFilter] = useState("All");
@@ -241,6 +242,7 @@ const Dashboard = () => {
   const launchDisabled = launching || status !== "ready" || planSource !== "api" || !dialplan.length;
   const selectedLogStatus = logFilter.toLowerCase().replace(/\s+/g, "_");
   const visibleActivity = activity.filter((item) => logFilter === "All" || item.status === selectedLogStatus);
+  const compactVault = vaultDensity === "compact" || (vaultDensity === "auto" && vaultScenarios.length > 24);
 
   return (
     <main style={{ paddingTop: 24, paddingBottom: 64 }}>
@@ -323,6 +325,15 @@ const Dashboard = () => {
                   </h2>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <div className="vault-density" aria-label="Vault layout">
+                    {[
+                      ["auto", "Auto"],
+                      ["compact", "Compact"],
+                      ["cards", "Cards"],
+                    ].map(([value, label]) => (
+                      <button key={value} type="button" onClick={() => setVaultDensity(value)} className={vaultDensity === value ? "active" : ""}>{label}</button>
+                    ))}
+                  </div>
                   <a className="btn btn-ghost btn-sm" href="#call-logs"><Icon name="activity" size={14} />Call logs</a>
                   <div className="control-prefix-wrap" style={{ width: 320 }}>
                     <span className="prefix"><Icon name="search" size={13} /></span>
@@ -338,7 +349,7 @@ const Dashboard = () => {
                 ))}
               </div>
             </div>
-            <div className="dash-vault-grid" style={{ padding: 22, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: 16, alignContent: "flex-start", flex: 1 }}>
+            <div className={`dash-vault-grid${compactVault ? " dash-vault-grid-compact" : ""}`} style={{ flex: 1 }}>
               {vaultScenarios.length === 0 && (
                 <div style={{ gridColumn: "1 / -1", padding: 48, textAlign: "center", color: "var(--ink-4)", display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
                   <Icon name="search" size={22} style={{ color: "var(--ink-5)" }} />
@@ -346,7 +357,7 @@ const Dashboard = () => {
                 </div>
               )}
               {vaultScenarios.map((s, i) => (
-                <ScenarioCard key={s.id} scenario={s} selected={scenarioId === s.id} onSelect={() => setScenarioId(s.id)} seed={i} />
+                <ScenarioCard key={s.id} scenario={s} selected={scenarioId === s.id} onSelect={() => setScenarioId(s.id)} seed={i} compact={compactVault} />
               ))}
             </div>
           </div>
@@ -392,12 +403,12 @@ const THUMB_PALETTES = {
   Scenario: ["oklch(0.36 0.045 225)", "oklch(0.20 0.018 30)", "oklch(0.72 0.085 160)"],
 };
 
-const ScenarioThumb = ({ scenario, seed }) => {
+const ScenarioThumb = ({ scenario, seed, compact = false }) => {
   const palette = THUMB_PALETTES[scenario.category] || THUMB_PALETTES.Scenario;
   const angle = 118 + ((seed * 31) % 48);
   return (
     <div
-      className="scenario-thumb"
+      className={`scenario-thumb${compact ? " scenario-thumb-compact" : ""}`}
       style={{
         "--thumb-a": palette[0],
         "--thumb-b": palette[1],
@@ -416,31 +427,23 @@ const ScenarioThumb = ({ scenario, seed }) => {
 };
 
 // ── Scenario card (vault) ───────────────────────────────────────────
-const ScenarioCard = ({ scenario, selected, onSelect, seed }) => (
+const ScenarioCard = ({ scenario, selected, onSelect, seed, compact }) => (
   <div onClick={onSelect} role="button" tabIndex={0}
     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(); } }}
-    style={{
-      padding: 0, border: `1px solid ${selected ? "var(--accent-line)" : "var(--line)"}`,
-      background: selected ? "var(--accent-soft)" : "oklch(0.175 0.010 30)",
-      borderRadius: 12, display: "flex", flexDirection: "column", overflow: "hidden",
-      cursor: "pointer", transition: "all 160ms ease",
-      boxShadow: selected ? "0 0 0 3px var(--accent-soft)" : "none",
-    }}
-    onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = "var(--line-2)"; e.currentTarget.style.background = "oklch(0.195 0.010 30)"; } }}
-    onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = "var(--line)"; e.currentTarget.style.background = "oklch(0.175 0.010 30)"; } }}
+    className={`scenario-card${selected ? " scenario-card-selected" : ""}${compact ? " scenario-card-compact" : ""}`}
   >
-    <ScenarioThumb scenario={scenario} seed={seed} />
-    <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <ScenarioThumb scenario={scenario} seed={seed} compact={compact} />
+    <div className="scenario-card-body">
+      <div className="scenario-card-meta">
         <Flag code={scenario.flag} size={20} />
-        <span className="mono" style={{ fontSize: 12, color: "var(--ink-5)" }}>{scenario.dialId || scenario.id?.slice(0, 12)}</span>
+        <span className="mono">{scenario.dialId || scenario.id?.slice(0, 12)}</span>
         <span style={{ flex: 1 }} />
-        <span className="mono" style={{ fontSize: 12, color: "var(--ink-5)" }}>{scenario.locale}</span>
+        <span className="mono">{scenario.locale}</span>
       </div>
-      <h4 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 560, fontSize: 18, color: "var(--ink)", letterSpacing: "-0.012em", lineHeight: 1.25 }}>{scenario.title}</h4>
-      <p className="small" style={{ color: "var(--ink-3)", margin: 0, lineHeight: 1.55, minHeight: 52 }}>{scenario.desc}</p>
-      <div onClick={(e) => e.stopPropagation()}>
-        <AudioPlayer id={scenario.id} src={scenario.previewUrl} duration={scenario.duration} autoSeed={seed * 17} emptyLabel="Preview unavailable" />
+      <h4 className="scenario-card-title">{scenario.title}</h4>
+      <p className="scenario-card-desc">{scenario.desc}</p>
+      <div className="scenario-card-audio" onClick={(e) => e.stopPropagation()}>
+        <AudioPlayer id={scenario.id} src={scenario.previewUrl} duration={scenario.duration} compact={compact} autoSeed={seed * 17} emptyLabel="Preview unavailable" />
       </div>
     </div>
   </div>

@@ -63,11 +63,6 @@ const Dashboard = () => {
     setStatus("initialising");
     setSession(null);
     setApiMessage("Connecting to backend...");
-    if (API_CONFIG.missingDevProxy) {
-      setStatus("preview");
-      setApiMessage("Local preview mode. Add VITE_API_PROXY_TARGET to .env.local and restart Vite to connect a backend.");
-      return () => { cancelled = true; };
-    }
     (async () => {
       try {
         const s = await createSession({
@@ -77,7 +72,7 @@ const Dashboard = () => {
         if (cancelled) return;
         setSession(s);
         setStatus("ready");
-        setApiMessage("Backend session is ready.");
+        setApiMessage(API_CONFIG.usesLocalMock ? "Local mock backend is active. Set VITE_API_PROXY_TARGET only when you want a live backend." : "Backend session is ready.");
       } catch (error) {
         if (!cancelled) {
           setSession(null);
@@ -113,7 +108,7 @@ const Dashboard = () => {
         const usablePlan = plan.length ? plan : fallbackPlan;
         setDialplan(usablePlan);
         setPlanSource(plan.length ? "api" : "local");
-        setApiMessage(plan.length ? "Live dial plan loaded." : "Backend returned an empty dial plan; showing local preview data.");
+        setApiMessage(plan.length ? (API_CONFIG.usesLocalMock ? "Local mock dial plan loaded. Runs are queued locally without recordings." : "Live dial plan loaded.") : "Backend returned an empty dial plan; showing local preview data.");
         ensureSelection(usablePlan);
       } catch (error) {
         if (!cancelled) {
@@ -241,7 +236,7 @@ const Dashboard = () => {
             <Icon name={status === "ready" && planSource === "api" ? "check" : "shield"} size={14} />
             <span className="small" style={{ color: "var(--ink-2)" }}>{apiMessage}</span>
           </div>
-          <span className="chip mono">{planSource === "api" ? "live backend" : "local preview"}</span>
+          <span className="chip mono">{API_CONFIG.usesLocalMock ? "local mock" : planSource === "api" ? "live backend" : "local preview"}</span>
         </div>
 
         {/* Top grid */}

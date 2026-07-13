@@ -37,11 +37,11 @@ export default function App() {
                 <Route path="catalog" element={<Navigate to="/library" replace />} />
                 <Route path="login" element={<Login />} />
                 <Route path="auth/callback" element={<Login />} />
-                <Route path="new" element={<RequireAuth><NewSession /></RequireAuth>} />
+                <Route path="new" element={<NewSession />} />
                 <Route path="dashboard" element={<Navigate to="/new" replace />} />
-                <Route path="activity" element={<RequireAuth><Activity /></RequireAuth>} />
-                <Route path="activity/:accountDid/:recordingId" element={<RequireAuth><RecordingDetail /></RequireAuth>} />
-                <Route path="logs" element={<RequireAuth><ApiLogs /></RequireAuth>} />
+                <Route path="activity" element={<Activity />} />
+                <Route path="activity/:accountDid/:recordingId" element={<RecordingDetail />} />
+                <Route path="logs" element={<ApiLogs />} />
                 <Route path="account" element={<RequireAuth allowSuspended><Account /></RequireAuth>} />
                 <Route path="admin" element={<RequireAuth admin><Admin /></RequireAuth>} />
                 <Route path="pricing" element={<Navigate to="/" replace />} />

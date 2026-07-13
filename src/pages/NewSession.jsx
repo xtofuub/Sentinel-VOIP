@@ -13,10 +13,12 @@ import {
   Volume2,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { AuthPromptDialog } from "@/components/AuthPromptDialog"
 import { LocalePicker } from "@/components/LocalePicker"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
 import { useCatalog } from "@/hooks/useCatalog"
 import { useApp } from "@/state/AppContext"
+import { useAuth } from "@/state/AuthContext"
 import {
   bootstrapNewSession,
   formatKoErrorMessage,
@@ -39,17 +41,34 @@ const readActiveAccounts = () => {
   }
 }
 
+const sessionDraftKey = "sentinel-session-draft"
+
+const readSessionDraft = () => {
+  try {
+    const draft = JSON.parse(sessionStorage.getItem(sessionDraftKey) || "{}")
+    return {
+      recipientName: typeof draft.recipientName === "string" ? draft.recipientName : "",
+      phoneNumber: typeof draft.phoneNumber === "string" ? draft.phoneNumber : "",
+    }
+  } catch {
+    return { recipientName: "", phoneNumber: "" }
+  }
+}
+
 export function NewSession() {
   const { loading, error, locales, scenarios } = useCatalog()
   const { selectedScenario, setSelectedScenario } = useApp()
+  const { isSuspended, user } = useAuth()
   const navigate = useNavigate()
   const audioRef = useRef(null)
+  const [draft] = useState(() => readSessionDraft())
   const [localeId, setLocaleId] = useState(selectedScenario?.localeId || "")
   const [scenarioQuery, setScenarioQuery] = useState("")
   const [playingId, setPlayingId] = useState(null)
   const [previewError, setPreviewError] = useState("")
-  const [recipientName, setRecipientName] = useState("")
-  const [phoneNumber, setPhoneNumber] = useState("")
+  const [recipientName, setRecipientName] = useState(draft.recipientName)
+  const [phoneNumber, setPhoneNumber] = useState(draft.phoneNumber)
+  const [authPromptOpen, setAuthPromptOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [notice, setNotice] = useState(null)
   const [stage, setStage] = useState("")
@@ -122,6 +141,21 @@ export function NewSession() {
     const cleanPhone = phoneNumber.trim()
     if (!selectedScenario || !cleanName || !cleanPhone || submitting) return
 
+    if (!user) {
+      try {
+        sessionStorage.setItem(sessionDraftKey, JSON.stringify({ recipientName: cleanName, phoneNumber: cleanPhone }))
+      } catch {
+        // The sign-in prompt still works when draft storage is unavailable.
+      }
+      setAuthPromptOpen(true)
+      return
+    }
+
+    if (isSuspended) {
+      navigate("/account", { state: { suspended: true } })
+      return
+    }
+
     stopPreview()
     setSubmitting(true)
     setNotice(null)
@@ -175,6 +209,11 @@ export function NewSession() {
       setStage("")
       setRecipientName("")
       setPhoneNumber("")
+      try {
+        sessionStorage.removeItem(sessionDraftKey)
+      } catch {
+        // No cleanup is needed when session storage is unavailable.
+      }
     } catch (requestError) {
       setNotice({
         type: "error",
@@ -410,7 +449,7 @@ export function NewSession() {
               <summary>Technical payload details</summary>
               <dl>
                 <div><dt>Country</dt><dd><code>{selectedScenario.countryCode}</code></dd></div>
-                <div><dt>Dial ID</dt><dd><code>{selectedScenario._id}</code></dd></div>
+                <div><dt>Scenario ID</dt><dd><code>{selectedScenario._id}</code></dd></div>
                 <div><dt>Locale</dt><dd>{selectedScenario.localeLabel}</dd></div>
               </dl>
             </details>
@@ -453,11 +492,12 @@ export function NewSession() {
             type="submit"
             disabled={formIsIncomplete || submitting}
           >
-            {submitting ? stage : "Create backend task"}
+            {submitting ? stage : "Place call"}
             {!submitting && <PhoneOutgoing size={17} aria-hidden="true" />}
           </button>
         </form>
       </section>
+      <AuthPromptDialog open={authPromptOpen} onClose={() => setAuthPromptOpen(false)} />
     </main>
   )
 }

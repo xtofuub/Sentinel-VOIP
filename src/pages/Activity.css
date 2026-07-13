@@ -13,7 +13,7 @@
 }
 
 .activity-record {
-  grid-template-columns: auto minmax(11rem, 1fr) minmax(17rem, 1.15fr) minmax(11rem, 0.72fr) auto;
+  grid-template-columns: auto minmax(11rem, 1fr) minmax(8.5rem, 0.55fr) minmax(18rem, 1.15fr) auto;
 }
 
 .activity-record__progress {
@@ -60,84 +60,101 @@
   white-space: nowrap;
 }
 
-.call-timeline {
+.activity-audio {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 0.8rem 0 0;
-  padding: 0;
-  list-style: none;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 3.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 0.45rem 0.65rem 0.45rem 0.45rem;
 }
 
-.call-timeline__step {
-  position: relative;
-  min-width: 0;
-  color: #5f5855;
-  font-size: 0.52rem;
-  font-weight: 600;
-  letter-spacing: 0.025em;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.call-timeline__step::before {
-  position: absolute;
-  top: 0.22rem;
-  right: calc(50% + 0.3rem);
-  left: calc(-50% + 0.3rem);
-  height: 1px;
-  background: rgba(255, 255, 255, 0.095);
-  content: "";
-}
-
-.call-timeline__step:first-child::before {
+.activity-audio audio {
   display: none;
 }
 
-.call-timeline__marker {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: 0.48rem;
-  height: 0.48rem;
-  margin: 0 0 0.4rem;
-  border: 1px solid #514a47;
+.activity-audio > button {
+  display: grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: white;
+  color: #17100e;
+  cursor: pointer;
+  transition: background-color 150ms var(--ease-out), transform 120ms var(--ease-out);
+}
+
+.activity-audio > button:active {
+  transform: scale(0.94);
+}
+
+.activity-audio__body {
+  display: grid;
+  min-width: 0;
+  gap: 0.42rem;
+}
+
+.activity-audio__body > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.56rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.activity-audio input[type="range"] {
+  width: 100%;
+  height: 0.2rem;
+  appearance: none;
   border-radius: 999px;
-  background: #0a0909;
+  background: linear-gradient(to right, var(--accent) var(--audio-progress), rgba(255, 255, 255, 0.12) var(--audio-progress));
+  cursor: pointer;
 }
 
-.call-timeline__step.is-complete,
-.call-timeline__step.is-current {
-  color: #d8d1cc;
+.activity-audio input[type="range"]::-webkit-slider-thumb {
+  width: 0.7rem;
+  height: 0.7rem;
+  appearance: none;
+  border: 2px solid #0b0a0a;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
-.call-timeline__step.is-complete::before,
-.call-timeline__step.is-current::before {
-  background: rgba(255, 83, 42, 0.54);
+.activity-audio input[type="range"]::-moz-range-thumb {
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid #0b0a0a;
+  border-radius: 50%;
+  background: white;
 }
 
-.call-timeline__step.is-complete .call-timeline__marker {
-  border-color: #b93821;
-  background: #b93821;
+.activity-audio > time {
+  color: var(--muted-dark);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.52rem;
+  white-space: nowrap;
 }
 
-.call-timeline__step.is-current .call-timeline__marker {
-  border-color: #ff5935;
-  background: #ff5935;
-  box-shadow: 0 0 0 3px rgba(255, 69, 28, 0.13);
-}
-
-.call-timeline__step.is-issue {
-  color: #ff8b74;
-}
-
-.call-timeline__step.is-issue .call-timeline__marker {
-  border-color: #ff5935;
-  background: #ff5935;
+.activity-audio.is-failed {
+  opacity: 0.62;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .activity-record__detail:hover {
     color: var(--text);
+  }
+
+  .activity-audio > button:hover:not(:disabled) {
+    background: var(--accent-soft);
   }
 }
 
@@ -188,13 +205,11 @@
     gap: 0.4rem;
   }
 
-  .call-timeline__step {
-    overflow: hidden;
-    font-size: 0.48rem;
-    text-overflow: ellipsis;
+  .activity-audio {
+    grid-template-columns: auto minmax(0, 1fr);
   }
-}
 
-html[data-motion="reduced"] .call-timeline__step.is-current .call-timeline__marker {
-  box-shadow: none;
+  .activity-audio > time {
+    grid-column: 2;
+  }
 }

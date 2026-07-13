@@ -32,7 +32,7 @@ const workflowSteps = [
   {
     number: "01",
     title: "Choose the context",
-    description: "Search the local catalog, preview available audio, and select the locale and dial ID for the session.",
+    description: "Search the local catalog, preview available audio, and choose the scenario for the session.",
     endpoint: "Local catalog",
     icon: Search,
   },
@@ -215,7 +215,7 @@ export function Overview() {
                 <h3>A local catalog built for precise selection.</h3>
                 <p>
                   Filter by locale, search titles and descriptions, preview available audio, and carry the
-                  selected country and dial IDs directly into a new session.
+                  selected country and scenario directly into a new session.
                 </p>
                 <div className="feature-card__facts" aria-label="Library facts">
                   <span>{catalogSummary.scenarioLabel} entries</span>

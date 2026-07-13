@@ -8,6 +8,7 @@ import {
   Waves,
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
+import { ActivityAudioPlayer } from "@/components/ActivityAudioPlayer"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
 import { useCatalog } from "@/hooks/useCatalog"
 import { enrichRecordedCallsWithLocalInput, getRecordedCalls } from "@/services/api"
@@ -16,20 +17,6 @@ import "./Activity.css"
 const ACTIVE_STATUSES = new Set(["pending", "queued", "running"])
 const LIVE_POLL_INTERVAL = 10000
 const IDLE_POLL_INTERVAL = 60000
-
-const CALL_STAGES = [
-  { id: "pending", label: "Requested" },
-  { id: "queued", label: "Queued" },
-  { id: "running", label: "Calling" },
-  { id: "accepted", label: "Returned" },
-]
-
-const STATUS_STAGE_INDEX = {
-  pending: 0,
-  queued: 1,
-  running: 2,
-  accepted: 3,
-}
 
 const activityFilters = [
   { id: "all", label: "All" },
@@ -61,24 +48,6 @@ const formatStatus = (status) => {
 const statusClassName = (status) => {
   const normalized = String(status || "unknown").toLowerCase().replace(/[^a-z0-9-]/g, "")
   return `badge badge--status badge--${normalized || "unknown"}`
-}
-
-const getTimelineSteps = (call) => {
-  const status = String(call.status || "pending").toLowerCase()
-
-  if (status === "declined") {
-    return CALL_STAGES.map((stage, index) => ({
-      ...stage,
-      label: index === CALL_STAGES.length - 1 ? "Ended" : stage.label,
-      state: index === 0 ? "complete" : index === CALL_STAGES.length - 1 ? "issue" : "upcoming",
-    }))
-  }
-
-  const currentIndex = STATUS_STAGE_INDEX[status] ?? 0
-  return CALL_STAGES.map((stage, index) => ({
-    ...stage,
-    state: index < currentIndex ? "complete" : index === currentIndex ? "current" : "upcoming",
-  }))
 }
 
 const formatSyncTime = (timestamp) => new Intl.DateTimeFormat(undefined, {
@@ -396,7 +365,6 @@ export function Activity() {
               const rowKey = `${call.uid || call.accountDid}:${call._id}`
               const title = call.titulo || scenario?.titulo || "Untitled scenario"
               const thumbnail = call.pic || scenario?.image_url
-              const timelineSteps = getTimelineSteps(call)
               const detailPath = `/activity/${encodeURIComponent(call.accountDid || call.uid || "unknown")}/${encodeURIComponent(call._id)}`
 
               return (
@@ -424,19 +392,11 @@ export function Activity() {
                         {formatTimestamp(call)}
                       </time>
                     </div>
-                    <ol className="call-timeline" aria-label={`Call progress: ${formatStatus(call.status)}`}>
-                      {timelineSteps.map((step) => (
-                        <li className={`call-timeline__step is-${step.state}`} key={step.id}>
-                          <span className="call-timeline__marker" aria-hidden="true" />
-                          <span>{step.label}</span>
-                        </li>
-                      ))}
-                    </ol>
                   </div>
 
                   <div className="activity-record__recording">
                     {call.isPlayable && call.url ? (
-                      <audio controls preload="metadata" src={call.url} aria-label={`Recording for ${title}`} />
+                      <ActivityAudioPlayer src={call.url} label={`recording for ${title}`} />
                     ) : (
                       <span className="recording-unavailable">
                         <Headphones aria-hidden="true" size={15} strokeWidth={1.5} />

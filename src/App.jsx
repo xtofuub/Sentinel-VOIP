@@ -41,7 +41,7 @@ export default function App() {
                 <Route path="dashboard" element={<Navigate to="/new" replace />} />
                 <Route path="activity" element={<Activity />} />
                 <Route path="activity/:accountDid/:recordingId" element={<RecordingDetail />} />
-                <Route path="logs" element={<ApiLogs />} />
+                <Route path="logs" element={<RequireAuth admin><ApiLogs /></RequireAuth>} />
                 <Route path="account" element={<RequireAuth allowSuspended><Account /></RequireAuth>} />
                 <Route path="admin" element={<RequireAuth admin><Admin /></RequireAuth>} />
                 <Route path="pricing" element={<Navigate to="/" replace />} />

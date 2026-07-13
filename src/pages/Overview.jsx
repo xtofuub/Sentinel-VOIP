@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useCatalog } from "@/hooks/useCatalog"
+import { useAuth } from "@/state/AuthContext"
 
 const FALLBACK_SCENARIO_COUNT = 2129
 
@@ -53,13 +54,14 @@ const workflowSteps = [
   {
     number: "04",
     title: "Inspect the return",
-    description: "Activity fetches backend records and available audio while the API log keeps each request and response visible.",
+    description: "Activity fetches backend records and available audio so each returned reaction stays connected to its session.",
     endpoint: "get_mis_bromas_ios.lua",
     icon: Headphones,
   },
 ]
 
 export function Overview() {
+  const { isAdmin } = useAuth()
   const { error, loading, locales, scenarios } = useCatalog()
   const [localState, setLocalState] = useState(readLocalOverview)
 
@@ -145,7 +147,7 @@ export function Overview() {
           </h1>
           <p className="hero-copy">
             Choose from {catalogSummary.scenarioLabel} localized prank scenarios across {catalogSummary.localeLabel},
-            launch an authorized call, and return to the recording, activity, and API trace in one place.
+            launch an authorized call, and return to the recording and activity in one place.
           </p>
 
           <div className="hero-actions">
@@ -240,7 +242,7 @@ export function Overview() {
                 <h3>The backend flow stays legible after launch.</h3>
                 <p>
                   Browser-stored identities reconnect tasks with recipient labels. Activity retrieves returned
-                  records and playable audio, while API logs expose request status, timing, payloads, and responses.
+                  records and playable audio so every reaction stays connected to the right session.
                 </p>
                 <div className="feature-card__facts" aria-label="History facts">
                   <span>{localState.accounts.length.toLocaleString()} stored identities</span>
@@ -251,9 +253,11 @@ export function Overview() {
                     Open activity
                     <ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />
                   </Link>
-                  <Link className="feature-card__text-link" to="/logs">
-                    View API logs
-                  </Link>
+                  {isAdmin && (
+                    <Link className="feature-card__text-link" to="/logs">
+                      View API logs
+                    </Link>
+                  )}
                 </div>
               </div>
             </article>
@@ -307,7 +311,7 @@ export function Overview() {
             <Link to="/library"><BookOpen size={16} aria-hidden="true" />Library</Link>
             <Link to="/new"><PhoneCall size={16} aria-hidden="true" />New session</Link>
             <Link to="/activity"><Headphones size={16} aria-hidden="true" />Activity</Link>
-            <Link to="/logs"><FileText size={16} aria-hidden="true" />API logs</Link>
+            {isAdmin && <Link to="/logs"><FileText size={16} aria-hidden="true" />API logs</Link>}
           </nav>
 
           <div className="landing-footer__meta">

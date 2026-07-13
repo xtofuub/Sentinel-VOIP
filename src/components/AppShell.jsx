@@ -2,12 +2,12 @@ import React, { useEffect, useLayoutEffect, useState } from "react"
 import { ArrowUpRight, Menu, Pause, Waves, X } from "lucide-react"
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 import { AccountMenu } from "@/components/AccountMenu"
+import { useAuth } from "@/state/AuthContext"
 
-const navItems = [
+const publicNavItems = [
   { to: "/library", label: "Library" },
   { to: "/new", label: "Console" },
   { to: "/activity", label: "Activity" },
-  { to: "/logs", label: "API logs" },
 ]
 
 const motionStorageKey = "sentinel-motion"
@@ -48,11 +48,15 @@ function getInitialMotionMode() {
 }
 
 export function AppShell() {
+  const { isAdmin } = useAuth()
   const { pathname } = useLocation()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [motionMode, setMotionMode] = useState(getInitialMotionMode)
   const isLanding = pathname === "/"
+  const navItems = isAdmin
+    ? [...publicNavItems, { to: "/logs", label: "API logs" }]
+    : publicNavItems
 
   useEffect(() => {
     const update = () => setScrolled(window.scrollY > 36)

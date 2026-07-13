@@ -17,6 +17,8 @@ import "./Activity.css"
 const ACTIVE_STATUSES = new Set(["pending", "queued", "running"])
 const LIVE_POLL_INTERVAL = 10000
 const IDLE_POLL_INTERVAL = 60000
+const HIDDEN_ACTIVITY_KEY = "sentinel-hidden-activity"
+const HIDDEN_ACTIVITY_LIMIT = 1000
 
 const activityFilters = [
   { id: "all", label: "All" },
@@ -34,10 +36,78 @@ const readAccounts = () => {
   }
 }
 
-const formatTimestamp = (call) => {
-  if (call.timeLabel) return call.timeLabel
-  if (!call.timestamp) return "Unknown time"
-  return new Date(call.timestamp * 1000).toLocaleString()
+const callRowKey = (call) => `${call.uid || call.accountDid}:${call._id}`
+
+const readHiddenActivity = () => {
+  try {
+    const value = JSON.parse(localStorage.getItem(HIDDEN_ACTIVITY_KEY) || "[]")
+    return new Set(Array.isArray(value) ? value.filter((key) => typeof key === "string") : [])
+  } catch {
+    return new Set()
+  }
+}
+
+const parseBackendTimeLabel = (value) => {
+  if (!value) return null
+
+  const label = String(value).trim()
+  const dayFirst = label.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})[T\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?/)
+  if (dayFirst) {
+    const [, day, month, year, hour, minute, second = "0"] = dayFirst
+    const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second))
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  const date = new Date(label)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const getCallDate = (call) => {
+  const rawTimestamp = Number(call?.timestamp)
+  if (Number.isFinite(rawTimestamp) && rawTimestamp > 0) {
+    const milliseconds = rawTimestamp > 1e12 ? rawTimestamp : rawTimestamp * 1000
+    const date = new Date(milliseconds)
+    if (!Number.isNaN(date.getTime()) && date.getFullYear() >= 2000 && date.getFullYear() <= 2100) return date
+  }
+
+  return parseBackendTimeLabel(call?.timeLabel)
+}
+
+const formatTimestamp = (call, now = new Date()) => {
+  const date = getCallDate(call)
+  if (!date) return { exact: "Time unavailable", iso: undefined, label: "Time unavailable" }
+
+  const deltaMs = date.getTime() - now.getTime()
+  const absoluteDelta = Math.abs(deltaMs)
+  const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" })
+  const time = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(date)
+  const exact = new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeStyle: "short" }).format(date)
+
+  let label
+  if (absoluteDelta < 45_000) {
+    label = "Just now"
+  } else if (absoluteDelta < 60 * 60_000) {
+    label = relative.format(Math.round(deltaMs / 60_000), "minute")
+  } else if (absoluteDelta < 6 * 60 * 60_000) {
+    label = relative.format(Math.round(deltaMs / (60 * 60_000)), "hour")
+  } else {
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const callDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    const dayDelta = Math.round((callDay.getTime() - today.getTime()) / 86_400_000)
+
+    if (dayDelta === 0) label = `Today at ${time}`
+    else if (dayDelta === -1) label = `Yesterday at ${time}`
+    else if (dayDelta === 1) label = `Tomorrow at ${time}`
+    else label = new Intl.DateTimeFormat(undefined, {
+      day: "numeric",
+      month: "short",
+      year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date)
+  }
+
+  return { exact, iso: date.toISOString(), label }
 }
 
 const formatStatus = (status) => {
@@ -72,6 +142,7 @@ export function Activity() {
   const mountedRef = useRef(false)
   const refreshingRef = useRef(false)
   const refreshQueuedRef = useRef(false)
+  const hiddenActivityRef = useRef(readHiddenActivity())
 
   useEffect(() => {
     mountedRef.current = true
@@ -85,12 +156,16 @@ export function Activity() {
   }, [accounts])
 
   useEffect(() => {
-    const syncAccounts = () => setAccounts(readAccounts())
-    window.addEventListener("focus", syncAccounts)
-    window.addEventListener("storage", syncAccounts)
+    const syncBrowserState = () => {
+      setAccounts(readAccounts())
+      hiddenActivityRef.current = readHiddenActivity()
+      setCalls((current) => current.filter((call) => !hiddenActivityRef.current.has(callRowKey(call))))
+    }
+    window.addEventListener("focus", syncBrowserState)
+    window.addEventListener("storage", syncBrowserState)
     return () => {
-      window.removeEventListener("focus", syncAccounts)
-      window.removeEventListener("storage", syncAccounts)
+      window.removeEventListener("focus", syncBrowserState)
+      window.removeEventListener("storage", syncBrowserState)
     }
   }, [])
 
@@ -143,19 +218,36 @@ export function Activity() {
         const unique = Array.from(new Map(rows.map((call) => [
           `${call.uid || call.accountDid}:${call._id}`,
           call,
-        ])).values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+        ])).values()).sort((a, b) => (
+          (getCallDate(b)?.getTime() || 0) - (getCallDate(a)?.getTime() || 0)
+        ))
 
-        setCalls(enrichRecordedCallsWithLocalInput(unique))
+        const visibleRows = unique.filter((call) => !hiddenActivityRef.current.has(callRowKey(call)))
+        setCalls(enrichRecordedCallsWithLocalInput(visibleRows))
         setAllRequestsFailed(requests.length > 0 && failures.length === requests.length)
         setLastUpdatedAt(Date.now())
         if (failures.length) {
-          setError(`${failures.length} backend request${failures.length === 1 ? "" : "s"} failed. See API logs for details.`)
+          setError(`${failures.length} backend request${failures.length === 1 ? "" : "s"} failed. Try again shortly.`)
         }
       } while (refreshQueuedRef.current && mountedRef.current)
     } finally {
       refreshingRef.current = false
       if (mountedRef.current) setLoading(false)
     }
+  }, [])
+
+  const removeCall = useCallback((rowKey) => {
+    const nextHidden = new Set(hiddenActivityRef.current)
+    nextHidden.add(rowKey)
+    hiddenActivityRef.current = nextHidden
+
+    try {
+      localStorage.setItem(HIDDEN_ACTIVITY_KEY, JSON.stringify(Array.from(nextHidden).slice(-HIDDEN_ACTIVITY_LIMIT)))
+    } catch {
+      // The record remains hidden for this visit when browser storage is unavailable.
+    }
+
+    setCalls((current) => current.filter((call) => callRowKey(call) !== rowKey))
   }, [])
 
   useEffect(() => {
@@ -362,10 +454,11 @@ export function Activity() {
         ) : filteredCalls.length ? (
           <div className="activity-records">
             {filteredCalls.map(({ call, scenario, country }) => {
-              const rowKey = `${call.uid || call.accountDid}:${call._id}`
+              const rowKey = callRowKey(call)
               const title = call.titulo || scenario?.titulo || "Untitled scenario"
               const thumbnail = call.pic || scenario?.image_url
               const detailPath = `/activity/${encodeURIComponent(call.accountDid || call.uid || "unknown")}/${encodeURIComponent(call._id)}`
+              const timestamp = formatTimestamp(call)
 
               return (
                 <article className="activity-record" key={rowKey}>
@@ -388,8 +481,8 @@ export function Activity() {
                         <span className="badge__dot" aria-hidden="true" />
                         {formatStatus(call.status)}
                       </span>
-                      <time dateTime={call.timestamp ? new Date(call.timestamp * 1000).toISOString() : undefined}>
-                        {formatTimestamp(call)}
+                      <time dateTime={timestamp.iso} title={timestamp.exact}>
+                        {timestamp.label}
                       </time>
                     </div>
                   </div>
@@ -411,11 +504,9 @@ export function Activity() {
                   <button
                     className="button button--danger button--icon activity-record__remove"
                     type="button"
-                    onClick={() => setCalls((current) => current.filter((item) => (
-                      `${item.uid || item.accountDid}:${item._id}` !== rowKey
-                    )))}
-                    aria-label={`Hide ${title} until refresh`}
-                    title="Hide until refresh"
+                    onClick={() => removeCall(rowKey)}
+                    aria-label={`Remove ${title} from Activity`}
+                    title="Remove from Activity"
                   >
                     <Trash2 aria-hidden="true" size={16} strokeWidth={1.5} />
                   </button>

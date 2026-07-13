@@ -4154,19 +4154,40 @@ html .scroll-reveal.motion-static {
   display: grid;
   min-height: 100svh;
   place-items: center;
-  padding: 8rem 1.25rem 4rem;
+  padding: 7rem 1.25rem 2rem;
   background:
-    radial-gradient(circle at 50% 8%, rgba(115, 22, 12, 0.16), transparent 32rem),
+    radial-gradient(circle at 18% 18%, rgba(124, 24, 14, 0.2), transparent 30rem),
     #050505;
 }
 
-.auth-panel {
-  width: min(100%, 27rem);
+.auth-fuse {
+  isolation: isolate;
+  display: grid;
+  overflow: hidden;
+  width: min(100%, 75rem);
+  min-height: min(44rem, calc(100svh - 9rem));
+  grid-template-columns: minmax(22rem, 0.88fr) minmax(0, 1.12fr);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 1.25rem;
-  background: rgba(10, 9, 9, 0.96);
-  padding: 1.25rem;
-  box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.35);
+  border-radius: 1.5rem;
+  background: #090808;
+  box-shadow: 0 2rem 7rem rgba(0, 0, 0, 0.46);
+}
+
+.auth-fuse__form-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  background:
+    radial-gradient(circle at 0 0, rgba(255, 69, 0, 0.07), transparent 18rem),
+    #090808;
+  padding: 1.35rem;
+}
+
+.auth-fuse__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .auth-panel__brand {
@@ -4192,32 +4213,85 @@ html .scroll-reveal.motion-static {
 }
 
 .auth-panel__body {
-  padding: 4.25rem 0.25rem 2.75rem;
+  width: min(100%, 24rem);
+  margin: auto;
+  padding: 3rem 0 2.5rem;
 }
 
-.auth-panel h1 {
+.auth-panel__body h1 {
   margin: 0.65rem 0 0;
-  font-size: clamp(1.85rem, 6vw, 2.45rem);
-  font-weight: 620;
-  line-height: 1.08;
-  letter-spacing: -0.045em;
+  font-family: "Playfair Display Variable", Georgia, serif;
+  font-size: clamp(2.15rem, 4vw, 3.25rem);
+  font-weight: 580;
+  line-height: 1;
+  letter-spacing: -0.055em;
 }
 
 .auth-panel__copy {
-  margin: 0.9rem 0 1.6rem;
+  margin: 1rem 0 1.5rem;
   color: var(--muted);
-  font-size: 0.76rem;
-  line-height: 1.6;
+  font-size: 0.75rem;
+  line-height: 1.65;
+}
+
+.auth-fuse__secure {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: rgba(255, 255, 255, 0.46);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.auth-fuse__secure > i {
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 50%;
+  background: #74d792;
+  box-shadow: 0 0 0.65rem rgba(116, 215, 146, 0.38);
+}
+
+.auth-fuse__account-note {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0.35rem 1rem;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.5rem;
+  padding: 0.9rem 0;
+}
+
+.auth-fuse__account-note span,
+.auth-fuse__account-note small {
+  color: var(--muted-dark);
+  font-size: 0.57rem;
+}
+
+.auth-fuse__account-note strong {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.66rem;
+  font-weight: 620;
+}
+
+.auth-fuse__account-note small {
+  grid-column: 1 / -1;
 }
 
 .auth-google-button {
   width: 100%;
   min-height: 3.3rem;
-  justify-content: flex-start;
-  border-color: rgba(255, 255, 255, 0.16);
+  justify-content: center;
+  border-color: rgba(255, 255, 255, 0.75);
+  border-radius: 0.8rem;
   background: white;
   padding: 0 1rem;
   color: #171312;
+  font-size: 0.68rem;
+  font-weight: 650;
+  transition: background-color 160ms var(--ease-out), transform 140ms var(--ease-out);
 }
 
 .google-mark {
@@ -4274,6 +4348,121 @@ html .scroll-reveal.motion-static {
   color: var(--muted-dark);
   font-size: 0.61rem;
   transition: color 160ms var(--ease-out);
+}
+
+.auth-fuse__visual {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100%;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  background: #87180f;
+}
+
+.auth-fuse__visual::before,
+.auth-fuse__visual::after {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.auth-fuse__visual::before {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 4.5rem 4.5rem;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent 78%);
+}
+
+.auth-fuse__visual::after {
+  background:
+    linear-gradient(to bottom, rgba(38, 3, 1, 0.08), transparent 42%, rgba(28, 3, 1, 0.72)),
+    radial-gradient(circle at 72% 24%, rgba(255, 197, 152, 0.25), transparent 24rem);
+}
+
+.auth-fuse__atmosphere {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.94;
+  transform: scale(1.04);
+}
+
+.auth-fuse__hand {
+  position: absolute;
+  z-index: 1;
+  right: -32%;
+  bottom: 9%;
+  width: 112%;
+  max-width: none;
+  filter: saturate(0.92) contrast(1.05) drop-shadow(0 2rem 3rem rgba(56, 3, 0, 0.28));
+  transform: rotate(-5deg);
+}
+
+.auth-fuse__visual-meta {
+  position: absolute;
+  z-index: 3;
+  top: 1.5rem;
+  right: 1.5rem;
+  left: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: rgba(255, 255, 255, 0.62);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-fuse__quote {
+  position: absolute;
+  z-index: 3;
+  right: clamp(1.5rem, 5vw, 3rem);
+  bottom: clamp(1.75rem, 5vw, 3rem);
+  left: clamp(1.5rem, 5vw, 3rem);
+  margin: 0;
+}
+
+.auth-fuse__quote p {
+  max-width: 31rem;
+  margin: 0;
+  color: white;
+  font-family: "Playfair Display Variable", Georgia, serif;
+  font-size: clamp(1.65rem, 3vw, 2.7rem);
+  font-weight: 560;
+  line-height: 1.06;
+  letter-spacing: -0.045em;
+}
+
+.auth-fuse__quote cite {
+  display: block;
+  margin-top: 1rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.5rem;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-typewriter__cursor {
+  display: inline-block;
+  width: 0.08em;
+  height: 0.8em;
+  margin-left: 0.08em;
+  background: currentColor;
+  vertical-align: -0.02em;
+  animation: auth-cursor-blink 720ms steps(1, end) infinite;
+}
+
+@keyframes auth-cursor-blink {
+  50% { opacity: 0; }
 }
 
 .auth-prompt-layer {
@@ -4351,6 +4540,10 @@ html .scroll-reveal.motion-static {
   .auth-panel__back:hover,
   .auth-prompt > header > button:hover {
     color: white;
+  }
+
+  .auth-google-button:hover:not(:disabled) {
+    background: #f1efee;
   }
 
   .auth-prompt > header > button:hover {
@@ -4960,6 +5153,20 @@ html .scroll-reveal.motion-static {
 
   .auth-page {
     min-height: 100svh;
+    padding: 7rem 1rem 2rem;
+  }
+
+  .auth-fuse {
+    min-height: min(40rem, calc(100svh - 9rem));
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-fuse__form-panel {
+    min-height: inherit;
+  }
+
+  .auth-fuse__visual {
+    display: none;
   }
 
   .account-layout {
@@ -4996,7 +5203,24 @@ html .scroll-reveal.motion-static {
 
 @media (max-width: 38rem) {
   .auth-page {
-    padding: 6.5rem 0.75rem 2rem;
+    padding: 6.5rem 0.75rem 1rem;
+  }
+
+  .auth-fuse {
+    min-height: calc(100svh - 7.5rem);
+    border-radius: 1.1rem;
+  }
+
+  .auth-fuse__form-panel {
+    padding: 1rem;
+  }
+
+  .auth-fuse__secure {
+    display: none;
+  }
+
+  .auth-panel__body {
+    padding: 2.25rem 0 2rem;
   }
 
   .account-profile__identity {

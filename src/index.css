@@ -4353,6 +4353,24 @@ html .scroll-reveal.motion-static {
   text-wrap: balance;
 }
 
+.auth-typewriter__cursor {
+  display: inline-block;
+  width: 0.07em;
+  height: 0.82em;
+  margin-left: 0.08em;
+  background: currentColor;
+  vertical-align: -0.02em;
+  animation: auth-cursor-blink 720ms steps(1, end) infinite;
+}
+
+@keyframes auth-cursor-blink {
+  50% { opacity: 0; }
+}
+
+html[data-motion="reduced"] .auth-typewriter__cursor {
+  display: none;
+}
+
 .auth-prompt-layer {
   position: fixed;
   z-index: 120;

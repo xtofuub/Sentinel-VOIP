@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, CircleAlert, LoaderCircle } from "lucide-react"
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { GoogleMark } from "@/components/GoogleMark"
@@ -7,6 +7,36 @@ import { useAuth } from "@/state/AuthContext"
 const getSafeNext = (value) => (
   value?.startsWith("/") && !value.startsWith("//") ? value : "/new"
 )
+
+const authStatement = "Choose the setup.\nKeep the reaction."
+
+function Typewriter({ text }) {
+  const [displayText, setDisplayText] = useState(() => (
+    document.documentElement.dataset.motion === "reduced" ? text : ""
+  ))
+
+  useEffect(() => {
+    if (displayText === text || document.documentElement.dataset.motion === "reduced") return undefined
+
+    const timeout = window.setTimeout(() => {
+      setDisplayText(text.slice(0, displayText.length + 1))
+    }, 36)
+
+    return () => window.clearTimeout(timeout)
+  }, [displayText, text])
+
+  return (
+    <>
+      {displayText.split("\n").map((line, index) => (
+        <Fragment key={`auth-line-${index}`}>
+          {index > 0 && <br />}
+          {line}
+        </Fragment>
+      ))}
+      {displayText !== text && <span className="auth-typewriter__cursor" />}
+    </>
+  )
+}
 
 export function Login() {
   const { configured, consumeAuthNext, loading, signInWithGoogle, user } = useAuth()
@@ -97,7 +127,7 @@ export function Login() {
           <img className="auth-fuse__atmosphere" src="/visuals/atmosphere.png" alt="" aria-hidden="true" />
           <img className="auth-fuse__hand" src="/visuals/hand-right.png" alt="" aria-hidden="true" />
           <p className="auth-fuse__statement" aria-hidden="true">
-            Choose the setup.<br />Keep the reaction.
+            <Typewriter text={authStatement} />
           </p>
         </aside>
       </section>

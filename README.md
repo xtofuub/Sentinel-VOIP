@@ -1,62 +1,89 @@
-# Sentinel-VOIP
-<img width="1711" height="988" alt="image" src="https://github.com/user-attachments/assets/e2dcac8d-267d-4458-909d-4e4cfe6a5d30" />
+<div align="center">
+  <img src="./public/favicon.svg" width="76" height="76" alt="Sentinel VOIP logo" />
+  <h1>Sentinel VOIP</h1>
+  <p><strong>Prank calls, on command.</strong></p>
+  <p>Choose a localized scenario, preview the setup, launch an authorized call, and follow the recording and request trail from one focused console.</p>
+  <p><code>React 19</code> · <code>Vite 8</code> · <code>2,129 scenarios</code> · <code>64 locales</code></p>
+</div>
 
-Reconstruction of the Juasapp VoIP protocol. This project documents the transition from dynamic instrumentation on iOS to a standalone JavaScript implementation for global signaling and research-driven call orchestration.
+![Sentinel VOIP control room](./docs/readme/sentinel-console.png)
 
-## Technical Methodology
+## One console, start to finish
 
-### 1. Dynamic Analysis & Pentesting (iOS)
+Sentinel turns the existing call flow into a clear browser workspace. The catalog, session composer, returned recordings, and request diagnostics stay connected instead of living in separate tools.
 
-The protocol was reversed using a **jailbroken iOS device**. The research focused on real-time behavior to achieve the following:
+![Sentinel session flow](./docs/readme/session-flow.svg)
 
-- **Frida Instrumentation:** Used to observe dynamic request flows. By hooking `NSURLSession`, I captured raw API traffic and bypass device-level blacklisting.
-- **FLEX / FLEXer:** Employed for live heap exploration to identify the internal logic responsible for credit validation.
+## Built for the full session
 
-### 2. Protocol Replication
+<table>
+  <tr>
+    <td width="50%">
+      <img src="./docs/readme/sentinel-languages.png" alt="Sentinel language and region selector" />
+    </td>
+    <td width="50%">
+      <img src="./docs/readme/sentinel-logs.png" alt="Sentinel API log console" />
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Language-first discovery</strong><br />Search 64 localized collections, then browse and preview the matching prank scenarios.</td>
+    <td><strong>Readable request diagnostics</strong><br />Filter outcomes, scan latency, expand sanitized payloads, and copy the event you need.</td>
+  </tr>
+</table>
 
-The data discovered during the iOS pentest was ported to a standalone JavaScript environment to:
+- **Scenario library** — Search titles and descriptions, filter by language and region, preview audio, and carry a selection into the session workspace.
+- **Session workbench** — Review the scenario, recipient, country code, and dial ID before sending one backend task.
+- **Activity and recordings** — Reconnect browser-saved identities with returned records, status, recipient context, and playable audio.
+- **API logs** — Keep the latest 120 requests in session memory with status filters, timing summaries, expandable payloads, and recursive recipient-field redaction.
+- **Motion controls** — Use the full visual treatment or switch to the reduced-motion experience at any time.
 
-- **Bypass a commercial service's payment system:** Successfully recreated the signaling logic to trigger calls without depleting or purchasing credits.
-- **Session Handshake:** Recreated `create.lua` and `get_user.lua` flows to automate account registration.
-- **Resilient Signaling:** Integrated a semaphore system to manage API concurrency and handle `429` rate-limiting.
+## Quick start
 
-## Features
+### Requirements
 
-- **Unlimited Call Logic:** Direct signaling that ignores client-side and server-side credit constraints.
-- **Massive Audio Library:** Access to over **2,129 different voicelines** spanning a wide variety of countries and localized scenarios.
-- **Device Spoofing:** Randomizes iOS metadata (versions 16.2–17.4) and hardware identifiers to appear as a legitimate Apple device.
-- **International Reach:** Support for global signaling gateways including ES, US, FR, IT, FI, and MANY MANY more.
-- **Smart JSON Extraction:** Custom logic to peel away the `0day:` response prefix and extract hidden payload blocks.
-
-## Technical Stack
-
-- **Instrumentation:** Frida, FLEX, Objection
-- **Language:** JavaScript (Node.js / Browser)
-- **API Handling:** Fetch with custom concurrency control
-- **Environment:** Jailbroken iOS (Initial Research), Standalone Web Client (Final Implementation)
-
-## Installation
+- Node.js `20.19+` or `22.12+`
+- pnpm via Corepack
 
 ```bash
 git clone https://github.com/xtofuub/Sentinel-VOIP.git
 cd Sentinel-VOIP
-npm install
-````
-
-## Usage
-
-```bash
-# Start the signaling bridge
-npm start
+corepack enable
+pnpm install
+pnpm dev
 ```
 
-The dashboard will be available at:
-[http://localhost:3000](http://localhost:3000)
+Open [http://localhost:5173](http://localhost:5173).
 
-## Disclaimer
+## Commands
 
-This project is for educational and security research purposes only. It demonstrates vulnerabilities in client-side trust models and the potential to bypass commercial payment systems through protocol reversal. Use at your own risk.
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the Vite development server |
+| `pnpm lint` | Run the ESLint checks |
+| `pnpm build` | Create the production bundle |
+| `pnpm preview` | Preview the production build on port `4173` |
+
+## How it works
+
+1. The local catalog is normalized into 64 locale collections and 2,129 scenario records.
+2. A session creates and synchronizes an identity through the existing API flow.
+3. Sentinel submits the selected scenario and recipient task through the `/api` proxy.
+4. Activity requests returned records and available audio for identities saved in this browser.
+5. API logs keep a sanitized, in-memory trace of request outcomes and payloads.
+
+The frontend keeps the current service contract intact. Vite proxies `/api` during development, while the production rewrite is configured in `vercel.json`.
+
+## Current boundaries
+
+- Calls launch immediately. Delayed scheduling is not exposed because the current backend contract does not document reliable future-time execution.
+- Identities and recipient context are browser-local and can be cleared with site data.
+- API logs are session-only and disappear on reload.
+- Scenario images, audio previews, and live API behavior depend on their remote services.
+
+## Responsible use
+
+Use Sentinel only where you have permission and a lawful purpose. Comply with consent, privacy, recording, telecommunications, and anti-harassment rules that apply to you and the recipient.
 
 ## Author
 
-xtofuub
+Built by [xtofuub](https://github.com/xtofuub).

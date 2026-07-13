@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-label="Sentinel">
+  <defs>
+    <radialGradient id="ember" cx="72%" cy="26%" r="78%">
+      <stop offset="0" stop-color="#ff7a45" stop-opacity=".9" />
+      <stop offset=".42" stop-color="#ff4500" stop-opacity=".48" />
+      <stop offset="1" stop-color="#050505" stop-opacity="0" />
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2.4" />
+    </filter>
+  </defs>
+  <rect width="64" height="64" fill="#050505" />
+  <rect width="64" height="64" rx="15" fill="#050505" />
+  <circle cx="45" cy="18" r="28" fill="url(#ember)" />
+  <circle cx="50" cy="47" r="4" fill="#ff4500" opacity=".45" filter="url(#glow)" />
+  <text x="13" y="48" fill="#f7f4f2" font-family="Georgia, 'Times New Roman', serif" font-size="45" font-weight="600" letter-spacing="-4">S</text>
+  <circle cx="50" cy="47" r="2.6" fill="#ff4500" />
+  <rect x=".75" y=".75" width="62.5" height="62.5" rx="14.25" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width="1.5" />
+</svg>

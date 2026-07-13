@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { isSupabaseConfigured, supabase } from "@/lib/supabase"
 
 const AuthContext = createContext(null)
@@ -24,6 +24,7 @@ const safeNextPath = (value, fallback = "/new") => (
 )
 
 export function AuthProvider({ children }) {
+  const userRef = useRef(null)
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -31,7 +32,7 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState("")
 
   const refreshProfile = useCallback(async (userOverride) => {
-    const currentUser = userOverride || session?.user
+    const currentUser = userOverride || userRef.current
 
     if (!currentUser || !supabase) {
       setProfile(null)
@@ -58,7 +59,7 @@ export function AuthProvider({ children }) {
     setError("")
     setProfileLoading(false)
     return nextProfile
-  }, [session?.user])
+  }, [])
 
   useEffect(() => {
     if (!supabase) {
@@ -70,6 +71,7 @@ export function AuthProvider({ children }) {
 
     supabase.auth.getSession().then(({ data, error: sessionError }) => {
       if (!active) return
+      userRef.current = data.session?.user || null
       setSession(data.session)
       setError(sessionError?.message || "")
       setLoading(false)
@@ -77,7 +79,13 @@ export function AuthProvider({ children }) {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!active) return
-      setSession(nextSession)
+      userRef.current = nextSession?.user || null
+      setSession((currentSession) => (
+        currentSession?.access_token === nextSession?.access_token
+        && currentSession?.user?.id === nextSession?.user?.id
+          ? currentSession
+          : nextSession
+      ))
       setLoading(false)
       if (!nextSession) setProfile(null)
     })
@@ -88,16 +96,18 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  const userId = session?.user?.id || null
+
   useEffect(() => {
     if (loading) return
-    if (!session?.user) {
+    if (!userId || !userRef.current) {
       setProfile(null)
       setProfileLoading(false)
       return
     }
 
-    void refreshProfile(session.user)
-  }, [loading, refreshProfile, session?.user])
+    void refreshProfile(userRef.current)
+  }, [loading, refreshProfile, userId])
 
   const signInWithGoogle = useCallback(async (nextPath = "/new") => {
     if (!supabase) throw new Error("Supabase is not configured.")

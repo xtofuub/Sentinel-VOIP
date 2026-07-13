@@ -2,10 +2,10 @@ import { Navigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/state/AuthContext"
 
 export function RequireAuth({ admin = false, allowSuspended = false, children }) {
-  const { isAdmin, isSuspended, loading, profileLoading, user } = useAuth()
+  const { isAdmin, isSuspended, loading, profile, profileLoading, user } = useAuth()
   const location = useLocation()
 
-  if (loading || (user && profileLoading)) {
+  if (loading || (user && profileLoading && !profile)) {
     return (
       <div className="route-loading auth-route-loading" role="status">
         <span className="loader" aria-hidden="true" />

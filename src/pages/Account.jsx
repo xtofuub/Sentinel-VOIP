@@ -72,8 +72,8 @@ export function Account() {
       <header className="product-hero product-hero--compact account-hero">
         <div className="product-hero__index" aria-hidden="true">05</div>
         <div className="product-hero__copy">
-          <p className="eyebrow">Account control</p>
-          <h1>Calls, identity.<br /><em>Access in one view.</em></h1>
+          <p className="eyebrow">Your account</p>
+          <h1>Your calls.<br /><em>Your account.</em></h1>
           <p>See the Google account connected to Sentinel and understand every change to your call balance.</p>
         </div>
         <div className="product-hero__meta" aria-label="Account access">

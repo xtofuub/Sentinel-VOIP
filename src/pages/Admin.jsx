@@ -126,8 +126,8 @@ export function Admin() {
         <div className="product-hero__index" aria-hidden="true">06</div>
         <div className="product-hero__copy">
           <p className="eyebrow">Administrator</p>
-          <h1>People, calls.<br /><em>Access under control.</em></h1>
-          <p>Review every Sentinel account and adjust call access through an auditable server-side action.</p>
+          <h1>Manage people.<br /><em>Control call access.</em></h1>
+          <p>Review every Sentinel account and adjust call balances from one protected workspace.</p>
         </div>
         <div className="product-hero__meta" aria-label="Administrator access">
           <span>Access level</span><strong>∞</strong><small>unlimited calls</small>

@@ -93,7 +93,7 @@ export function RecordingDetail() {
       const accounts = readAccounts()
       if (!accounts.length) {
         setPhase("not-found")
-        setMessage("No saved browser identity can access this recording.")
+        setMessage("No call history in this browser can open this recording.")
         return
       }
 
@@ -103,7 +103,7 @@ export function RecordingDetail() {
 
       if (!eligibleAccounts.length) {
         setPhase("not-found")
-        setMessage("The browser identity in this link is no longer saved.")
+        setMessage("This call is no longer saved in this browser.")
         return
       }
 
@@ -136,12 +136,12 @@ export function RecordingDetail() {
 
       if (!fulfilled.length) {
         setPhase("error")
-        setMessage("The recording service could not be reached. Your saved identity is still intact.")
+        setMessage("The recording service could not be reached. Your saved call history is still intact.")
         return
       }
 
       setPhase("not-found")
-      setMessage("This recording was not returned for the saved identity.")
+      setMessage("This recording was not returned for the saved call.")
     }
 
     void load()
@@ -178,7 +178,7 @@ export function RecordingDetail() {
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href)
-      setActionMessage("Page link copied. Access still requires this saved browser identity.")
+      setActionMessage("Page link copied. This recording is only available in this browser.")
     } catch {
       setActionMessage("The browser could not copy this link.")
     }
@@ -194,7 +194,7 @@ export function RecordingDetail() {
           </span>
           <p className="eyebrow">Recording archive</p>
           <h1>{isLoading ? "Loading recording" : phase === "error" ? "Service unavailable" : "Recording not found"}</h1>
-          <p>{isLoading ? "Matching this link to a saved browser identity..." : message}</p>
+          <p>{isLoading ? "Matching this link to your saved call history..." : message}</p>
           {!isLoading && (
             <div className="recording-detail__state-actions">
               {phase === "error" && (
@@ -288,7 +288,7 @@ export function RecordingDetail() {
               <p className="eyebrow">Returned audio</p>
               <h2 id="recording-player-heading">Call recording</h2>
             </div>
-            <span><ShieldCheck size={15} aria-hidden="true" /> Saved-browser access</span>
+            <span><ShieldCheck size={15} aria-hidden="true" /> This browser only</span>
           </div>
 
           <div className={`recording-detail__waveform${audioUrl ? "" : " is-muted"}`} aria-hidden="true">

@@ -162,11 +162,11 @@ export function NewSession() {
     const taskId = generateTaskId()
 
     try {
-      setStage("Creating backend identity")
+      setStage("Preparing your call")
       const { did, mongoUid } = await bootstrapNewSession(selectedScenario.countryCode)
       const taskTimestamp = formatTaskTimestamp()
 
-      setStage("Creating call task")
+      setStage("Placing the call")
       await launchPrank({
         _id: taskId,
         c: selectedScenario.countryCode,
@@ -203,8 +203,8 @@ export function NewSession() {
       setNotice({
         type: "success",
         text: historySaved
-          ? `Task ${taskId.slice(0, 8)} was accepted by the backend.`
-          : `Task ${taskId.slice(0, 8)} was accepted, but this browser could not save it to Activity.`,
+          ? `Call ${taskId.slice(0, 8)} was queued.`
+          : `Call ${taskId.slice(0, 8)} was queued, but this browser could not save it to Activity.`,
       })
       setStage("")
       setRecipientName("")
@@ -217,7 +217,7 @@ export function NewSession() {
     } catch (requestError) {
       setNotice({
         type: "error",
-        text: formatKoErrorMessage(requestError) || "The backend task could not be created.",
+        text: formatKoErrorMessage(requestError) || "The call could not be placed.",
       })
       setStage("")
     } finally {
@@ -239,7 +239,7 @@ export function NewSession() {
             <br />
             <em>Launch in one place.</em>
           </h1>
-          <p>Preview the scenario, add the recipient, inspect the payload, and send the existing backend task.</p>
+          <p>Preview a scenario, add the recipient, and review the setup before placing the call.</p>
         </div>
         <div className="product-hero__meta" aria-label="Launch readiness">
           <span>Launch readiness</span>
@@ -411,7 +411,7 @@ export function NewSession() {
                 <span className="selected-scenario__empty" aria-hidden="true">01</span>
                 <div>
                   <strong>No scenario selected</strong>
-                  <p>Your chosen voice and payload details appear here.</p>
+                  <p>Your selected scenario and call details will appear here.</p>
                 </div>
               </>
             )}
@@ -446,7 +446,7 @@ export function NewSession() {
 
           {selectedScenario && (
             <details className="technical-details">
-              <summary>Technical payload details</summary>
+              <summary>Scenario details</summary>
               <dl>
                 <div><dt>Country</dt><dd><code>{selectedScenario.countryCode}</code></dd></div>
                 <div><dt>Scenario ID</dt><dd><code>{selectedScenario._id}</code></dd></div>
@@ -464,12 +464,12 @@ export function NewSession() {
             {submitting ? (
               <div className="launch-status__message is-loading" role="status">
                 <LoaderCircle className="spin" size={18} aria-hidden="true" />
-                <div><strong>Sending task</strong><p>{stage}</p></div>
+                <div><strong>Placing call</strong><p>{stage}</p></div>
               </div>
             ) : notice?.type === "success" ? (
               <div className="launch-status__message is-success" role="status">
                 <CheckCircle2 size={18} aria-hidden="true" />
-                <div><strong>Task accepted</strong><p>{notice.text}</p></div>
+                <div><strong>Call queued</strong><p>{notice.text}</p></div>
                 <button className="button button--quiet button--compact" type="button" onClick={() => navigate("/activity")}>
                   Activity <ArrowUpRight size={15} aria-hidden="true" />
                 </button>
@@ -477,7 +477,7 @@ export function NewSession() {
             ) : notice?.type === "error" ? (
               <div className="launch-status__message is-error" role="alert">
                 <CircleAlert size={18} aria-hidden="true" />
-                <div><strong>Task failed</strong><p>{notice.text}</p></div>
+                <div><strong>Call not placed</strong><p>{notice.text}</p></div>
               </div>
             ) : (
               <div className="launch-status__placeholder">

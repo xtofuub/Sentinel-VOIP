@@ -110,16 +110,6 @@ const formatTimestamp = (call, now = new Date()) => {
   return { exact, iso: date.toISOString(), label }
 }
 
-const formatStatus = (status) => {
-  if (!status) return "Unknown"
-  return status.charAt(0).toUpperCase() + status.slice(1)
-}
-
-const statusClassName = (status) => {
-  const normalized = String(status || "unknown").toLowerCase().replace(/[^a-z0-9-]/g, "")
-  return `badge badge--status badge--${normalized || "unknown"}`
-}
-
 const formatSyncTime = (timestamp) => new Intl.DateTimeFormat(undefined, {
   hour: "2-digit",
   minute: "2-digit",
@@ -227,7 +217,7 @@ export function Activity() {
         setAllRequestsFailed(requests.length > 0 && failures.length === requests.length)
         setLastUpdatedAt(Date.now())
         if (failures.length) {
-          setError(`${failures.length} backend request${failures.length === 1 ? "" : "s"} failed. Try again shortly.`)
+          setError(`${failures.length} call update${failures.length === 1 ? "" : "s"} could not load. Try again shortly.`)
         }
       } while (refreshQueuedRef.current && mountedRef.current)
     } finally {
@@ -330,14 +320,14 @@ export function Activity() {
       <header className="product-hero product-hero--compact">
         <div className="product-hero__index" aria-hidden="true">03</div>
         <div className="product-hero__copy">
-          <p className="eyebrow">Activity command center</p>
+          <p className="eyebrow">Call activity</p>
           <h1>
             Every return.
             <br />
             <em>One clear record.</em>
           </h1>
           <p className="product-hero__description">
-            Search recipients, track live tasks, and play returned recordings without leaving the workspace.
+            Search recipients, check active calls, and replay returned recordings from one clear history.
           </p>
         </div>
         <div className="product-hero__meta" aria-label="Activity state">
@@ -350,9 +340,9 @@ export function Activity() {
       <section className="surface activity-hub" aria-labelledby="activity-results-heading">
         <header className="activity-hub__header">
           <div>
-            <p className="eyebrow">Backend records</p>
+            <p className="eyebrow">Call history</p>
             <h2 id="activity-results-heading">Latest activity</h2>
-            <p>Records linked to identities created in this browser.</p>
+            <p>Calls started from this browser, with returned audio attached when it is ready.</p>
           </div>
           <div className="activity-hub__actions">
             <div className="activity-sync">
@@ -377,8 +367,8 @@ export function Activity() {
         </header>
 
         <div className="activity-metrics" aria-label="Activity summary">
-          <div><span>Identities</span><strong>{accounts.length.toLocaleString()}</strong></div>
-          <div><span>Total records</span><strong>{calls.length.toLocaleString()}</strong></div>
+          <div><span>Connections</span><strong>{accounts.length.toLocaleString()}</strong></div>
+          <div><span>Total calls</span><strong>{calls.length.toLocaleString()}</strong></div>
           <div><span>Active</span><strong>{activeCount.toLocaleString()}</strong></div>
           <div><span>Recordings</span><strong>{recordingCount.toLocaleString()}</strong></div>
         </div>
@@ -428,8 +418,8 @@ export function Activity() {
           <div className="empty-state activity-empty">
             <span className="empty-state__number" aria-hidden="true">00</span>
             <div>
-              <h2>No backend identities</h2>
-              <p>Create a session and its returned record will appear here.</p>
+              <h2>No call history yet</h2>
+              <p>Place your first call and its recording will appear here when ready.</p>
               <button className="button button--primary" type="button" onClick={() => navigate("/new")}>
                 Create a session <ArrowUpRight size={16} aria-hidden="true" />
               </button>
@@ -438,14 +428,14 @@ export function Activity() {
         ) : loading && !calls.length ? (
           <div className="loading-state" role="status" aria-live="polite">
             <span className="loading-mark" aria-hidden="true" />
-            <p>Requesting the latest records...</p>
+            <p>Loading the latest calls...</p>
           </div>
         ) : allRequestsFailed ? (
           <div className="empty-state activity-empty">
             <span className="empty-state__number" aria-hidden="true">!</span>
             <div>
-              <h2>Backend records unavailable</h2>
-              <p>The saved identities are intact. Retry when the service is reachable.</p>
+              <h2>Call history unavailable</h2>
+              <p>Your saved call links are still here. Retry when the service is reachable.</p>
               <button className="button button--outline" type="button" onClick={() => void refresh()}>
                 Retry activity
               </button>
@@ -477,10 +467,6 @@ export function Activity() {
 
                   <div className="activity-record__progress">
                     <div className="activity-record__state">
-                      <span className={statusClassName(call.status)}>
-                        <span className="badge__dot" aria-hidden="true" />
-                        {formatStatus(call.status)}
-                      </span>
                       <time dateTime={timestamp.iso} title={timestamp.exact}>
                         {timestamp.label}
                       </time>

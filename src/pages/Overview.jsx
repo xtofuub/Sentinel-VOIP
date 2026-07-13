@@ -4,10 +4,10 @@ import {
   ArrowRight,
   BookOpen,
   FileText,
-  Fingerprint,
   Headphones,
   PhoneCall,
   Search,
+  UserRound,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useCatalog } from "@/hooks/useCatalog"
@@ -32,30 +32,30 @@ const readLocalOverview = () => ({
 const workflowSteps = [
   {
     number: "01",
-    title: "Choose the context",
-    description: "Search the local catalog, preview available audio, and choose the scenario for the session.",
-    endpoint: "Local catalog",
+    title: "Choose the setup",
+    description: "Search the catalog, hear the sample, and choose the prank that fits the moment.",
+    result: "Scenario selected",
     icon: Search,
   },
   {
     number: "02",
-    title: "Initialize an identity",
-    description: "The existing bootstrap flow creates a device identity, synchronizes it, and stores the resulting account in this browser.",
-    endpoint: "create.lua + get_user.lua",
-    icon: Fingerprint,
+    title: "Add the recipient",
+    description: "Enter the name and number, then review the complete call setup before anything is sent.",
+    result: "Details confirmed",
+    icon: UserRound,
   },
   {
     number: "03",
-    title: "Submit the task",
-    description: "Sentinel sends the selected scenario, destination, recipient label, task ID, and country code to the backend.",
-    endpoint: "create_task_ios.lua",
+    title: "Place the call",
+    description: "Sentinel sends the selected scenario and keeps the call connected to its recipient and time.",
+    result: "Call dispatched",
     icon: PhoneCall,
   },
   {
     number: "04",
-    title: "Inspect the return",
-    description: "Activity fetches backend records and available audio so each returned reaction stays connected to its session.",
-    endpoint: "get_mis_bromas_ios.lua",
+    title: "Replay the reaction",
+    description: "Open Activity to find the returned recording beside the same recipient and scenario.",
+    result: "Recording ready",
     icon: Headphones,
   },
 ]
@@ -91,23 +91,23 @@ export function Overview() {
   const stats = [
     {
       value: catalogSummary.scenarioLabel,
-      label: "Local scenarios",
-      detail: "Indexed in the frontend catalog",
+      label: "Prank scenarios",
+      detail: "Ready to browse and preview",
     },
     {
       value: loading ? "..." : locales.length.toLocaleString(),
-      label: "Locales",
-      detail: "Available catalog regions",
+      label: "Languages & regions",
+      detail: "Localized scenario collections",
     },
     {
       value: localState.accounts.length.toLocaleString(),
-      label: "Backend identities",
-      detail: "Stored in this browser",
+      label: "Call connections",
+      detail: "Linked in this browser",
     },
     {
       value: localState.launches.length.toLocaleString(),
-      label: "Remembered launches",
-      detail: "Connected to local activity labels",
+      label: "Saved calls",
+      detail: "Remembered in Activity",
     },
   ]
 
@@ -170,11 +170,10 @@ export function Overview() {
 
       <section className="landing-mission" aria-labelledby="mission-title">
         <div className="landing-container landing-mission__intro">
-          <p className="landing-kicker">One connected operational chain</p>
-          <h2 id="mission-title">Keep the context before, during, and after every task.</h2>
+          <p className="landing-kicker">From setup to replay</p>
+          <h2 id="mission-title">One place for the setup, the call, and the reaction.</h2>
           <p>
-            Sentinel connects catalog data, backend identity creation, task submission, returned recordings,
-            and request history without changing the service layer behind them.
+            Choose the prank, add the recipient, place the call, and return to the recording without losing the thread.
           </p>
           {error && (
             <p className="landing-data-note" role="status">
@@ -238,15 +237,15 @@ export function Overview() {
                 <span className="feature-card__index">02 / Trace</span>
               </div>
               <div className="feature-card__body">
-                <p className="feature-card__eyebrow">Operational history</p>
-                <h3>The backend flow stays legible after launch.</h3>
+                <p className="feature-card__eyebrow">Call history</p>
+                <h3>Every call stays connected to its reaction.</h3>
                 <p>
-                  Browser-stored identities reconnect tasks with recipient labels. Activity retrieves returned
-                  records and playable audio so every reaction stays connected to the right session.
+                  Activity keeps the recipient, scenario, time, and returned audio together so the right reaction
+                  is always easy to find.
                 </p>
                 <div className="feature-card__facts" aria-label="History facts">
-                  <span>{localState.accounts.length.toLocaleString()} stored identities</span>
-                  <span>{localState.launches.length.toLocaleString()} remembered launches</span>
+                  <span>{localState.accounts.length.toLocaleString()} call connections</span>
+                  <span>{localState.launches.length.toLocaleString()} saved calls</span>
                 </div>
                 <div className="feature-card__links">
                   <Link className="feature-card__link" to="/activity">
@@ -269,14 +268,14 @@ export function Overview() {
         <div className="landing-container">
           <header className="landing-section-heading workflow-heading">
             <p className="landing-kicker">How a session moves</p>
-            <h2 id="workflow-title">Four explicit steps. No hidden handoff.</h2>
+            <h2 id="workflow-title">Four clear steps. One continuous flow.</h2>
             <p>
-              The frontend keeps the original backend contract and makes each stage easier to understand and inspect.
+              Each step carries the same scenario and recipient forward, from first preview to final recording.
             </p>
           </header>
 
           <ol className="workflow-grid">
-            {workflowSteps.map(({ description, endpoint, icon, number, title }) => (
+            {workflowSteps.map(({ description, icon, number, result, title }) => (
               <li className="workflow-card" key={number}>
                 <div className="workflow-card__topline">
                   <span className="workflow-card__index">{number}</span>
@@ -289,7 +288,7 @@ export function Overview() {
                 </div>
                 <h3>{title}</h3>
                 <p>{description}</p>
-                <code>{endpoint}</code>
+                <span className="workflow-card__result">{result}</span>
               </li>
             ))}
           </ol>
@@ -300,9 +299,9 @@ export function Overview() {
         <div className="landing-container landing-footer__inner">
           <div className="landing-footer__intro">
             <p className="landing-kicker">Sentinel VOIP</p>
-            <h2>Keep every task connected to its context.</h2>
+            <h2>Choose the setup. Keep the reaction.</h2>
             <Link className="hero-cta hero-cta--primary" to="/new">
-              Start a session
+              Start a prank
               <ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />
             </Link>
           </div>

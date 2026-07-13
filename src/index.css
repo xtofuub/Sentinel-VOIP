@@ -835,10 +835,6 @@ pre {
   transition: background-color 180ms var(--ease-out);
 }
 
-.workflow-card:hover {
-  background: var(--surface-raised);
-}
-
 .workflow-card__index {
   color: var(--accent-soft);
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -863,11 +859,14 @@ pre {
   line-height: 1.55;
 }
 
-.workflow-card code {
+.workflow-card__result {
   display: block;
   margin-top: 1.5rem;
   color: var(--accent-soft);
   font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .landing-footer {
@@ -3798,6 +3797,10 @@ pre {
 
   .feature-card:hover {
     transform: translateY(-0.375rem);
+  }
+
+  .workflow-card:hover {
+    background: var(--surface-raised);
   }
 
   .motion-toggle:hover,

@@ -447,6 +447,40 @@ const normalizeRecordedCallList = (data) => {
         .sort((a, b) => b.timestamp - a.timestamp);
 };
 
+const PRIVATE_LOG_FIELDS = new Set([
+    'dst',
+    'msisdn',
+    'nombre',
+    'numero',
+    'phone',
+    'targetname',
+    'targetphone',
+    'telefono',
+]);
+
+const redactValueForLog = (value, key = '') => {
+    if (PRIVATE_LOG_FIELDS.has(String(key).toLowerCase()) && value) {
+        return '[redacted]';
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => redactValueForLog(item));
+    }
+
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value).map(([childKey, childValue]) => [
+                childKey,
+                redactValueForLog(childValue, childKey),
+            ])
+        );
+    }
+
+    return value;
+};
+
+const redactRequestForLog = (payload) => redactValueForLog(payload);
+
 const postApi = async (path, payload) => {
     await acquireApiConcurrency();
     const flowStartedAt = Date.now();
@@ -458,9 +492,11 @@ const postApi = async (path, payload) => {
 };
 
 const RATE_LIMIT_MAX_ATTEMPTS = 8;
+const TRANSIENT_SERVER_MAX_ATTEMPTS = 3;
 
 const postApiWithRetries = async (path, payload, flowStartedAt) => {
     const url = `${BASE_URL}/${path}`;
+    const logRequest = redactRequestForLog(payload);
     let hasLogged = false;
 
     for (let attempt = 1; attempt <= RATE_LIMIT_MAX_ATTEMPTS; attempt += 1) {
@@ -488,7 +524,7 @@ const postApiWithRetries = async (path, payload, flowStartedAt) => {
                     ts: getTimestamp(),
                     path,
                     url,
-                    request: payload,
+                    request: logRequest,
                     ok: false,
                     status: 429,
                     durationMs,
@@ -505,13 +541,32 @@ const postApiWithRetries = async (path, payload, flowStartedAt) => {
                 throw new Error(message);
             }
 
+            if (response.status >= 500 && attempt < TRANSIENT_SERVER_MAX_ATTEMPTS) {
+                const delayMs = 400 * 2 ** (attempt - 1);
+                appendApiLog({
+                    ts: getTimestamp(),
+                    path,
+                    url,
+                    request: logRequest,
+                    ok: false,
+                    status: response.status,
+                    durationMs,
+                    response: text.slice(0, 4000),
+                    error: `Temporary server error (${response.status}), retry in ${delayMs}ms`,
+                });
+                hasLogged = true;
+                await sleep(delayMs);
+                hasLogged = false;
+                continue;
+            }
+
             if (!response.ok) {
                 const message = `Request failed (${response.status}): ${text.slice(0, 120)}`;
                 appendApiLog({
                     ts: getTimestamp(),
                     path,
                     url,
-                    request: payload,
+                    request: logRequest,
                     ok: false,
                     status: response.status,
                     durationMs,
@@ -530,7 +585,7 @@ const postApiWithRetries = async (path, payload, flowStartedAt) => {
                     ts: getTimestamp(),
                     path,
                     url,
-                    request: payload,
+                    request: logRequest,
                     ok: false,
                     status: response.status,
                     durationMs,
@@ -540,18 +595,6 @@ const postApiWithRetries = async (path, payload, flowStartedAt) => {
                 hasLogged = true;
                 throw error;
             }
-
-            appendApiLog({
-                ts: getTimestamp(),
-                path,
-                url,
-                request: payload,
-                ok: true,
-                status: response.status,
-                durationMs,
-                response: parsed,
-            });
-            hasLogged = true;
 
             if (parsed?.res === 'KO' || parsed?.res === 'ko') {
                 let errorMsg = 'API Error';
@@ -569,8 +612,33 @@ const postApiWithRetries = async (path, payload, flowStartedAt) => {
                 } else if (parsed.error) {
                     errorMsg = parsed.error;
                 }
-                throw new Error(`API Refused (${parsed.code || 400}): ${errorMsg}`);
+                const message = `API Refused (${parsed.code || 400}): ${errorMsg}`;
+                appendApiLog({
+                    ts: getTimestamp(),
+                    path,
+                    url,
+                    request: logRequest,
+                    ok: false,
+                    status: response.status,
+                    durationMs,
+                    response: parsed,
+                    error: message,
+                });
+                hasLogged = true;
+                throw new Error(message);
             }
+
+            appendApiLog({
+                ts: getTimestamp(),
+                path,
+                url,
+                request: logRequest,
+                ok: true,
+                status: response.status,
+                durationMs,
+                response: parsed,
+            });
+            hasLogged = true;
 
             return parsed;
         } catch (error) {
@@ -593,7 +661,7 @@ const postApiWithRetries = async (path, payload, flowStartedAt) => {
                     ts: getTimestamp(),
                     path,
                     url,
-                    request: payload,
+                    request: logRequest,
                     ok: false,
                     status: 0,
                     durationMs: Date.now() - flowStartedAt,

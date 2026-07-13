@@ -33,7 +33,7 @@ Sentinel turns the existing call flow into a clear browser workspace. The catalo
 
 - **Scenario library** — Search titles and descriptions, filter by language and region, preview audio, and carry a selection into the session workspace.
 - **Session workbench** — Review the scenario, recipient, country code, and dial ID before sending one backend task.
-- **Activity and recordings** — Reconnect browser-saved identities with returned records, status, recipient context, and playable audio.
+- **Live activity and recordings** — Auto-refresh browser-linked calls, follow each status timeline, and open a focused recording page with playback, rename, copy, and download actions.
 - **API logs** — Keep the latest 120 requests in session memory with status filters, timing summaries, expandable payloads, and recursive recipient-field redaction.
 - **Motion controls** — Use the full visual treatment or switch to the reduced-motion experience at any time.
 
@@ -68,7 +68,7 @@ Open [http://localhost:5173](http://localhost:5173).
 1. The local catalog is normalized into 64 locale collections and 2,129 scenario records.
 2. A session creates and synchronizes an identity through the existing API flow.
 3. Sentinel submits the selected scenario and recipient task through the `/api` proxy.
-4. Activity requests returned records and available audio for identities saved in this browser.
+4. Activity automatically refreshes returned records and available audio for identities saved in this browser.
 5. API logs keep a sanitized, in-memory trace of request outcomes and payloads.
 
 The frontend keeps the current service contract intact. Vite proxies `/api` during development, while the production rewrite is configured in `vercel.json`.
@@ -79,6 +79,7 @@ The frontend keeps the current service contract intact. Vite proxies `/api` duri
 - Identities and recipient context are browser-local and can be cleared with site data.
 - API logs are session-only and disappear on reload.
 - Scenario images, audio previews, and live API behavior depend on their remote services.
+- Country flag images are served by [FlagCDN / Flagpedia](https://flagpedia.net/download/api).
 
 ## Responsible use
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowUpRight,
   Headphones,
@@ -7,12 +7,29 @@ import {
   Trash2,
   Waves,
 } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
 import { useCatalog } from "@/hooks/useCatalog"
 import { enrichRecordedCallsWithLocalInput, getRecordedCalls } from "@/services/api"
+import "./Activity.css"
 
 const ACTIVE_STATUSES = new Set(["pending", "queued", "running"])
+const LIVE_POLL_INTERVAL = 10000
+const IDLE_POLL_INTERVAL = 60000
+
+const CALL_STAGES = [
+  { id: "pending", label: "Requested" },
+  { id: "queued", label: "Queued" },
+  { id: "running", label: "Calling" },
+  { id: "accepted", label: "Returned" },
+]
+
+const STATUS_STAGE_INDEX = {
+  pending: 0,
+  queued: 1,
+  running: 2,
+  accepted: 3,
+}
 
 const activityFilters = [
   { id: "all", label: "All" },
@@ -46,6 +63,30 @@ const statusClassName = (status) => {
   return `badge badge--status badge--${normalized || "unknown"}`
 }
 
+const getTimelineSteps = (call) => {
+  const status = String(call.status || "pending").toLowerCase()
+
+  if (status === "declined") {
+    return CALL_STAGES.map((stage, index) => ({
+      ...stage,
+      label: index === CALL_STAGES.length - 1 ? "Ended" : stage.label,
+      state: index === 0 ? "complete" : index === CALL_STAGES.length - 1 ? "issue" : "upcoming",
+    }))
+  }
+
+  const currentIndex = STATUS_STAGE_INDEX[status] ?? 0
+  return CALL_STAGES.map((stage, index) => ({
+    ...stage,
+    state: index < currentIndex ? "complete" : index === currentIndex ? "current" : "upcoming",
+  }))
+}
+
+const formatSyncTime = (timestamp) => new Intl.DateTimeFormat(undefined, {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+}).format(timestamp)
+
 export function Activity() {
   const navigate = useNavigate()
   const { scenarios } = useCatalog()
@@ -56,6 +97,23 @@ export function Activity() {
   const [allRequestsFailed, setAllRequestsFailed] = useState(false)
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState("all")
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
+  const [pageVisible, setPageVisible] = useState(() => document.visibilityState !== "hidden")
+  const accountsRef = useRef(accounts)
+  const mountedRef = useRef(false)
+  const refreshingRef = useRef(false)
+  const refreshQueuedRef = useRef(false)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    accountsRef.current = accounts
+  }, [accounts])
 
   useEffect(() => {
     const syncAccounts = () => setAccounts(readAccounts())
@@ -68,48 +126,68 @@ export function Activity() {
   }, [])
 
   const refresh = useCallback(async () => {
-    if (!accounts.length) {
-      setCalls([])
-      setAllRequestsFailed(false)
+    if (refreshingRef.current) {
+      refreshQueuedRef.current = true
       return
     }
 
-    setLoading(true)
-    setError("")
-    setAllRequestsFailed(false)
-    const rows = []
-    const failures = []
-    let attemptedRequests = 0
+    refreshingRef.current = true
 
-    for (const account of accounts) {
-      const did = account?.did || account?.uid
-      if (!did) continue
-      attemptedRequests += 1
+    try {
+      do {
+        refreshQueuedRef.current = false
+        const currentAccounts = accountsRef.current
 
-      try {
-        const accountCalls = await getRecordedCalls(account.country || "fi", did)
-        rows.push(...accountCalls.map((call) => ({
-          ...call,
-          accountCountry: account.country || "fi",
-          accountDid: did,
-        })))
-      } catch (requestError) {
-        failures.push(requestError)
-      }
+        if (!currentAccounts.length) {
+          if (mountedRef.current) {
+            setCalls([])
+            setError("")
+            setAllRequestsFailed(false)
+            setLoading(false)
+          }
+          continue
+        }
+
+        if (mountedRef.current) {
+          setLoading(true)
+          setError("")
+          setAllRequestsFailed(false)
+        }
+
+        const requests = currentAccounts
+          .map((account) => ({ account, did: account?.did || account?.uid }))
+          .filter(({ did }) => Boolean(did))
+          .map(async ({ account, did }) => {
+            const accountCalls = await getRecordedCalls(account.country || "fi", did)
+            return accountCalls.map((call) => ({
+              ...call,
+              accountCountry: account.country || "fi",
+              accountDid: did,
+            }))
+          })
+
+        const results = await Promise.allSettled(requests)
+        if (!mountedRef.current) return
+
+        const failures = results.filter((result) => result.status === "rejected")
+        const rows = results.flatMap((result) => result.status === "fulfilled" ? result.value : [])
+        const unique = Array.from(new Map(rows.map((call) => [
+          `${call.uid || call.accountDid}:${call._id}`,
+          call,
+        ])).values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+
+        setCalls(enrichRecordedCallsWithLocalInput(unique))
+        setAllRequestsFailed(requests.length > 0 && failures.length === requests.length)
+        setLastUpdatedAt(Date.now())
+        if (failures.length) {
+          setError(`${failures.length} backend request${failures.length === 1 ? "" : "s"} failed. See API logs for details.`)
+        }
+      } while (refreshQueuedRef.current && mountedRef.current)
+    } finally {
+      refreshingRef.current = false
+      if (mountedRef.current) setLoading(false)
     }
-
-    const unique = Array.from(new Map(rows.map((call) => [
-      `${call.uid || call.accountDid}:${call._id}`,
-      call,
-    ])).values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-
-    setCalls(enrichRecordedCallsWithLocalInput(unique))
-    setAllRequestsFailed(attemptedRequests > 0 && failures.length === attemptedRequests)
-    if (failures.length) {
-      setError(`${failures.length} backend request${failures.length === 1 ? "" : "s"} failed. See API logs for details.`)
-    }
-    setLoading(false)
-  }, [accounts])
+  }, [])
 
   useEffect(() => {
     void refresh()
@@ -118,12 +196,23 @@ export function Activity() {
   const running = calls.some((call) => ACTIVE_STATUSES.has(call.status))
 
   useEffect(() => {
-    if (!running) return undefined
+    const handleVisibilityChange = () => {
+      const isVisible = document.visibilityState !== "hidden"
+      setPageVisible(isVisible)
+      if (isVisible) void refresh()
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
+  }, [refresh])
+
+  useEffect(() => {
+    if (!accounts.length || !pageVisible) return undefined
     const interval = window.setInterval(() => {
       void refresh()
-    }, 20000)
+    }, running ? LIVE_POLL_INTERVAL : IDLE_POLL_INTERVAL)
     return () => window.clearInterval(interval)
-  }, [refresh, running])
+  }, [accounts.length, pageVisible, refresh, running])
 
   const catalogByDial = useMemo(() => new Map(scenarios.map((scenario) => [
     `${scenario.countryCode}|${String(scenario._id)}`,
@@ -146,6 +235,16 @@ export function Activity() {
   const activeCount = calls.filter((call) => ACTIVE_STATUSES.has(call.status)).length
   const recordingCount = calls.filter((call) => call.isPlayable).length
   const issueCount = calls.filter((call) => call.status === "declined").length
+  const pollIntervalSeconds = (running ? LIVE_POLL_INTERVAL : IDLE_POLL_INTERVAL) / 1000
+  const syncLabel = !pageVisible
+    ? "Updates paused"
+    : loading
+      ? "Syncing now"
+      : running
+        ? `Live · ${pollIntervalSeconds} sec`
+        : accounts.length
+          ? `Auto · ${pollIntervalSeconds} sec`
+          : "Standing by"
 
   const filteredCalls = useMemo(() => {
     const normalized = query.trim().toLowerCase()
@@ -195,10 +294,15 @@ export function Activity() {
             <p>Records linked to identities created in this browser.</p>
           </div>
           <div className="activity-hub__actions">
-            <span className={`badge ${running ? "badge--live" : "badge--neutral"}`}>
-              <span className="badge__dot" aria-hidden="true" />
-              {running ? "Live · 20 sec" : "Standing by"}
-            </span>
+            <div className="activity-sync">
+              <span className={`badge ${running && pageVisible ? "badge--live" : "badge--neutral"}`} aria-live="polite">
+                <span className="badge__dot" aria-hidden="true" />
+                {syncLabel}
+              </span>
+              <small>
+                {lastUpdatedAt ? `Updated ${formatSyncTime(lastUpdatedAt)}` : "Waiting for first sync"}
+              </small>
+            </div>
             <button
               className="button button--primary"
               type="button"
@@ -292,6 +396,8 @@ export function Activity() {
               const rowKey = `${call.uid || call.accountDid}:${call._id}`
               const title = call.titulo || scenario?.titulo || "Untitled scenario"
               const thumbnail = call.pic || scenario?.image_url
+              const timelineSteps = getTimelineSteps(call)
+              const detailPath = `/activity/${encodeURIComponent(call.accountDid || call.uid || "unknown")}/${encodeURIComponent(call._id)}`
 
               return (
                 <article className="activity-record" key={rowKey}>
@@ -308,14 +414,24 @@ export function Activity() {
                     </p>
                   </div>
 
-                  <div className="activity-record__state">
-                    <span className={statusClassName(call.status)}>
-                      <span className="badge__dot" aria-hidden="true" />
-                      {formatStatus(call.status)}
-                    </span>
-                    <time dateTime={call.timestamp ? new Date(call.timestamp * 1000).toISOString() : undefined}>
-                      {formatTimestamp(call)}
-                    </time>
+                  <div className="activity-record__progress">
+                    <div className="activity-record__state">
+                      <span className={statusClassName(call.status)}>
+                        <span className="badge__dot" aria-hidden="true" />
+                        {formatStatus(call.status)}
+                      </span>
+                      <time dateTime={call.timestamp ? new Date(call.timestamp * 1000).toISOString() : undefined}>
+                        {formatTimestamp(call)}
+                      </time>
+                    </div>
+                    <ol className="call-timeline" aria-label={`Call progress: ${formatStatus(call.status)}`}>
+                      {timelineSteps.map((step) => (
+                        <li className={`call-timeline__step is-${step.state}`} key={step.id}>
+                          <span className="call-timeline__marker" aria-hidden="true" />
+                          <span>{step.label}</span>
+                        </li>
+                      ))}
+                    </ol>
                   </div>
 
                   <div className="activity-record__recording">
@@ -327,6 +443,9 @@ export function Activity() {
                         No recording yet
                       </span>
                     )}
+                    <Link className="activity-record__detail" to={detailPath} aria-label={`Open record for ${title}`}>
+                      Open record <ArrowUpRight size={14} aria-hidden="true" />
+                    </Link>
                   </div>
 
                   <button

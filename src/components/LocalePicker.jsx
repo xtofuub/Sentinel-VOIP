@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Check, ChevronDown, Globe2, Search, X } from "lucide-react"
-
-const localeMark = (code) => {
-  if (!/^[a-z]{2}$/i.test(code || "")) return ""
-  return code.toUpperCase()
-}
+import { LocaleFlag } from "@/components/LocaleFlag"
 
 const groupOptions = (options) => {
   const groups = new Map()
@@ -128,7 +124,7 @@ export function LocalePicker({
           disabled={disabled}
         >
           <span className="locale-picker__flag" aria-hidden="true">
-            {selected ? localeMark(selected.countryCode) || <Globe2 size={16} /> : <Globe2 size={16} />}
+            {selected ? <LocaleFlag code={selected.countryCode} eager /> : <Globe2 size={16} />}
           </span>
           <span className="locale-picker__value">
             <strong id={`${id}-value`}>{selected?.label || placeholder}</strong>
@@ -195,7 +191,6 @@ export function LocalePicker({
                   <div className="locale-dialog__grid">
                     {group.items.map((option) => {
                       const isSelected = option.id === value
-                      const mark = localeMark(option.countryCode)
 
                       return (
                         <button
@@ -206,7 +201,7 @@ export function LocalePicker({
                           onClick={() => choose(option)}
                         >
                           <span className="locale-option__flag" aria-hidden="true">
-                            {mark || <Globe2 size={16} />}
+                            <LocaleFlag code={option.countryCode} />
                           </span>
                           <span>
                             <strong>{option.label}</strong>

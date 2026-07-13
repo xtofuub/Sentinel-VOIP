@@ -1,0 +1,455 @@
+.recording-detail {
+  --recording-red: #ff4e2d;
+}
+
+.recording-detail--state {
+  display: grid;
+  place-items: center;
+}
+
+.recording-detail__state-card {
+  width: min(100%, 36rem);
+  margin: 0;
+  padding: clamp(2rem, 6vw, 4.5rem);
+  text-align: center;
+}
+
+.recording-detail__state-card h1 {
+  margin: 0.75rem 0 0;
+  font-family: "Playfair Display Variable", Georgia, serif;
+  font-size: clamp(2.1rem, 6vw, 3.6rem);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+}
+
+.recording-detail__state-card > p:last-of-type {
+  max-width: 27rem;
+  margin: 1rem auto 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+.recording-detail__state-mark {
+  display: inline-grid;
+  width: 3.75rem;
+  height: 3.75rem;
+  place-items: center;
+  border: 1px solid rgba(255, 78, 45, 0.32);
+  border-radius: 50%;
+  margin-bottom: 1.5rem;
+  background: rgba(255, 78, 45, 0.08);
+  color: var(--recording-red);
+}
+
+.recording-detail__state-mark.is-loading svg {
+  animation: recording-spin 800ms linear infinite;
+}
+
+.recording-detail__state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-top: 1.75rem;
+}
+
+.recording-detail__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 2.2rem;
+  color: var(--muted-dark);
+  font-size: 0.68rem;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.recording-detail__breadcrumb button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--duration-ui) var(--ease-out), transform var(--duration-press) var(--ease-out);
+}
+
+.recording-detail__breadcrumb button:active,
+.recording-detail__title-row button:active,
+.recording-detail__rename button:active {
+  transform: scale(0.96);
+}
+
+.recording-detail__hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 2.4rem;
+}
+
+.recording-detail__title-lockup {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 1.35rem;
+}
+
+.recording-detail__thumbnail {
+  flex: 0 0 auto;
+  box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.32);
+}
+
+.recording-detail__hero-line {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: var(--muted-dark);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+}
+
+.recording-detail__status {
+  display: inline-flex;
+  min-height: 1.55rem;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 0.6rem;
+  color: var(--muted);
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.recording-detail__status > span {
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.recording-detail__status--accepted {
+  border-color: rgba(142, 224, 174, 0.25);
+  background: rgba(142, 224, 174, 0.06);
+  color: var(--success);
+}
+
+.recording-detail__status--pending,
+.recording-detail__status--queued,
+.recording-detail__status--running {
+  border-color: rgba(255, 197, 107, 0.25);
+  background: rgba(255, 197, 107, 0.06);
+  color: var(--warning);
+}
+
+.recording-detail__status--declined {
+  border-color: rgba(255, 128, 108, 0.25);
+  background: rgba(255, 128, 108, 0.06);
+  color: var(--danger);
+}
+
+.recording-detail__title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.recording-detail__title-row h1 {
+  overflow: hidden;
+  margin: 0;
+  font-family: "Playfair Display Variable", Georgia, serif;
+  font-size: clamp(2.25rem, 5vw, 4.5rem);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -0.052em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recording-detail__title-row button,
+.recording-detail__rename button {
+  display: inline-grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--duration-ui) var(--ease-out), border-color var(--duration-ui) var(--ease-out), transform var(--duration-press) var(--ease-out);
+}
+
+.recording-detail__title-lockup > div > p {
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.recording-detail__rename {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.recording-detail__rename input {
+  width: min(32rem, 54vw);
+  min-height: 3.4rem;
+  border: 1px solid rgba(255, 78, 45, 0.55);
+  border-radius: 0.9rem;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0 0.9rem;
+  color: var(--text);
+  font-family: "Playfair Display Variable", Georgia, serif;
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.recording-detail__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.65rem;
+}
+
+.recording-detail__notice {
+  min-height: 1.2rem;
+  margin: 0.75rem 0;
+  color: transparent;
+  font-size: 0.64rem;
+  text-align: right;
+  transition: color var(--duration-ui) var(--ease-out);
+}
+
+.recording-detail__notice.is-visible {
+  color: var(--muted);
+}
+
+.recording-detail__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(18rem, 0.75fr);
+  gap: 1rem;
+}
+
+.recording-detail__player,
+.recording-detail__metadata {
+  overflow: hidden;
+}
+
+.recording-detail__section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--line);
+  padding: 1.45rem 1.55rem;
+}
+
+.recording-detail__section-heading h2 {
+  margin: 0.4rem 0 0;
+  font-family: "Playfair Display Variable", Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 500;
+}
+
+.recording-detail__section-heading > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted-dark);
+  font-size: 0.64rem;
+}
+
+.recording-detail__waveform {
+  display: flex;
+  height: clamp(13rem, 26vw, 21rem);
+  align-items: center;
+  gap: clamp(2px, 0.32vw, 5px);
+  padding: 2.25rem 1.55rem 1.5rem;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 78, 45, 0.12), transparent 54%),
+    repeating-linear-gradient(to right, transparent 0, transparent calc(25% - 1px), rgba(255, 255, 255, 0.035) 25%);
+}
+
+.recording-detail__waveform i {
+  width: 100%;
+  height: var(--wave-height);
+  max-height: 9rem;
+  border-radius: 999px;
+  background: linear-gradient(to top, rgba(255, 78, 45, 0.24), var(--recording-red));
+  opacity: 0.82;
+}
+
+.recording-detail__waveform.is-muted i {
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 0.42;
+}
+
+.recording-detail__player > audio {
+  display: block;
+  width: calc(100% - 3.1rem);
+  height: 2.65rem;
+  margin: 0 1.55rem 1.55rem;
+  color-scheme: dark;
+}
+
+.recording-detail__pending {
+  display: flex;
+  min-height: 5rem;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 0 1.55rem 1.55rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 1rem;
+  color: var(--muted);
+}
+
+.recording-detail__pending strong {
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.recording-detail__pending p {
+  margin: 0.3rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.recording-detail__metadata dl {
+  margin: 0;
+}
+
+.recording-detail__metadata dl > div {
+  display: grid;
+  min-height: 5.15rem;
+  grid-template-columns: minmax(7rem, 0.7fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid var(--line);
+  padding: 1rem 1.55rem;
+}
+
+.recording-detail__metadata dl > div:last-child {
+  border-bottom: 0;
+}
+
+.recording-detail__metadata dt {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted-dark);
+  font-size: 0.66rem;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.recording-detail__metadata dd {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.74rem;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .recording-detail__breadcrumb button:hover,
+  .recording-detail__title-row button:hover,
+  .recording-detail__rename button:hover {
+    border-color: rgba(255, 78, 45, 0.48);
+    color: var(--text);
+  }
+}
+
+@media (max-width: 900px) {
+  .recording-detail__hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .recording-detail__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recording-detail__metadata {
+    order: -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .recording-detail__breadcrumb {
+    margin-bottom: 1.5rem;
+  }
+
+  .recording-detail__title-lockup {
+    align-items: flex-start;
+  }
+
+  .recording-detail__thumbnail {
+    display: none;
+  }
+
+  .recording-detail__title-row h1 {
+    white-space: normal;
+  }
+
+  .recording-detail__rename input {
+    width: calc(100vw - 9.5rem);
+  }
+
+  .recording-detail__actions {
+    width: 100%;
+  }
+
+  .recording-detail__actions .button {
+    flex: 1;
+  }
+
+  .recording-detail__section-heading > span {
+    display: none;
+  }
+
+  .recording-detail__metadata dl > div {
+    min-height: 4.5rem;
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+
+  .recording-detail__metadata dd {
+    text-align: left;
+  }
+
+  .recording-detail__waveform {
+    height: 12rem;
+    gap: 2px;
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recording-detail__state-mark.is-loading svg {
+    animation: none;
+  }
+}
+
+html[data-motion="reduced"] .recording-detail__state-mark.is-loading svg {
+  animation: none;
+}
+
+@keyframes recording-spin {
+  to { transform: rotate(360deg); }
+}

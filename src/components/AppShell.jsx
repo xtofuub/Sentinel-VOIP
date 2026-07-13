@@ -1,15 +1,14 @@
 import React, { useEffect, useLayoutEffect, useState } from "react"
 import { ArrowUpRight, Menu, Pause, Waves, X } from "lucide-react"
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
+import { AccountMenu } from "@/components/AccountMenu"
 
 const navItems = [
   { to: "/library", label: "Library" },
-  { to: "/new", label: "New session" },
+  { to: "/new", label: "Console" },
   { to: "/activity", label: "Activity" },
   { to: "/logs", label: "API logs" },
 ]
-
-const desktopNavItems = navItems.filter((item) => item.to !== "/new")
 
 const motionStorageKey = "sentinel-motion"
 const motionEntrySelector = [
@@ -149,7 +148,7 @@ export function AppShell() {
           </Link>
 
           <nav className="desktop-nav" aria-label="Primary navigation">
-            {desktopNavItems.map((item) => (
+            {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -175,6 +174,7 @@ export function AppShell() {
                 <Pause size={15} aria-hidden="true" />
               )}
             </button>
+            <AccountMenu />
             <Link className="nav-cta" to="/new">
               Start session
               <ArrowUpRight size={15} aria-hidden="true" />
@@ -204,6 +204,11 @@ export function AppShell() {
                 <ArrowUpRight size={15} aria-hidden="true" />
               </NavLink>
             ))}
+            <Link className="mobile-nav-link mobile-start-link" to="/new">
+              Start session
+              <ArrowUpRight size={15} aria-hidden="true" />
+            </Link>
+            <AccountMenu mobile />
           </nav>
         )}
       </header>

@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useRef, useState } from "react"
+import { createElement, useEffect, useMemo, useState } from "react"
 import {
   Activity,
   ArrowRight,
@@ -51,7 +51,6 @@ export function Overview() {
   const { isAdmin } = useAuth()
   const { error, loading, locales, scenarios } = useCatalog()
   const [localState, setLocalState] = useState(readLocalOverview)
-  const heroRef = useRef(null)
 
   useEffect(() => {
     const refreshLocalState = () => setLocalState(readLocalOverview())
@@ -60,35 +59,6 @@ export function Overview() {
     return () => {
       window.removeEventListener("focus", refreshLocalState)
       window.removeEventListener("storage", refreshLocalState)
-    }
-  }, [])
-
-  useEffect(() => {
-    const hero = heroRef.current
-    if (!hero || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined
-
-    let frameId = 0
-    const setPointer = (x, y) => {
-      window.cancelAnimationFrame(frameId)
-      frameId = window.requestAnimationFrame(() => {
-        hero.style.setProperty("--pointer-x", `${(x * 38).toFixed(2)}px`)
-        hero.style.setProperty("--pointer-y", `${(y * 28).toFixed(2)}px`)
-        hero.style.setProperty("--pointer-x-reverse", `${(x * -34).toFixed(2)}px`)
-        hero.style.setProperty("--pointer-y-reverse", `${(y * -25).toFixed(2)}px`)
-      })
-    }
-    const handlePointerMove = (event) => {
-      const bounds = hero.getBoundingClientRect()
-      setPointer((event.clientX - bounds.left) / bounds.width - 0.5, (event.clientY - bounds.top) / bounds.height - 0.5)
-    }
-    const resetPointer = () => setPointer(0, 0)
-
-    hero.addEventListener("pointermove", handlePointerMove, { passive: true })
-    hero.addEventListener("pointerleave", resetPointer)
-    return () => {
-      window.cancelAnimationFrame(frameId)
-      hero.removeEventListener("pointermove", handlePointerMove)
-      hero.removeEventListener("pointerleave", resetPointer)
     }
   }, [])
 
@@ -126,7 +96,7 @@ export function Overview() {
 
   return (
     <main className="cinematic-landing">
-      <section className="cinematic-hero" ref={heroRef} aria-labelledby="cinematic-hero-title">
+      <section className="cinematic-hero" aria-labelledby="cinematic-hero-title">
         <div className="cinematic-hero__backdrop" aria-hidden="true">
           <img className="cinematic-hero__atmosphere" src="/visuals/atmosphere.png" alt="" loading="eager" />
           <div className="cinematic-hero__shade" />

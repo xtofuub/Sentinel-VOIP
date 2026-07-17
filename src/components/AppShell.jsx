@@ -12,6 +12,13 @@ const publicNavItems = [
 
 const motionStorageKey = "sentinel-motion"
 const motionEntrySelector = [
+  ".cinematic-hero__brandline",
+  ".cinematic-hero h1",
+  ".cinematic-hero__promise",
+  ".cinematic-hero__copy",
+  ".cinematic-hero__actions",
+  ".cinematic-hero__access",
+  ".cinematic-route",
   ".hero-eyebrow",
   ".hero-title",
   ".hero-copy",
@@ -31,6 +38,13 @@ const motionEntrySelector = [
 ].join(", ")
 
 const scrollRevealSelector = [
+  ".cinematic-intro__label",
+  ".cinematic-intro > div",
+  ".cinematic-console",
+  ".cinematic-reaction__copy",
+  ".cinematic-recording",
+  ".cinematic-final__inner",
+  ".cinematic-footer__inner",
   ".landing-mission__intro",
   ".landing-stat",
   ".landing-section-heading",

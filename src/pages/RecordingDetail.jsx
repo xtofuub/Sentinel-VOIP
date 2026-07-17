@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import {
   ArrowLeft,
   CalendarClock,
@@ -16,6 +16,7 @@ import {
 } from "@/components/icons"
 import { useNavigate, useParams } from "react-router-dom"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
+import { AudioPlayer } from "@/components/AudioPlayer"
 import { enrichRecordedCallsWithLocalInput, getRecordedCalls } from "@/services/api"
 import "./RecordingDetail.css"
 
@@ -59,11 +60,6 @@ const statusClassName = (status) => {
   const normalized = String(status || "unknown").toLowerCase().replace(/[^a-z0-9-]/g, "")
   return `recording-detail__status recording-detail__status--${normalized || "unknown"}`
 }
-
-const makeWaveform = (seed = "sentinel") => Array.from({ length: 64 }, (_, index) => {
-  const code = seed.charCodeAt(index % seed.length) || 83
-  return 22 + ((code * (index + 5) * 17) % 70)
-})
 
 const getRecordingSourceUrl = (value) => {
   try {
@@ -162,7 +158,6 @@ export function RecordingDetail() {
     }
   }, [accountDid, recordingId, reloadKey])
 
-  const waveform = useMemo(() => makeWaveform(recordingId), [recordingId])
   const audioUrl = getRecordingSourceUrl(record?.url)
   const displayTitle = alias || record?.titulo || "Untitled recording"
 
@@ -326,14 +321,8 @@ export function RecordingDetail() {
             <span><Link2 size={15} aria-hidden="true" /> Direct source link</span>
           </div>
 
-          <div className={`recording-detail__waveform${audioUrl ? "" : " is-muted"}`} aria-hidden="true">
-            {waveform.map((height, index) => (
-              <i key={index} style={{ "--wave-height": `${height}%` }} />
-            ))}
-          </div>
-
           {audioUrl ? (
-            <audio controls preload="metadata" src={audioUrl} aria-label={`Recording for ${displayTitle}`} />
+            <AudioPlayer src={audioUrl} label={`recording for ${displayTitle}`} variant="detail" />
           ) : (
             <div className="recording-detail__pending" role="status">
               <Headphones size={19} aria-hidden="true" />

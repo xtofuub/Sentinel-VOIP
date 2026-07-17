@@ -11,7 +11,7 @@ import {
   Waves,
 } from "@/components/icons"
 import { Link, useNavigate } from "react-router-dom"
-import { ActivityAudioPlayer } from "@/components/ActivityAudioPlayer"
+import { AudioPlayer } from "@/components/AudioPlayer"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
 import { useCatalog } from "@/hooks/useCatalog"
 import { enrichRecordedCallsWithLocalInput, getRecordedCalls } from "@/services/api"
@@ -520,7 +520,7 @@ export function Activity() {
 
                   <div className="activity-record__recording">
                     {call.isPlayable && sourceUrl ? (
-                      <ActivityAudioPlayer src={sourceUrl} label={`recording for ${title}`} />
+                      <AudioPlayer src={sourceUrl} label={`recording for ${title}`} />
                     ) : (
                       <span className="recording-unavailable">
                         <Headphones aria-hidden="true" size={15} strokeWidth={1.5} />

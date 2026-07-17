@@ -130,7 +130,6 @@ export function Overview() {
         <div className="cinematic-hero__backdrop" aria-hidden="true">
           <img className="cinematic-hero__atmosphere" src="/visuals/atmosphere.png" alt="" loading="eager" />
           <div className="cinematic-hero__shade" />
-          <span className="cinematic-hero__wordmark">SENTINEL</span>
         </div>
 
         <div className="cinematic-hand-field cinematic-hand-field--left" aria-hidden="true">

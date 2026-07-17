@@ -56,20 +56,6 @@
     linear-gradient(180deg, rgba(10, 3, 2, 0.24) 0%, rgba(9, 3, 2, 0.08) 40%, rgba(7, 5, 5, 0.52) 76%, #070505 100%);
 }
 
-.cinematic-hero__wordmark {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  color: rgba(255, 238, 228, 0.045);
-  font-size: clamp(9rem, 21vw, 23rem);
-  font-weight: 760;
-  letter-spacing: -0.04em;
-  line-height: 0.8;
-  white-space: nowrap;
-  transform: translate(-50%, -48%);
-  user-select: none;
-}
-
 .cinematic-hand-field {
   position: absolute;
   z-index: -1;

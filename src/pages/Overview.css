@@ -94,7 +94,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-top: clamp(2.5rem, 6vh, 4.5rem);
+  padding-bottom: clamp(5rem, 12vh, 7rem);
   text-align: center;
 }
 

@@ -38,11 +38,9 @@ const motionEntrySelector = [
 ].join(", ")
 
 const scrollRevealSelector = [
-  ".cinematic-intro__label",
-  ".cinematic-intro > div",
-  ".cinematic-console",
-  ".cinematic-reaction__copy",
-  ".cinematic-recording",
+  ".clean-overview__intro",
+  ".clean-stat",
+  ".clean-feature",
   ".cinematic-final__inner",
   ".cinematic-footer__inner",
   ".landing-mission__intro",

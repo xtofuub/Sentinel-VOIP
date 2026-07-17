@@ -1,16 +1,13 @@
 import { createElement, useEffect, useMemo, useRef, useState } from "react"
 import {
+  Activity,
   ArrowRight,
   BookOpen,
-  CheckCircle2,
   FileText,
   Headphones,
   PhoneCall,
-  Play,
 } from "@/components/icons"
 import { Link } from "react-router-dom"
-import { LocaleFlag } from "@/components/LocaleFlag"
-import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
 import { useCatalog } from "@/hooks/useCatalog"
 import { useAuth } from "@/state/AuthContext"
 import "./Overview.css"
@@ -49,20 +46,6 @@ const journey = [
     icon: Headphones,
   },
 ]
-
-const waveform = [
-  18, 34, 58, 42, 76, 91, 64, 37, 52, 82, 68, 29, 44, 73, 96, 61, 38, 56, 88, 70, 46, 24, 50, 78,
-  59, 35, 66, 86, 48, 30, 54, 72,
-]
-const waveformStyles = waveform.map((height, index) => ({
-  "--wave-height": `${height}%`,
-  "--wave-delay": `${index * -55}ms`,
-}))
-const compactWaveformStyles = waveformStyles.slice(0, 20).map((style, index) => ({
-  ...style,
-  "--wave-delay": `${index * -70}ms`,
-}))
-const loadingScenarioRows = [0, 1, 2]
 
 export function Overview() {
   const { isAdmin } = useAuth()
@@ -118,13 +101,28 @@ export function Overview() {
     }
   }, [locales.length, scenarios.length])
 
-  const featuredScenarios = useMemo(() => {
-    const preferred = scenarios.filter((scenario) => scenario.localeLabel === "United States")
-    return (preferred.length >= 3 ? preferred : scenarios).slice(0, 3)
-  }, [scenarios])
-
-  const selectedScenario = featuredScenarios[0]
-  const savedCallCount = localState.launches.length
+  const stats = [
+    {
+      value: catalogSummary.scenarioLabel,
+      label: "Prank scenarios",
+      detail: "Ready to browse and preview",
+    },
+    {
+      value: loading ? "—" : catalogSummary.localeLabel,
+      label: "Localized collections",
+      detail: "Languages and regions",
+    },
+    {
+      value: "Now / later",
+      label: "Call timing",
+      detail: "Launch immediately or schedule it",
+    },
+    {
+      value: localState.launches.length.toLocaleString(),
+      label: "Saved reactions",
+      detail: "Remembered in this browser",
+    },
+  ]
 
   return (
     <main className="cinematic-landing">
@@ -188,173 +186,64 @@ export function Overview() {
         </div>
       </section>
 
-      <section className="cinematic-sequence" aria-labelledby="sequence-title">
+      <section className="clean-overview" aria-labelledby="clean-overview-title">
         <div className="cinematic-shell">
-          <header className="cinematic-intro">
-            <p className="cinematic-intro__label">The whole prank. One continuous flow.</p>
-            <div>
-              <h2 id="sequence-title">You set the scene.<br />Sentinel handles the call.</h2>
-              <p>
-                No jumping between tools. The scenario, recipient, schedule, and returned recording stay connected
-                from the first preview to the final replay.
-              </p>
-            </div>
+          <header className="clean-overview__intro">
+            <p>From setup to replay</p>
+            <h2 id="clean-overview-title">Everything stays in one place.</h2>
+            <p>
+              Browse the prank, choose the timing, and find the returned recording later. No extra tools and no lost context.
+            </p>
+            {error && (
+              <span className="clean-overview__notice" role="status">
+                The live catalog could not load. Your saved browser activity is still available.
+              </span>
+            )}
           </header>
 
-          <div className="cinematic-console">
-            <div className="cinematic-console__topbar">
-              <div>
-                <span className="cinematic-console__mark">S.</span>
-                <span>Session builder</span>
+          <div className="clean-stats" aria-label="Sentinel capabilities">
+            {stats.map((stat) => (
+              <div className="clean-stat" key={stat.label}>
+                <strong>{stat.value}</strong>
+                <span>{stat.label}</span>
+                <p>{stat.detail}</p>
               </div>
-              <span className="cinematic-console__ready"><i />Ready to configure</span>
-            </div>
-
-            <div className="cinematic-console__progress" aria-hidden="true">
-              <span className="is-complete" />
-              <span className="is-active" />
-              <span />
-              <i />
-            </div>
-
-            <div className="cinematic-console__body">
-              <section className="cinematic-console__scenarios" aria-labelledby="scenario-preview-title">
-                <div className="cinematic-console__section-head">
-                  <span>01</span>
-                  <div>
-                    <h3 id="scenario-preview-title">Choose the prank</h3>
-                    <p>{catalogSummary.scenarioLabel} scenarios · {catalogSummary.localeLabel} locales</p>
-                  </div>
-                </div>
-
-                <div className="cinematic-scenario-list">
-                  {loading && loadingScenarioRows.map((index) => (
-                    <div className="cinematic-scenario is-loading" key={index} aria-hidden="true">
-                      <span className="cinematic-scenario__placeholder" />
-                      <span><i /><i /></span>
-                    </div>
-                  ))}
-                  {!loading && featuredScenarios.map((scenario, index) => (
-                    <article className={`cinematic-scenario${index === 0 ? " is-selected" : ""}`} key={scenario.uniqueId}>
-                      <ScenarioThumbnail src={scenario.image_url} title={scenario.titulo} size="medium" eager={index === 0} />
-                      <div className="cinematic-scenario__copy">
-                        <span><LocaleFlag code={scenario.countryCode} eager={index === 0} />{scenario.localeLabel}</span>
-                        <strong>{scenario.titulo}</strong>
-                      </div>
-                      {index === 0 ? <CheckCircle2 size={19} aria-label="Selected" /> : <Play size={17} aria-label="Preview" />}
-                    </article>
-                  ))}
-                </div>
-              </section>
-
-              <section className="cinematic-console__dispatch" aria-labelledby="dispatch-title">
-                <div className="cinematic-console__section-head">
-                  <span>02</span>
-                  <div>
-                    <h3 id="dispatch-title">Set the moment</h3>
-                    <p>Recipient and timing</p>
-                  </div>
-                </div>
-
-                <div className="cinematic-dispatch-card">
-                  <div className="cinematic-dispatch-card__scenario">
-                    <span>Selected scenario</span>
-                    <strong>{selectedScenario?.titulo || "The pizza delivery"}</strong>
-                  </div>
-                  <dl>
-                    <div>
-                      <dt>Recipient</dt>
-                      <dd>Alex · +1 ••• ••• 0194</dd>
-                    </div>
-                    <div>
-                      <dt>Call time</dt>
-                      <dd>Tonight · 20:30</dd>
-                    </div>
-                  </dl>
-                  <div className="cinematic-dispatch-card__button">
-                    <PhoneCall size={18} aria-hidden="true" />
-                    Review and place call
-                  </div>
-                </div>
-              </section>
-
-              <section className="cinematic-console__return" aria-labelledby="return-title">
-                <div className="cinematic-console__section-head">
-                  <span>03</span>
-                  <div>
-                    <h3 id="return-title">Get the reaction</h3>
-                    <p>Saved automatically in Activity</p>
-                  </div>
-                </div>
-
-                <div className="cinematic-return-card">
-                  <div className="cinematic-return-card__status">
-                    <span><i />Recording ready</span>
-                    <time>00:47</time>
-                  </div>
-                  <div className="cinematic-waveform" aria-hidden="true">
-                    {compactWaveformStyles.map((style, index) => (
-                      <i key={index} style={style} />
-                    ))}
-                  </div>
-                  <div className="cinematic-return-card__play">
-                    <span><Play size={16} aria-hidden="true" /></span>
-                    <div>
-                      <strong>Replay the reaction</strong>
-                      <small>Recipient, scenario, and time included</small>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </div>
+            ))}
           </div>
 
-          {error && (
-            <p className="cinematic-data-note" role="status">
-              The live catalog could not load in this view. Your saved browser activity is still available.
-            </p>
-          )}
-        </div>
-      </section>
-
-      <section className="cinematic-reaction" aria-labelledby="reaction-title">
-        <div className="cinematic-reaction__glow" aria-hidden="true" />
-        <div className="cinematic-shell cinematic-reaction__layout">
-          <div className="cinematic-reaction__copy">
-            <p>The part worth keeping</p>
-            <h2 id="reaction-title">The call ends.<br />The story doesn’t.</h2>
-            <p>
-              Activity keeps every returned recording with the right prank, recipient, and time—ready to replay
-              whenever the joke comes back up.
-            </p>
-            <Link className="cinematic-text-link" to="/activity">
-              Open activity
-              <ArrowRight size={17} aria-hidden="true" />
-            </Link>
-          </div>
-
-          <div className="cinematic-recording" aria-label="Example returned recording">
-            <div className="cinematic-recording__header">
-              <span>Returned reaction</span>
-              <span className="cinematic-recording__badge"><i />Ready</span>
-            </div>
-            <div className="cinematic-recording__identity">
-              <div className="cinematic-recording__play"><Play size={22} aria-hidden="true" /></div>
-              <div>
-                <strong>{selectedScenario?.titulo || "The pizza delivery"}</strong>
-                <span>Alex · Tonight at 20:30</span>
+          <div className="clean-features">
+            <article className="clean-feature clean-feature--accent">
+              <div className="clean-feature__topline">
+                <BookOpen size={23} aria-hidden="true" />
+                <span>Scenario library</span>
               </div>
-              <time>00:47</time>
-            </div>
-            <div className="cinematic-recording__wave" aria-hidden="true">
-              {waveformStyles.map((style, index) => (
-                <i key={index} style={style} />
-              ))}
-            </div>
-            <div className="cinematic-recording__footer">
-              <span>{savedCallCount ? `${savedCallCount.toLocaleString()} saved in this browser` : "Your recordings collect here"}</span>
-              <span>Private activity trail</span>
-            </div>
+              <div className="clean-feature__copy">
+                <h3>Find the prank before you make the call.</h3>
+                <p>Filter by locale, search the catalog, and preview the audio before choosing anything.</p>
+                <Link to="/library">
+                  Browse scenarios
+                  <ArrowRight size={17} aria-hidden="true" />
+                </Link>
+              </div>
+            </article>
+
+            <article className="clean-feature clean-feature--dark">
+              <div className="clean-feature__topline">
+                <Activity size={23} aria-hidden="true" />
+                <span>Call activity</span>
+              </div>
+              <div className="clean-feature__copy">
+                <h3>The right reaction stays easy to find.</h3>
+                <p>Recipient, scenario, call time, and returned audio remain together in one clear history.</p>
+                <div className="clean-feature__links">
+                  <Link to="/activity">
+                    Open activity
+                    <ArrowRight size={17} aria-hidden="true" />
+                  </Link>
+                  {isAdmin && <Link className="clean-feature__admin" to="/logs">API logs</Link>}
+                </div>
+              </div>
+            </article>
           </div>
         </div>
       </section>

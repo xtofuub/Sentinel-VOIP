@@ -37,7 +37,7 @@ const journey = [
   },
   {
     title: "Sentinel calls",
-    detail: "Add their number and choose when it fires.",
+    detail: "Add their number and place the call.",
     icon: PhoneCall,
   },
   {
@@ -113,9 +113,9 @@ export function Overview() {
       detail: "Languages and regions",
     },
     {
-      value: "Now / later",
-      label: "Call timing",
-      detail: "Launch immediately or schedule it",
+      value: "Immediate",
+      label: "Call launch",
+      detail: "Placed as soon as you confirm",
     },
     {
       value: localState.launches.length.toLocaleString(),
@@ -152,7 +152,7 @@ export function Overview() {
           </h1>
           <p className="cinematic-hero__promise">Every reaction, ready to replay.</p>
           <p className="cinematic-hero__copy">
-            Pick a scenario, enter their number, and choose when it calls. Sentinel places the prank and brings the
+            Pick a scenario, enter their number, and confirm the setup. Sentinel places the prank and brings the
             recording back to one private activity feed.
           </p>
 

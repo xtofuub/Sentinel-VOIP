@@ -40,6 +40,7 @@ const motionEntrySelector = [
 const scrollRevealSelector = [
   ".clean-overview__intro",
   ".clean-stat",
+  ".clean-feature",
   ".cinematic-final__inner",
   ".cinematic-footer__inner",
   ".landing-mission__intro",

@@ -2,8 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowUpRight,
   Check,
-  Copy,
-  ExternalLink,
+  CircleAlert,
   Headphones,
   RefreshCw,
   Search,
@@ -377,11 +376,8 @@ export function Activity() {
     <main className="page product-page activity-page">
       <header className="activity-page__header">
         <div className="activity-page__title">
-          <span aria-hidden="true"><Waves size={19} strokeWidth={1.65} /></span>
-          <div>
-            <h1>Activity</h1>
-            <p>Review recent calls and share finished recordings straight from their source.</p>
-          </div>
+          <h1>Activity</h1>
+          <p>Calls, recordings, and recipients in one clear history.</p>
         </div>
 
         <div className="activity-page__controls">
@@ -409,13 +405,14 @@ export function Activity() {
       <section className="surface activity-hub" aria-labelledby="activity-results-heading">
         <header className="activity-hub__header">
           <div>
-            <h2 id="activity-results-heading">Calls and recordings</h2>
-            <p>{calls.length.toLocaleString()} total · {recordingCount.toLocaleString()} ready to share · {activeCount.toLocaleString()} active</p>
+            <h2 id="activity-results-heading">Call history</h2>
+            <p>Listen, share, or open the full record.</p>
           </div>
-          <p className="activity-hub__source-note">
-            <Share2 size={15} aria-hidden="true" />
-            Shared recordings open directly—no Sentinel account needed.
-          </p>
+          <div className="activity-hub__summary" aria-label="Activity summary">
+            <span><strong>{calls.length.toLocaleString()}</strong> total</span>
+            <span><strong>{recordingCount.toLocaleString()}</strong> recordings</span>
+            <span><strong>{activeCount.toLocaleString()}</strong> active</span>
+          </div>
         </header>
 
         <div className="activity-toolbar">
@@ -449,9 +446,12 @@ export function Activity() {
           </div>
         </div>
 
-        <p className={`activity-action-status${linkAction.message ? " is-visible" : ""}`} role="status" aria-live="polite">
-          {linkAction.message}
-        </p>
+        {linkAction.message && (
+          <p className={`activity-action-status${linkAction.type === "error" ? " is-error" : ""}`} role="status" aria-live="polite">
+            {linkAction.type === "error" ? <CircleAlert size={14} aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}
+            {linkAction.message}
+          </p>
+        )}
 
         {error && (
           <div className="notice notice--warning" role="status">
@@ -465,7 +465,6 @@ export function Activity() {
 
         {!accounts.length ? (
           <div className="empty-state activity-empty">
-            <span className="empty-state__number" aria-hidden="true">00</span>
             <div>
               <h2>No call history yet</h2>
               <p>Place your first call and its recording will appear here when ready.</p>
@@ -481,7 +480,6 @@ export function Activity() {
           </div>
         ) : allRequestsFailed ? (
           <div className="empty-state activity-empty">
-            <span className="empty-state__number" aria-hidden="true">!</span>
             <div>
               <h2>Call history unavailable</h2>
               <p>Your saved call links are still here. Retry when the service is reachable.</p>
@@ -499,8 +497,8 @@ export function Activity() {
               const detailPath = `/activity/${encodeURIComponent(call.accountDid || call.uid || "unknown")}/${encodeURIComponent(call._id)}`
               const timestamp = formatTimestamp(call)
               const sourceUrl = getRecordingSourceUrl(call)
-              const copied = linkAction.rowKey === rowKey && linkAction.type === "copy"
-              const shared = linkAction.rowKey === rowKey && linkAction.type === "share"
+              const shareComplete = linkAction.rowKey === rowKey && ["copy", "share"].includes(linkAction.type)
+              const shareLabel = linkAction.type === "copy" ? "Copied" : "Shared"
 
               return (
                 <article className="activity-record" key={rowKey}>
@@ -511,18 +509,13 @@ export function Activity() {
                       <span className="activity-record__country">{country.toUpperCase()}</span>
                       <strong>{title}</strong>
                     </div>
-                    <p>
-                      {call.targetName || "Unknown recipient"}
+                    <p className="activity-record__recipient">
+                      <span>{call.targetName || "Unknown recipient"}</span>
                       <span>{call.targetPhone || "No phone stored"}</span>
                     </p>
-                  </div>
-
-                  <div className="activity-record__progress">
-                    <div className="activity-record__state">
-                      <time dateTime={timestamp.iso} title={timestamp.exact}>
-                        {timestamp.label}
-                      </time>
-                    </div>
+                    <time className="activity-record__time" dateTime={timestamp.iso} title={timestamp.exact}>
+                      {timestamp.label}
+                    </time>
                   </div>
 
                   <div className="activity-record__recording">
@@ -534,44 +527,39 @@ export function Activity() {
                         No recording yet
                       </span>
                     )}
-                    <div className="activity-record__quick-actions">
-                      {sourceUrl && (
-                        <>
-                          <button type="button" onClick={() => void shareRecording(rowKey, call, title)}>
-                            {shared ? <Check size={14} aria-hidden="true" /> : <Share2 size={14} aria-hidden="true" />}
-                            {shared ? "Shared" : "Share"}
-                          </button>
-                          <button type="button" onClick={() => void copyRecordingLink(rowKey, sourceUrl)}>
-                            {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
-                            {copied ? "Copied" : "Copy link"}
-                          </button>
-                          <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink size={14} aria-hidden="true" /> Source
-                          </a>
-                        </>
-                      )}
-                      <Link to={detailPath} aria-label={`Open record for ${title}`}>
-                        Details <ArrowUpRight size={14} aria-hidden="true" />
-                      </Link>
-                    </div>
                   </div>
 
-                  <button
-                    className="button button--danger button--icon activity-record__remove"
-                    type="button"
-                    onClick={() => removeCall(rowKey)}
-                    aria-label={`Remove ${title} from Activity`}
-                    title="Remove from Activity"
-                  >
-                    <Trash2 aria-hidden="true" size={16} strokeWidth={1.5} />
-                  </button>
+                  <div className="activity-record__actions">
+                    {sourceUrl && (
+                      <button
+                        className="activity-record__share"
+                        type="button"
+                        onClick={() => void shareRecording(rowKey, call, title)}
+                        aria-label={`Share recording for ${title}`}
+                      >
+                        {shareComplete ? <Check size={15} aria-hidden="true" /> : <Share2 size={15} aria-hidden="true" />}
+                        {shareComplete ? shareLabel : "Share"}
+                      </button>
+                    )}
+                    <Link className="activity-record__details" to={detailPath} aria-label={`Open record for ${title}`}>
+                      Details <ArrowUpRight size={14} aria-hidden="true" />
+                    </Link>
+                    <button
+                      className="activity-record__remove"
+                      type="button"
+                      onClick={() => removeCall(rowKey)}
+                      aria-label={`Remove ${title} from Activity`}
+                      title="Remove from Activity"
+                    >
+                      <Trash2 aria-hidden="true" size={16} strokeWidth={1.5} />
+                    </button>
+                  </div>
                 </article>
               )
             })}
           </div>
         ) : (
           <div className="empty-state activity-empty">
-            <span className="empty-state__number" aria-hidden="true">00</span>
             <div>
               <h2>No matching activity</h2>
               <p>Change the search or filter to see more records.</p>

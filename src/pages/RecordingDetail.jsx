@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   CalendarClock,
   Check,
-  Copy,
   Download,
   Globe2,
   Headphones,
@@ -304,9 +303,6 @@ export function RecordingDetail() {
             <>
               <button className="button button--primary" type="button" onClick={shareRecording}>
                 <Share2 size={15} aria-hidden="true" /> Share recording
-              </button>
-              <button className="button button--outline" type="button" onClick={copySourceLink}>
-                <Copy size={15} aria-hidden="true" /> Copy source link
               </button>
               <a className="button button--outline" href={audioUrl} download target="_blank" rel="noreferrer">
                 <Download size={15} aria-hidden="true" /> Download

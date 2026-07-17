@@ -58,7 +58,7 @@ export function ActivityAudioPlayer({ label, src }) {
         {playing ? <Pause size={14} fill="currentColor" aria-hidden="true" /> : <Play size={14} fill="currentColor" aria-hidden="true" />}
       </button>
       <div className="activity-audio__body">
-        <span><Volume2 size={13} aria-hidden="true" />{failed ? "Preview unavailable" : "Recording"}</span>
+        <span><Volume2 size={14} aria-hidden="true" />{failed ? "Preview unavailable" : playing ? "Playing recording" : "Recording ready"}</span>
         <input
           type="range"
           min="0"

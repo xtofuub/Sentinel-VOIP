@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { CircleAlert, LoaderCircle, X } from "lucide-react"
+import { CircleAlert, LoaderCircle, X } from "@/components/icons"
 import { GoogleMark } from "@/components/GoogleMark"
 import { useAuth } from "@/state/AuthContext"
 

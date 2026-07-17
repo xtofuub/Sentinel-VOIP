@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CircleAlert, LoaderCircle } from "lucide-react"
+import { ArrowLeft, CircleAlert, LoaderCircle } from "@/components/icons"
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { GoogleMark } from "@/components/GoogleMark"
 import { useAuth } from "@/state/AuthContext"

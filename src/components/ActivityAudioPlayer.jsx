@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Pause, Play, Volume2 } from "lucide-react"
+import { Pause, Play, Volume2 } from "@/components/icons"
 
 const formatDuration = (value) => {
   if (!Number.isFinite(value) || value < 0) return "0:00"

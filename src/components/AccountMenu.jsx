@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ArrowUpRight, LogOut, Settings, ShieldCheck, UserRound } from "lucide-react"
+import { ArrowUpRight, LogOut, Settings, ShieldCheck, UserRound } from "@/components/icons"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/state/AuthContext"
 

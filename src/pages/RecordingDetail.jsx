@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   UserRound,
   X,
-} from "lucide-react"
+} from "@/components/icons"
 import { useNavigate, useParams } from "react-router-dom"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
 import { enrichRecordedCallsWithLocalInput, getRecordedCalls } from "@/services/api"

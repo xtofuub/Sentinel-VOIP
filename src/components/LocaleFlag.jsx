@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Globe2 } from "lucide-react"
+import { Globe2 } from "@/components/icons"
 
 const normalizeCode = (code) => (/^[a-z]{2}$/i.test(code || "") ? code.toLowerCase() : "")
 

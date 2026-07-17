@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState } from "react"
-import { ArrowUpRight, Menu, Pause, Waves, X } from "lucide-react"
+import { ArrowUpRight, Menu, Pause, Waves, X } from "@/components/icons"
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 import { AccountMenu } from "@/components/AccountMenu"
 import { useAuth } from "@/state/AuthContext"

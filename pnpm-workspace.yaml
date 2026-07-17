@@ -20,4 +20,4 @@ allowBuilds:
   '@ibm/plex-sans-thai': set this to true or false
   '@ibm/plex-sans-thai-looped': set this to true or false
   '@ibm/plex-serif': set this to true or false
-  '@parcel/watcher': set this to true or false
+  '@parcel/watcher': true

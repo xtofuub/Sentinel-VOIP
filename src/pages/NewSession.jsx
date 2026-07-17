@@ -11,7 +11,7 @@ import {
   Search,
   ShieldCheck,
   Volume2,
-} from "lucide-react"
+} from "@/components/icons"
 import { useNavigate } from "react-router-dom"
 import { AuthPromptDialog } from "@/components/AuthPromptDialog"
 import { LocalePicker } from "@/components/LocalePicker"

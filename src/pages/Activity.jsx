@@ -10,7 +10,7 @@ import {
   Share2,
   Trash2,
   Waves,
-} from "lucide-react"
+} from "@/components/icons"
 import { Link, useNavigate } from "react-router-dom"
 import { ActivityAudioPlayer } from "@/components/ActivityAudioPlayer"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"

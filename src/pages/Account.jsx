@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { ArrowRight, CalendarDays, CircleAlert, Clock3, LogOut, PhoneCall, ShieldCheck, Sparkles } from "lucide-react"
+import { ArrowRight, CalendarDays, CircleAlert, Clock3, LogOut, PhoneCall, ShieldCheck, Sparkles } from "@/components/icons"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/state/AuthContext"

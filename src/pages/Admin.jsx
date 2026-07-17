@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { CircleAlert, Coins, LoaderCircle, Search, ShieldCheck, UserRoundCheck, UsersRound, X } from "lucide-react"
+import { CircleAlert, Coins, LoaderCircle, Search, ShieldCheck, UserRoundCheck, UsersRound, X } from "@/components/icons"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/state/AuthContext"
 

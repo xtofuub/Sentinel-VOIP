@@ -13,7 +13,7 @@ import {
   Trash2,
   Wifi,
   Zap,
-} from "lucide-react"
+} from "@/components/icons"
 import { useNavigate } from "react-router-dom"
 import { clearApiLogs, getApiLogs, subscribeApiLogs } from "@/services/api"
 

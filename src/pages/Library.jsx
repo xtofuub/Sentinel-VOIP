@@ -6,7 +6,7 @@ import {
   RotateCcw,
   Search,
   Volume2,
-} from "lucide-react"
+} from "@/components/icons"
 import { useNavigate } from "react-router-dom"
 import { LocalePicker } from "@/components/LocalePicker"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"

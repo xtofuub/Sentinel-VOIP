@@ -8,7 +8,7 @@ import {
   PhoneCall,
   Search,
   UserRound,
-} from "lucide-react"
+} from "@/components/icons"
 import { Link } from "react-router-dom"
 import { useCatalog } from "@/hooks/useCatalog"
 import { useAuth } from "@/state/AuthContext"

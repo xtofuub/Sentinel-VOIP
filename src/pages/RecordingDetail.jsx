@@ -3,12 +3,14 @@ import {
   ArrowLeft,
   CalendarClock,
   Check,
-  Clipboard,
+  Copy,
   Download,
   Globe2,
   Headphones,
+  Link2,
   Pencil,
   RefreshCw,
+  Share2,
   ShieldCheck,
   UserRound,
   X,
@@ -63,6 +65,17 @@ const makeWaveform = (seed = "sentinel") => Array.from({ length: 64 }, (_, index
   const code = seed.charCodeAt(index % seed.length) || 83
   return 22 + ((code * (index + 5) * 17) % 70)
 })
+
+const getRecordingSourceUrl = (value) => {
+  try {
+    const url = new URL(String(value || "").trim())
+    if (url.protocol !== "http:" && url.protocol !== "https:") return ""
+    if (url.protocol === "http:") url.protocol = "https:"
+    return url.href
+  } catch {
+    return ""
+  }
+}
 
 export function RecordingDetail() {
   const navigate = useNavigate()
@@ -151,7 +164,7 @@ export function RecordingDetail() {
   }, [accountDid, recordingId, reloadKey])
 
   const waveform = useMemo(() => makeWaveform(recordingId), [recordingId])
-  const audioUrl = record?.url?.replace(/^http:/, "https:") || ""
+  const audioUrl = getRecordingSourceUrl(record?.url)
   const displayTitle = alias || record?.titulo || "Untitled recording"
 
   const saveAlias = (event) => {
@@ -175,12 +188,33 @@ export function RecordingDetail() {
     }
   }
 
-  const copyLink = async () => {
+  const copySourceLink = async () => {
+    if (!audioUrl) return
     try {
-      await navigator.clipboard.writeText(window.location.href)
-      setActionMessage("Page link copied. This recording is only available in this browser.")
+      await navigator.clipboard.writeText(audioUrl)
+      setActionMessage("Direct recording link copied. Anyone with the link can open the audio.")
     } catch {
-      setActionMessage("The browser could not copy this link.")
+      setActionMessage("The direct recording link could not be copied.")
+    }
+  }
+
+  const shareRecording = async () => {
+    if (!audioUrl) return
+
+    if (!navigator.share) {
+      await copySourceLink()
+      return
+    }
+
+    try {
+      await navigator.share({
+        title: displayTitle,
+        text: "Listen to this recorded call.",
+        url: audioUrl,
+      })
+      setActionMessage("Recording shared from its direct source.")
+    } catch (shareError) {
+      if (shareError?.name !== "AbortError") await copySourceLink()
     }
   }
 
@@ -266,13 +300,18 @@ export function RecordingDetail() {
         </div>
 
         <div className="recording-detail__actions">
-          <button className="button button--outline" type="button" onClick={copyLink}>
-            <Clipboard size={15} aria-hidden="true" /> Copy page link
-          </button>
           {audioUrl && (
-            <a className="button button--primary" href={audioUrl} download target="_blank" rel="noreferrer">
-              <Download size={15} aria-hidden="true" /> Download
-            </a>
+            <>
+              <button className="button button--primary" type="button" onClick={shareRecording}>
+                <Share2 size={15} aria-hidden="true" /> Share recording
+              </button>
+              <button className="button button--outline" type="button" onClick={copySourceLink}>
+                <Copy size={15} aria-hidden="true" /> Copy source link
+              </button>
+              <a className="button button--outline" href={audioUrl} download target="_blank" rel="noreferrer">
+                <Download size={15} aria-hidden="true" /> Download
+              </a>
+            </>
           )}
         </div>
       </header>
@@ -288,7 +327,7 @@ export function RecordingDetail() {
               <p className="eyebrow">Returned audio</p>
               <h2 id="recording-player-heading">Call recording</h2>
             </div>
-            <span><ShieldCheck size={15} aria-hidden="true" /> This browser only</span>
+            <span><Link2 size={15} aria-hidden="true" /> Direct source link</span>
           </div>
 
           <div className={`recording-detail__waveform${audioUrl ? "" : " is-muted"}`} aria-hidden="true">

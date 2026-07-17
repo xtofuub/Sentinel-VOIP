@@ -1,9 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowUpRight,
+  Check,
+  Copy,
+  ExternalLink,
   Headphones,
   RefreshCw,
   Search,
+  Share2,
   Trash2,
   Waves,
 } from "lucide-react"
@@ -116,6 +120,17 @@ const formatSyncTime = (timestamp) => new Intl.DateTimeFormat(undefined, {
   second: "2-digit",
 }).format(timestamp)
 
+const getRecordingSourceUrl = (call) => {
+  try {
+    const url = new URL(String(call?.url || "").trim())
+    if (url.protocol !== "http:" && url.protocol !== "https:") return ""
+    if (url.protocol === "http:") url.protocol = "https:"
+    return url.href
+  } catch {
+    return ""
+  }
+}
+
 export function Activity() {
   const navigate = useNavigate()
   const { scenarios } = useCatalog()
@@ -127,19 +142,62 @@ export function Activity() {
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState("all")
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
+  const [linkAction, setLinkAction] = useState({ message: "", rowKey: "", type: "" })
   const [pageVisible, setPageVisible] = useState(() => document.visibilityState !== "hidden")
   const accountsRef = useRef(accounts)
   const mountedRef = useRef(false)
   const refreshingRef = useRef(false)
   const refreshQueuedRef = useRef(false)
   const hiddenActivityRef = useRef(readHiddenActivity())
+  const linkActionTimerRef = useRef(null)
 
   useEffect(() => {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      window.clearTimeout(linkActionTimerRef.current)
     }
   }, [])
+
+  const showLinkAction = useCallback((rowKey, type, message) => {
+    window.clearTimeout(linkActionTimerRef.current)
+    setLinkAction({ message, rowKey, type })
+    linkActionTimerRef.current = window.setTimeout(() => {
+      if (mountedRef.current) setLinkAction({ message: "", rowKey: "", type: "" })
+    }, 3200)
+  }, [])
+
+  const copyRecordingLink = useCallback(async (rowKey, sourceUrl) => {
+    if (!sourceUrl) return
+    try {
+      await navigator.clipboard.writeText(sourceUrl)
+      showLinkAction(rowKey, "copy", "Direct recording link copied.")
+    } catch {
+      showLinkAction(rowKey, "error", "The recording link could not be copied.")
+    }
+  }, [showLinkAction])
+
+  const shareRecording = useCallback(async (rowKey, call, title) => {
+    const sourceUrl = getRecordingSourceUrl(call)
+    if (!sourceUrl) return
+
+    if (!navigator.share) {
+      await copyRecordingLink(rowKey, sourceUrl)
+      return
+    }
+
+    try {
+      await navigator.share({
+        title,
+        text: "Listen to this recorded call.",
+        url: sourceUrl,
+      })
+      showLinkAction(rowKey, "share", "Recording shared from its direct source.")
+    } catch (shareError) {
+      if (shareError?.name === "AbortError") return
+      await copyRecordingLink(rowKey, sourceUrl)
+    }
+  }, [copyRecordingLink, showLinkAction])
 
   useEffect(() => {
     accountsRef.current = accounts
@@ -317,61 +375,48 @@ export function Activity() {
 
   return (
     <main className="page product-page activity-page">
-      <header className="product-hero product-hero--compact">
-        <div className="product-hero__index" aria-hidden="true">03</div>
-        <div className="product-hero__copy">
-          <p className="eyebrow">Call activity</p>
-          <h1>
-            Every return.
-            <br />
-            <em>One clear record.</em>
-          </h1>
-          <p className="product-hero__description">
-            Search recipients, check active calls, and replay returned recordings from one clear history.
-          </p>
+      <header className="activity-page__header">
+        <div className="activity-page__title">
+          <span aria-hidden="true"><Waves size={19} strokeWidth={1.65} /></span>
+          <div>
+            <h1>Activity</h1>
+            <p>Review recent calls and share finished recordings straight from their source.</p>
+          </div>
         </div>
-        <div className="product-hero__meta" aria-label="Activity state">
-          <span>Current state</span>
-          <strong>{activeCount}</strong>
-          <small>active sessions</small>
+
+        <div className="activity-page__controls">
+          <div className="activity-sync">
+            <span className={`badge ${running && pageVisible ? "badge--live" : "badge--neutral"}`} aria-live="polite">
+              <span className="badge__dot" aria-hidden="true" />
+              {syncLabel}
+            </span>
+            <small>
+              {lastUpdatedAt ? `Updated ${formatSyncTime(lastUpdatedAt)}` : "Waiting for first sync"}
+            </small>
+          </div>
+          <button
+            className="button button--outline button--compact"
+            type="button"
+            onClick={() => void refresh()}
+            disabled={loading || !accounts.length}
+          >
+            <RefreshCw className={loading ? "is-spinning" : undefined} aria-hidden="true" size={15} />
+            {loading ? "Refreshing" : "Refresh"}
+          </button>
         </div>
       </header>
 
       <section className="surface activity-hub" aria-labelledby="activity-results-heading">
         <header className="activity-hub__header">
           <div>
-            <p className="eyebrow">Call history</p>
-            <h2 id="activity-results-heading">Latest activity</h2>
-            <p>Calls started from this browser, with returned audio attached when it is ready.</p>
+            <h2 id="activity-results-heading">Calls and recordings</h2>
+            <p>{calls.length.toLocaleString()} total · {recordingCount.toLocaleString()} ready to share · {activeCount.toLocaleString()} active</p>
           </div>
-          <div className="activity-hub__actions">
-            <div className="activity-sync">
-              <span className={`badge ${running && pageVisible ? "badge--live" : "badge--neutral"}`} aria-live="polite">
-                <span className="badge__dot" aria-hidden="true" />
-                {syncLabel}
-              </span>
-              <small>
-                {lastUpdatedAt ? `Updated ${formatSyncTime(lastUpdatedAt)}` : "Waiting for first sync"}
-              </small>
-            </div>
-            <button
-              className="button button--primary"
-              type="button"
-              onClick={() => void refresh()}
-              disabled={loading || !accounts.length}
-            >
-              <RefreshCw className={loading ? "is-spinning" : undefined} aria-hidden="true" size={16} />
-              {loading ? "Refreshing" : "Refresh"}
-            </button>
-          </div>
+          <p className="activity-hub__source-note">
+            <Share2 size={15} aria-hidden="true" />
+            Shared recordings open directly—no Sentinel account needed.
+          </p>
         </header>
-
-        <div className="activity-metrics" aria-label="Activity summary">
-          <div><span>Connections</span><strong>{accounts.length.toLocaleString()}</strong></div>
-          <div><span>Total calls</span><strong>{calls.length.toLocaleString()}</strong></div>
-          <div><span>Active</span><strong>{activeCount.toLocaleString()}</strong></div>
-          <div><span>Recordings</span><strong>{recordingCount.toLocaleString()}</strong></div>
-        </div>
 
         <div className="activity-toolbar">
           <label className="activity-search" htmlFor="activity-search">
@@ -403,6 +448,10 @@ export function Activity() {
             ))}
           </div>
         </div>
+
+        <p className={`activity-action-status${linkAction.message ? " is-visible" : ""}`} role="status" aria-live="polite">
+          {linkAction.message}
+        </p>
 
         {error && (
           <div className="notice notice--warning" role="status">
@@ -449,6 +498,9 @@ export function Activity() {
               const thumbnail = call.pic || scenario?.image_url
               const detailPath = `/activity/${encodeURIComponent(call.accountDid || call.uid || "unknown")}/${encodeURIComponent(call._id)}`
               const timestamp = formatTimestamp(call)
+              const sourceUrl = getRecordingSourceUrl(call)
+              const copied = linkAction.rowKey === rowKey && linkAction.type === "copy"
+              const shared = linkAction.rowKey === rowKey && linkAction.type === "share"
 
               return (
                 <article className="activity-record" key={rowKey}>
@@ -474,17 +526,34 @@ export function Activity() {
                   </div>
 
                   <div className="activity-record__recording">
-                    {call.isPlayable && call.url ? (
-                      <ActivityAudioPlayer src={call.url} label={`recording for ${title}`} />
+                    {call.isPlayable && sourceUrl ? (
+                      <ActivityAudioPlayer src={sourceUrl} label={`recording for ${title}`} />
                     ) : (
                       <span className="recording-unavailable">
                         <Headphones aria-hidden="true" size={15} strokeWidth={1.5} />
                         No recording yet
                       </span>
                     )}
-                    <Link className="activity-record__detail" to={detailPath} aria-label={`Open record for ${title}`}>
-                      Open record <ArrowUpRight size={14} aria-hidden="true" />
-                    </Link>
+                    <div className="activity-record__quick-actions">
+                      {sourceUrl && (
+                        <>
+                          <button type="button" onClick={() => void shareRecording(rowKey, call, title)}>
+                            {shared ? <Check size={14} aria-hidden="true" /> : <Share2 size={14} aria-hidden="true" />}
+                            {shared ? "Shared" : "Share"}
+                          </button>
+                          <button type="button" onClick={() => void copyRecordingLink(rowKey, sourceUrl)}>
+                            {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+                            {copied ? "Copied" : "Copy link"}
+                          </button>
+                          <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink size={14} aria-hidden="true" /> Source
+                          </a>
+                        </>
+                      )}
+                      <Link to={detailPath} aria-label={`Open record for ${title}`}>
+                        Details <ArrowUpRight size={14} aria-hidden="true" />
+                      </Link>
+                    </div>
                   </div>
 
                   <button

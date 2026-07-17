@@ -33,7 +33,7 @@ Sentinel turns the existing call flow into a clear browser workspace. The catalo
 
 - **Scenario library** — Search titles and descriptions, filter by language and region, preview audio, and carry a selection into the session workspace.
 - **Session workbench** — Review the scenario, recipient, country code, and dial ID before sending one backend task.
-- **Live activity and recordings** — Auto-refresh browser-linked calls, follow each status timeline, and open a focused recording page with playback, rename, copy, and download actions.
+- **Live activity and recordings** — Auto-refresh browser-linked calls, replay returned audio, and share the backend recording source directly without requiring a Sentinel account.
 - **API logs** — Keep the latest 120 requests in session memory with status filters, timing summaries, expandable payloads, and recursive recipient-field redaction.
 - **Motion controls** — Use the full visual treatment or switch to the reduced-motion experience at any time.
 

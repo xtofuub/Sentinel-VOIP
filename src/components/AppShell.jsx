@@ -18,7 +18,6 @@ const motionEntrySelector = [
   ".cinematic-hero__copy",
   ".cinematic-hero__actions",
   ".cinematic-hero__access",
-  ".cinematic-route",
   ".hero-eyebrow",
   ".hero-title",
   ".hero-copy",
@@ -39,6 +38,7 @@ const motionEntrySelector = [
 
 const scrollRevealSelector = [
   ".clean-overview__intro",
+  ".cinematic-route",
   ".clean-stat",
   ".clean-feature",
   ".cinematic-final__inner",

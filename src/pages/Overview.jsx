@@ -166,8 +166,12 @@ export function Overview() {
             </Link>
           </div>
           <p className="cinematic-hero__access">Browse freely. Sign in only when you are ready to place the call.</p>
+        </div>
+      </section>
 
-          <ol className="cinematic-route" aria-label="How Sentinel works">
+      <section className="cinematic-route-stage" aria-label="How Sentinel works">
+        <div className="cinematic-shell">
+          <ol className="cinematic-route">
             {journey.map(({ detail, icon, title }, index) => (
               <li key={title}>
                 <span className="cinematic-route__index">0{index + 1}</span>
@@ -191,7 +195,7 @@ export function Overview() {
             <p>From setup to replay</p>
             <h2 id="clean-overview-title">Everything stays in one place.</h2>
             <p>
-              Browse the prank, choose the timing, and find the returned recording later. No extra tools and no lost context.
+              Browse the prank, place the call, and find the returned recording later. No extra tools and no lost context.
             </p>
             {error && (
               <span className="clean-overview__notice" role="status">

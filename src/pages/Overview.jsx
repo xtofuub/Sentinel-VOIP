@@ -210,36 +210,60 @@ export function Overview() {
             ))}
           </div>
 
-          <div className="clean-features">
-            <article className="clean-feature clean-feature--accent">
-              <div className="clean-feature__topline">
-                <BookOpen size={23} aria-hidden="true" />
-                <span>Scenario library</span>
+        </div>
+      </section>
+
+      <section className="landing-features" aria-labelledby="landing-features-title">
+        <div className="cinematic-shell">
+          <header className="landing-section-heading">
+            <h2 id="landing-features-title">
+              Find the right scenario.
+              <span>Follow what happens next.</span>
+            </h2>
+          </header>
+
+          <div className="feature-grid">
+            <article className="feature-card feature-card--orange">
+              <div className="feature-card__topline">
+                <span className="feature-card__icon" aria-hidden="true">
+                  <BookOpen size={23} />
+                </span>
+                <span className="feature-card__mode">Scenario library</span>
               </div>
-              <div className="clean-feature__copy">
-                <h3>Find the prank before you make the call.</h3>
-                <p>Filter by locale, search the catalog, and preview the audio before choosing anything.</p>
-                <Link to="/library">
+              <div className="feature-card__body">
+                <h3>A local catalog built for precise selection.</h3>
+                <p>Filter by locale, search titles and descriptions, preview the audio, and carry your selection directly into the call console.</p>
+                <div className="feature-card__facts" aria-label="Scenario library facts">
+                  <span><strong>{catalogSummary.scenarioLabel}</strong> scenarios</span>
+                  <span><strong>{loading ? "Local" : locales.length.toLocaleString()}</strong> {loading ? "locale index" : "locales"}</span>
+                </div>
+                <Link className="feature-card__link" to="/library">
                   Browse scenarios
                   <ArrowRight size={17} aria-hidden="true" />
                 </Link>
               </div>
             </article>
 
-            <article className="clean-feature clean-feature--dark">
-              <div className="clean-feature__topline">
-                <Activity size={23} aria-hidden="true" />
-                <span>Call activity</span>
+            <article className="feature-card feature-card--dark">
+              <div className="feature-card__topline">
+                <span className="feature-card__icon" aria-hidden="true">
+                  <Activity size={23} />
+                </span>
+                <span className="feature-card__mode">Call activity</span>
               </div>
-              <div className="clean-feature__copy">
-                <h3>The right reaction stays easy to find.</h3>
-                <p>Recipient, scenario, call time, and returned audio remain together in one clear history.</p>
-                <div className="clean-feature__links">
-                  <Link to="/activity">
+              <div className="feature-card__body">
+                <h3>Every call stays connected to its reaction.</h3>
+                <p>Activity keeps the recipient, scenario, time, and returned audio together so the right reaction is always easy to find.</p>
+                <div className="feature-card__facts" aria-label="Call activity facts">
+                  <span><strong>{localState.accounts.length.toLocaleString()}</strong> connections</span>
+                  <span><strong>{localState.launches.length.toLocaleString()}</strong> saved calls</span>
+                </div>
+                <div className="feature-card__links">
+                  <Link className="feature-card__link" to="/activity">
                     Open activity
                     <ArrowRight size={17} aria-hidden="true" />
                   </Link>
-                  {isAdmin && <Link className="clean-feature__admin" to="/logs">API logs</Link>}
+                  {isAdmin && <Link className="feature-card__admin" to="/logs">API logs</Link>}
                 </div>
               </div>
             </article>

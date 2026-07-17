@@ -442,7 +442,7 @@
 .clean-features {
   display: grid;
   max-width: 70rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.45fr) minmax(20rem, 0.9fr);
   gap: 1.25rem;
   margin: 6rem auto 0;
 }
@@ -464,6 +464,10 @@
   border: 1px solid rgba(255, 255, 255, 0.13);
   background: #0e0b0a;
   color: white;
+}
+
+.clean-feature--dark h3 {
+  font-size: clamp(2.25rem, 3.5vw, 3.1rem);
 }
 
 .clean-feature__topline {

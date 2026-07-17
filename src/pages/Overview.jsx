@@ -78,7 +78,7 @@ export function Overview() {
       detail: "Ready to browse and preview",
     },
     {
-      value: loading ? "—" : catalogSummary.localeLabel,
+      value: loading ? "..." : catalogSummary.localeLabel,
       label: "Localized collections",
       detail: "Languages and regions",
     },

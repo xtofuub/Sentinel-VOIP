@@ -1234,6 +1234,17 @@ pre {
   padding-left: 2.6rem;
 }
 
+.field--search .control-input-wrap > svg {
+  top: 50%;
+  left: 0.85rem;
+  transform: translateY(-50%);
+  transition: color var(--duration-ui) var(--ease-out);
+}
+
+.field--search .control-input-wrap:focus-within > svg {
+  color: var(--accent-soft);
+}
+
 .scenario-browser__status {
   display: flex;
   min-height: 2.8rem;

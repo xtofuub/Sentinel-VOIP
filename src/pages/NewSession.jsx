@@ -6,10 +6,12 @@ import {
   CircleAlert,
   LoaderCircle,
   Pause,
+  PhoneCall,
   PhoneOutgoing,
   Play,
   Search,
   ShieldCheck,
+  UserRound,
   Volume2,
 } from "@/components/icons"
 import { useNavigate } from "react-router-dom"
@@ -397,32 +399,48 @@ export function NewSession() {
             )}
           </div>
 
-          <div className="session-recipient-fields">
-            <label className="field" htmlFor="session-recipient-name">
-              <span>Recipient name</span>
-              <input
-                id="session-recipient-name"
-                value={recipientName}
-                onChange={(event) => setRecipientName(event.target.value)}
-                placeholder="Name"
-                autoComplete="off"
-                disabled={submitting}
-              />
-            </label>
+          <section className="recipient-details" aria-labelledby="recipient-details-title">
+            <header className="recipient-details__header">
+              <span className="recipient-details__icon" aria-hidden="true"><UserRound size={17} /></span>
+              <div>
+                <p>Recipient</p>
+                <h3 id="recipient-details-title">Who receives this call?</h3>
+              </div>
+            </header>
 
-            <label className="field" htmlFor="session-phone-number">
-              <span>Phone number</span>
-              <input
-                id="session-phone-number"
-                value={phoneNumber}
-                onChange={(event) => setPhoneNumber(event.target.value)}
-                placeholder="+358..."
-                type="tel"
-                autoComplete="tel"
-                disabled={submitting}
-              />
-            </label>
-          </div>
+            <div className="session-recipient-fields">
+              <label className="recipient-field" htmlFor="session-recipient-name">
+                <span>Name</span>
+                <div className="recipient-field__control">
+                  <UserRound size={16} aria-hidden="true" />
+                  <input
+                    id="session-recipient-name"
+                    value={recipientName}
+                    onChange={(event) => setRecipientName(event.target.value)}
+                    placeholder="Their name"
+                    autoComplete="off"
+                    disabled={submitting}
+                  />
+                </div>
+              </label>
+
+              <label className="recipient-field" htmlFor="session-phone-number">
+                <span>Phone</span>
+                <div className="recipient-field__control">
+                  <PhoneCall size={16} aria-hidden="true" />
+                  <input
+                    id="session-phone-number"
+                    value={phoneNumber}
+                    onChange={(event) => setPhoneNumber(event.target.value)}
+                    placeholder="+358 40 123 4567"
+                    type="tel"
+                    autoComplete="tel"
+                    disabled={submitting}
+                  />
+                </div>
+              </label>
+            </div>
+          </section>
 
           {selectedScenario && (
             <details className="technical-details">

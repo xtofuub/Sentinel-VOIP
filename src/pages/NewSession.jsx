@@ -12,10 +12,12 @@ import {
   Search,
   ShieldCheck,
   UserRound,
+  UsersRound,
   Volume2,
 } from "@/components/icons"
 import { useNavigate } from "react-router-dom"
 import { AuthPromptDialog } from "@/components/AuthPromptDialog"
+import { ContactsDialog } from "@/components/ContactsDialog"
 import { LocalePicker } from "@/components/LocalePicker"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
 import { useCatalog } from "@/hooks/useCatalog"
@@ -28,6 +30,7 @@ import {
   launchPrank,
   pushRecordingTargetMemory,
 } from "@/services/api"
+import { isValidContactPhone, normalizeContactPhone, rememberContact } from "@/services/contacts"
 
 const formatTaskTimestamp = (date = new Date()) => {
   const pad = (value) => String(value).padStart(2, "0")
@@ -70,7 +73,10 @@ export function NewSession() {
   const [previewError, setPreviewError] = useState("")
   const [recipientName, setRecipientName] = useState(draft.recipientName)
   const [phoneNumber, setPhoneNumber] = useState(draft.phoneNumber)
+  const [phoneTouched, setPhoneTouched] = useState(false)
   const [authPromptOpen, setAuthPromptOpen] = useState(false)
+  const [authPromptReason, setAuthPromptReason] = useState("call")
+  const [contactsOpen, setContactsOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [notice, setNotice] = useState(null)
   const [stage, setStage] = useState("")
@@ -140,8 +146,17 @@ export function NewSession() {
   const submit = async (event) => {
     event.preventDefault()
     const cleanName = recipientName.trim()
-    const cleanPhone = phoneNumber.trim()
+    const cleanPhone = normalizeContactPhone(phoneNumber)
     if (!selectedScenario || !cleanName || !cleanPhone || submitting) return
+
+    if (!isValidContactPhone(cleanPhone)) {
+      setPhoneTouched(true)
+      setNotice({
+        type: "error",
+        text: "Use a full international number with country code, such as +14155550123.",
+      })
+      return
+    }
 
     if (!user) {
       try {
@@ -149,6 +164,7 @@ export function NewSession() {
       } catch {
         // The sign-in prompt still works when draft storage is unavailable.
       }
+      setAuthPromptReason("call")
       setAuthPromptOpen(true)
       return
     }
@@ -182,6 +198,7 @@ export function NewSession() {
       })
 
       let historySaved = true
+      let contactSaved = true
 
       try {
         pushRecordingTargetMemory({
@@ -202,15 +219,28 @@ export function NewSession() {
         historySaved = false
       }
 
+      try {
+        await rememberContact({
+          userId: user.id,
+          name: cleanName,
+          phoneNumber: cleanPhone,
+        })
+      } catch {
+        contactSaved = false
+      }
+
       setNotice({
         type: "success",
-        text: historySaved
-          ? `Call ${taskId.slice(0, 8)} was queued.`
-          : `Call ${taskId.slice(0, 8)} was queued, but this browser could not save it to Activity.`,
+        text: !historySaved
+          ? `Call ${taskId.slice(0, 8)} was queued, but this browser could not save it to Activity.`
+          : !contactSaved
+            ? `Call ${taskId.slice(0, 8)} was queued, but the recipient could not be saved to Contacts.`
+            : `Call ${taskId.slice(0, 8)} was queued. Recipient saved to Contacts.`,
       })
       setStage("")
       setRecipientName("")
       setPhoneNumber("")
+      setPhoneTouched(false)
       try {
         sessionStorage.removeItem(sessionDraftKey)
       } catch {
@@ -228,6 +258,22 @@ export function NewSession() {
   }
 
   const formIsIncomplete = !selectedScenario || !recipientName.trim() || !phoneNumber.trim()
+
+  const openContacts = () => {
+    if (!user) {
+      setAuthPromptReason("contacts")
+      setAuthPromptOpen(true)
+      return
+    }
+    setContactsOpen(true)
+  }
+
+  const chooseContact = (contact) => {
+    setRecipientName(contact.name)
+    setPhoneNumber(contact.phoneNumber)
+    setPhoneTouched(false)
+    setNotice(null)
+  }
 
   return (
     <main className="page product-page session-page">
@@ -402,10 +448,14 @@ export function NewSession() {
           <section className="recipient-details" aria-labelledby="recipient-details-title">
             <header className="recipient-details__header">
               <span className="recipient-details__icon" aria-hidden="true"><UserRound size={17} /></span>
-              <div>
+              <div className="recipient-details__heading-copy">
                 <p>Recipient</p>
                 <h3 id="recipient-details-title">Who receives this call?</h3>
               </div>
+              <button className="contact-book-trigger" type="button" onClick={openContacts} disabled={submitting}>
+                <UsersRound size={16} aria-hidden="true" />
+                Contacts
+              </button>
             </header>
 
             <div className="session-recipient-fields">
@@ -431,14 +481,27 @@ export function NewSession() {
                   <input
                     id="session-phone-number"
                     value={phoneNumber}
-                    onChange={(event) => setPhoneNumber(event.target.value)}
+                    onChange={(event) => {
+                      setPhoneNumber(event.target.value)
+                      if (phoneTouched) setPhoneTouched(false)
+                    }}
+                    onBlur={(event) => {
+                      const normalized = normalizeContactPhone(event.target.value)
+                      setPhoneNumber(normalized)
+                      setPhoneTouched(Boolean(normalized) && !isValidContactPhone(normalized))
+                    }}
                     placeholder="Country code + number"
                     type="tel"
                     autoComplete="tel"
+                    aria-invalid={phoneTouched}
+                    aria-describedby="session-phone-hint"
                     disabled={submitting}
                   />
                 </div>
               </label>
+            </div>
+            <div className={`recipient-details__note${phoneTouched ? " is-error" : ""}`} id="session-phone-hint">
+              <span>{phoneTouched ? "Use + followed by country code and number." : "Use international format. Called recipients are saved to Contacts."}</span>
             </div>
           </section>
 
@@ -495,7 +558,17 @@ export function NewSession() {
           </button>
         </form>
       </section>
-      <AuthPromptDialog open={authPromptOpen} onClose={() => setAuthPromptOpen(false)} />
+      <AuthPromptDialog
+        open={authPromptOpen}
+        reason={authPromptReason}
+        onClose={() => setAuthPromptOpen(false)}
+      />
+      <ContactsDialog
+        open={contactsOpen}
+        userId={user?.id}
+        onClose={() => setContactsOpen(false)}
+        onChoose={chooseContact}
+      />
     </main>
   )
 }

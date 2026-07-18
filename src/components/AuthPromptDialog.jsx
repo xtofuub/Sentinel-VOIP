@@ -3,7 +3,7 @@ import { CircleAlert, LoaderCircle, X } from "@/components/icons"
 import { GoogleMark } from "@/components/GoogleMark"
 import { useAuth } from "@/state/AuthContext"
 
-export function AuthPromptDialog({ open, onClose }) {
+export function AuthPromptDialog({ open, onClose, reason = "call" }) {
   const { configured, loading, signInWithGoogle } = useAuth()
   const dialogRef = useRef(null)
   const signInButtonRef = useRef(null)
@@ -51,6 +51,8 @@ export function AuthPromptDialog({ open, onClose }) {
 
   if (!open) return null
 
+  const isContactsPrompt = reason === "contacts"
+
   const handleSignIn = async () => {
     setSigningIn(true)
     setError("")
@@ -76,7 +78,7 @@ export function AuthPromptDialog({ open, onClose }) {
         <header>
           <div>
             <p className="eyebrow">One last step</p>
-            <h2 id="auth-prompt-title">Sign in to place this call</h2>
+            <h2 id="auth-prompt-title">{isContactsPrompt ? "Sign in to open Contacts" : "Sign in to place this call"}</h2>
           </div>
           <button type="button" onClick={onClose} disabled={signingIn} aria-label="Close sign-in dialog">
             <X size={17} aria-hidden="true" />
@@ -84,7 +86,9 @@ export function AuthPromptDialog({ open, onClose }) {
         </header>
 
         <p className="auth-prompt__copy">
-          Browsing stays open. An account is only required when you send a call.
+          {isContactsPrompt
+            ? "Your phonebook is private to your Sentinel account and follows you across devices."
+            : "Browsing stays open. An account is only required when you send a call."}
         </p>
 
         <button

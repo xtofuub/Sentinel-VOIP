@@ -446,6 +446,22 @@
   border-radius: 1.75rem;
   padding: clamp(2rem, 4vw, 3rem);
   box-shadow: 0 2.5rem 6rem rgba(0, 0, 0, 0.34);
+  transform-origin: 50% 52%;
+  transition:
+    transform 480ms var(--ease-out),
+    box-shadow 480ms ease,
+    border-color 220ms ease;
+}
+
+.clean-feature::before {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 78% 16%, rgba(255, 255, 255, 0.18), transparent 34%);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(0, 1rem, 0) scale(0.98);
+  transition: opacity 360ms ease, transform 480ms var(--ease-out);
 }
 
 .clean-feature::after {
@@ -475,6 +491,8 @@
 }
 
 .clean-feature__topline {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -489,7 +507,7 @@
   place-items: center;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.09);
-  transition: transform 240ms var(--ease-out);
+  transition: transform 480ms var(--ease-out), background-color 220ms ease;
 }
 
 .clean-feature--dark .clean-feature__icon {
@@ -504,10 +522,14 @@
   font-size: 0.66rem;
   font-weight: 650;
   opacity: 0.52;
+  transition: opacity 220ms ease, background-color 220ms ease;
 }
 
 .clean-feature__copy {
+  position: relative;
+  z-index: 1;
   padding-bottom: 1.8rem;
+  transition: transform 480ms var(--ease-out);
 }
 
 .clean-feature__label {
@@ -571,8 +593,45 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .clean-feature:hover .clean-feature__icon {
-    transform: rotate(8deg) scale(1.04);
+  .clean-feature:hover {
+    transform: translate3d(0, -0.75rem, 0) scale(1.012);
+  }
+
+  .clean-feature:hover::before {
+    opacity: 0.82;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  .clean-feature--accent:hover {
+    box-shadow: 0 3.25rem 7rem rgba(208, 38, 8, 0.38);
+  }
+
+  .clean-feature--dark:hover {
+    border-color: rgba(255, 75, 34, 0.58);
+    box-shadow: 0 3.25rem 7rem rgba(85, 12, 4, 0.42);
+  }
+
+  .clean-feature:hover .clean-feature__copy {
+    transform: translate3d(0, -0.4rem, 0);
+  }
+
+  .clean-feature--accent:hover .clean-feature__icon {
+    background: rgba(0, 0, 0, 0.14);
+    transform: rotate(42deg) scale(1.05);
+  }
+
+  .clean-feature--dark:hover .clean-feature__icon {
+    background: rgba(255, 75, 34, 0.13);
+    transform: translate3d(0.18rem, -0.18rem, 0) scale(1.12);
+  }
+
+  .clean-feature:hover .clean-feature__meta {
+    background: rgba(255, 255, 255, 0.04);
+    opacity: 0.78;
+  }
+
+  .clean-feature:hover a svg {
+    transform: translateX(0.3rem);
   }
 }
 
@@ -738,13 +797,13 @@
 }
 
 @keyframes clean-feature-drift-down {
-  from { transform: translate3d(0, -1.4rem, 0); }
-  to { transform: translate3d(0, 1.8rem, 0); }
+  from { transform: translate3d(0, -4.5rem, 0); }
+  to { transform: translate3d(0, 5.5rem, 0); }
 }
 
 @keyframes clean-feature-drift-up {
-  from { transform: translate3d(0, 1.6rem, 0); }
-  to { transform: translate3d(0, -1.6rem, 0); }
+  from { transform: translate3d(0, 5rem, 0); }
+  to { transform: translate3d(0, -5rem, 0); }
 }
 
 @supports (animation-timeline: view()) {
@@ -985,6 +1044,12 @@ html[data-motion="reduced"] .clean-feature-path {
 html[data-motion="reduced"] .clean-feature__icon {
   transform: none;
   transition: none;
+}
+
+html[data-motion="reduced"] .clean-feature,
+html[data-motion="reduced"] .clean-feature__copy,
+html[data-motion="reduced"] .clean-feature::before {
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

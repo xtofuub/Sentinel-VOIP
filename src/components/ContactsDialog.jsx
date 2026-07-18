@@ -31,6 +31,7 @@ export function ContactsDialog({ open, onClose, onChoose, userId }) {
   const dialogRef = useRef(null)
   const searchRef = useRef(null)
   const nameRef = useRef(null)
+  const dialogStateRef = useRef({ deleting: false, draft: null, onClose, saving: false })
   const [contacts, setContacts] = useState([])
   const [query, setQuery] = useState("")
   const [draft, setDraft] = useState(null)
@@ -40,6 +41,10 @@ export function ContactsDialog({ open, onClose, onChoose, userId }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState("")
   const editorOpen = draft !== null
+
+  useEffect(() => {
+    dialogStateRef.current = { deleting, draft, onClose, saving }
+  }, [deleting, draft, onClose, saving])
 
   const filteredContacts = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase()
@@ -79,13 +84,15 @@ export function ContactsDialog({ open, onClose, onChoose, userId }) {
     document.body.style.overflow = "hidden"
 
     const handleKeyDown = (event) => {
-      if (event.key === "Escape" && !saving && !deleting) {
-        if (draft) {
+      const currentState = dialogStateRef.current
+
+      if (event.key === "Escape" && !currentState.saving && !currentState.deleting) {
+        if (currentState.draft) {
           setDraft(null)
           setConfirmDelete(false)
           setError("")
         } else {
-          onClose()
+          currentState.onClose()
         }
         return
       }
@@ -114,7 +121,7 @@ export function ContactsDialog({ open, onClose, onChoose, userId }) {
       document.removeEventListener("keydown", handleKeyDown)
       previousActiveElement?.focus?.()
     }
-  }, [deleting, draft, onClose, open, saving])
+  }, [open])
 
   useEffect(() => {
     if (!editorOpen) return

@@ -432,7 +432,7 @@ export function NewSession() {
                     id="session-phone-number"
                     value={phoneNumber}
                     onChange={(event) => setPhoneNumber(event.target.value)}
-                    placeholder="+358 40 123 4567"
+                    placeholder="Country code + number"
                     type="tel"
                     autoComplete="tel"
                     disabled={submitting}

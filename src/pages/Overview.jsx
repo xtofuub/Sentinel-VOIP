@@ -1,11 +1,29 @@
-import { useEffect, useMemo } from "react"
-import { Activity, ArrowRight, BookOpen, FileText } from "@/components/icons"
+import { createElement, useEffect, useMemo } from "react"
+import { Activity, ArrowRight, BookOpen, FileText, Headphones, PhoneCall } from "@/components/icons"
 import { Link } from "react-router-dom"
 import { useCatalog } from "@/hooks/useCatalog"
 import { useAuth } from "@/state/AuthContext"
 import "./Overview.css"
 
 const FALLBACK_SCENARIO_COUNT = 2129
+
+const journey = [
+  {
+    title: "Pick the prank",
+    detail: "Browse and preview the scenario first.",
+    icon: BookOpen,
+  },
+  {
+    title: "Sentinel calls",
+    detail: "Add their number and place the call.",
+    icon: PhoneCall,
+  },
+  {
+    title: "Keep the reaction",
+    detail: "The recording returns to your activity.",
+    icon: Headphones,
+  },
+]
 
 export function Overview() {
   const { isAdmin } = useAuth()
@@ -107,10 +125,30 @@ export function Overview() {
         </div>
       </section>
 
+      <section className="reference-steps-stage" aria-label="How Sentinel works">
+        <div className="reference-shell">
+          <ol className="reference-steps reference-reveal">
+            {journey.map(({ detail, icon, title }, index) => (
+              <li key={title}>
+                <span className="reference-steps__index">0{index + 1}</span>
+                <span className="reference-steps__icon" aria-hidden="true">
+                  {createElement(icon, { size: 19, strokeWidth: 1.7 })}
+                </span>
+                <span className="reference-steps__copy">
+                  <strong>{title}</strong>
+                  <small>{detail}</small>
+                </span>
+                {index < journey.length - 1 && <ArrowRight className="reference-steps__arrow" size={16} aria-hidden="true" />}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
       <section className="reference-mission" aria-labelledby="reference-mission-title">
         <div className="reference-shell">
           <div className="reference-mission__copy reference-reveal">
-            <h2 id="reference-mission-title">Choose the prank. Keep the reaction.</h2>
+            <h2 id="reference-mission-title">Everything stays in one place.</h2>
             <p>Preview the scenario first. Place the call when it is right. Return to the recording from one clear activity feed.</p>
             {error && <small>The live catalog is unavailable. Saved activity remains accessible.</small>}
           </div>
@@ -138,13 +176,15 @@ export function Overview() {
               <article className="reference-card reference-card--accent reference-reveal">
                 <div className="reference-card__topline">
                   <span className="reference-card__icon" aria-hidden="true"><BookOpen size={23} /></span>
-                  <span className="reference-card__index">01</span>
+                  <span className="reference-card__index">
+                    {loading ? "Loading catalog" : `${scenarioLabel} scenarios`}
+                  </span>
                 </div>
                 <div className="reference-card__copy">
                   <p>Scenario library</p>
                   <h3>Find the prank.<br />Hear it first.</h3>
                   <p>Browse localized scenarios and preview the audio before choosing the call.</p>
-                  <Link to="/library">Browse {scenarioLabel} scenarios <ArrowRight size={16} aria-hidden="true" /></Link>
+                  <Link to="/library">Browse scenarios <ArrowRight size={16} aria-hidden="true" /></Link>
                 </div>
                 <span className="reference-card__rule" />
               </article>
@@ -154,7 +194,7 @@ export function Overview() {
               <article className="reference-card reference-card--dark reference-reveal reference-delay-short-1">
                 <div className="reference-card__topline">
                   <span className="reference-card__icon" aria-hidden="true"><Activity size={23} /></span>
-                  <span className="reference-card__index">02</span>
+                  <span className="reference-card__index">Private history</span>
                 </div>
                 <div className="reference-card__copy">
                   <p>Call activity</p>
@@ -168,6 +208,23 @@ export function Overview() {
           </div>
         </div>
         <div className="reference-works__pattern" aria-hidden="true" />
+      </section>
+
+      <section className="reference-final" aria-labelledby="reference-final-title">
+        <div className="reference-final__hand" aria-hidden="true">
+          <img src="/visuals/hand-right.png" alt="" loading="lazy" />
+        </div>
+        <div className="reference-shell reference-final__inner reference-reveal">
+          <p>Ready when the timing is right.</p>
+          <h2 id="reference-final-title">Choose the prank.<br />Keep the reaction.</h2>
+          <div className="reference-final__actions">
+            <Link className="reference-final__button" to="/new">
+              Start a prank
+              <ArrowRight size={17} aria-hidden="true" />
+            </Link>
+            <Link className="reference-final__browse" to="/library">Explore the scenario library</Link>
+          </div>
+        </div>
       </section>
 
       <footer className="reference-footer">

@@ -227,24 +227,34 @@ export function NewSession() {
 
   const formIsIncomplete = !selectedScenario || !recipientName.trim() || !phoneNumber.trim()
   const completion = [selectedScenario, recipientName.trim(), phoneNumber.trim()].filter(Boolean).length
+  const setupSteps = [
+    { label: "Scenario", complete: Boolean(selectedScenario) },
+    { label: "Recipient", complete: Boolean(recipientName.trim()) },
+    { label: "Number", complete: Boolean(phoneNumber.trim()) },
+  ]
 
   return (
     <main className="page product-page session-page">
-      <header className="product-hero product-hero--compact">
-        <div className="product-hero__copy">
-          <p className="eyebrow">Session workbench</p>
-          <h1>
-            Choose. Compose.
-            <br />
-            <em>Launch in one place.</em>
-          </h1>
-          <p>Preview a scenario, add the recipient, and review the setup before placing the call.</p>
+      <header className="console-header">
+        <div className="console-header__copy">
+          <p className="console-header__eyebrow">Call console</p>
+          <h1>Build the call</h1>
+          <p>Choose a scenario, add the recipient, then place the call.</p>
         </div>
-        <div className="product-hero__meta" aria-label="Launch readiness">
-          <span>Launch readiness</span>
-          <strong>{completion}/3</strong>
-          <small>inputs complete</small>
-        </div>
+
+        <ol className="console-progress" aria-label={`${completion} of 3 setup inputs complete`}>
+          {setupSteps.map((step, index) => (
+            <li className={step.complete ? "is-complete" : ""} key={step.label}>
+              <span className="console-progress__mark" aria-hidden="true">
+                {step.complete ? <Check size={13} /> : index + 1}
+              </span>
+              <span className="console-progress__copy">
+                <small>0{index + 1}</small>
+                <strong>{step.label}</strong>
+              </span>
+            </li>
+          ))}
+        </ol>
       </header>
 
       <section className="surface session-workbench" aria-label="New session workspace">
@@ -253,12 +263,12 @@ export function NewSession() {
             <div>
               <span className="surface-index" aria-hidden="true"><Volume2 size={15} /></span>
               <div>
-                <p className="eyebrow">Scenario</p>
-                <h2>Pick the right voice</h2>
+                <p className="console-section-label">Scenario library</p>
+                <h2>Choose a scenario</h2>
               </div>
             </div>
             <button className="button button--quiet button--compact" type="button" onClick={() => navigate("/library")}>
-              Full library
+              Open library
               <ArrowUpRight size={15} aria-hidden="true" />
             </button>
           </header>
@@ -380,8 +390,8 @@ export function NewSession() {
             <div>
               <span className="surface-index" aria-hidden="true"><PhoneOutgoing size={15} /></span>
               <div>
-                <p className="eyebrow">Compose</p>
-                <h2>Review and launch</h2>
+                <p className="console-section-label">Call setup</p>
+                <h2>Recipient and launch</h2>
               </div>
             </div>
             <span className={`badge ${formIsIncomplete ? "badge--neutral" : "badge--live"}`}>
@@ -410,7 +420,7 @@ export function NewSession() {
                 <span className="selected-scenario__empty" aria-hidden="true"><Volume2 size={27} /></span>
                 <div>
                   <strong>No scenario selected</strong>
-                  <p>Your selected scenario and call details will appear here.</p>
+                  <p>Select one from the library to continue.</p>
                 </div>
               </>
             )}

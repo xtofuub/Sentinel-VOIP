@@ -427,6 +427,7 @@
 }
 
 .clean-feature-path {
+  --feature-scroll-distance: 10rem;
   min-width: 0;
 }
 
@@ -636,17 +637,20 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  @supports (animation-timeline: view()) {
+  @supports (animation-timeline: scroll()) {
+    html:not([data-motion="reduced"]) .cinematic-hero__inner {
+      animation: cinematic-hero-scroll-fade linear both;
+      animation-timeline: scroll(root block);
+    }
+
     html:not([data-motion="reduced"]) .clean-feature-path--down {
-      animation: clean-feature-drift-down linear both;
-      animation-range: entry 0% exit 100%;
-      animation-timeline: view();
+      animation: clean-feature-scroll-down linear both;
+      animation-timeline: scroll(root block);
     }
 
     html:not([data-motion="reduced"]) .clean-feature-path--up {
-      animation: clean-feature-drift-up linear both;
-      animation-range: entry 0% exit 100%;
-      animation-timeline: view();
+      animation: clean-feature-scroll-up linear both;
+      animation-timeline: scroll(root block);
     }
   }
 }
@@ -796,14 +800,20 @@
   to { transform: rotate(-1.8deg) translate3d(-0.55rem, -0.5rem, 0); }
 }
 
-@keyframes clean-feature-drift-down {
-  from { transform: translate3d(0, -4.5rem, 0); }
-  to { transform: translate3d(0, 5.5rem, 0); }
+@keyframes cinematic-hero-scroll-fade {
+  0% { opacity: 1; transform: translate3d(0, 0, 0); }
+  18% { opacity: 0; transform: translate3d(0, 15rem, 0); }
+  100% { opacity: 0; transform: translate3d(0, 15rem, 0); }
 }
 
-@keyframes clean-feature-drift-up {
-  from { transform: translate3d(0, 5rem, 0); }
-  to { transform: translate3d(0, -5rem, 0); }
+@keyframes clean-feature-scroll-down {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, var(--feature-scroll-distance), 0); }
+}
+
+@keyframes clean-feature-scroll-up {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, calc(var(--feature-scroll-distance) * -1), 0); }
 }
 
 @supports (animation-timeline: view()) {
@@ -888,11 +898,12 @@
 
   .clean-features {
     grid-template-columns: 1fr;
-    gap: 1.25rem;
+    gap: 5.5rem;
     margin-top: 5rem;
   }
 
   .clean-feature-path {
+    --feature-scroll-distance: 4.5rem;
     width: min(100%, 34rem);
     margin-right: auto;
     margin-left: auto;
@@ -1020,6 +1031,7 @@ html[data-motion="reduced"] .cinematic-route li {
 
 html[data-motion="reduced"] :is(
   .cinematic-hero__brandline,
+  .cinematic-hero__inner,
   .cinematic-hero h1,
   .cinematic-hero__promise,
   .cinematic-hero__copy,
@@ -1057,6 +1069,7 @@ html[data-motion="reduced"] .clean-feature::before {
     .cinematic-hero__atmosphere,
     .cinematic-hand-field img,
     .cinematic-final__hand,
+    .cinematic-hero__inner,
     .cinematic-hero__brandline,
     .cinematic-hero h1,
     .cinematic-hero__promise,

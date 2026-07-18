@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowUpRight,
-  Check,
   CheckCircle2,
   CircleAlert,
   LoaderCircle,
@@ -226,45 +225,23 @@ export function NewSession() {
   }
 
   const formIsIncomplete = !selectedScenario || !recipientName.trim() || !phoneNumber.trim()
-  const completion = [selectedScenario, recipientName.trim(), phoneNumber.trim()].filter(Boolean).length
-  const setupSteps = [
-    { label: "Scenario", complete: Boolean(selectedScenario) },
-    { label: "Recipient", complete: Boolean(recipientName.trim()) },
-    { label: "Number", complete: Boolean(phoneNumber.trim()) },
-  ]
 
   return (
     <main className="page product-page session-page">
       <header className="console-header">
         <div className="console-header__copy">
-          <p className="console-header__eyebrow">Call console</p>
-          <h1>Build the call</h1>
-          <p>Choose a scenario, add the recipient, then place the call.</p>
+          <h1>New call</h1>
+          <p>Select a scenario, then add the recipient.</p>
         </div>
-
-        <ol className="console-progress" aria-label={`${completion} of 3 setup inputs complete`}>
-          {setupSteps.map((step, index) => (
-            <li className={step.complete ? "is-complete" : ""} key={step.label}>
-              <span className="console-progress__mark" aria-hidden="true">
-                {step.complete ? <Check size={13} /> : index + 1}
-              </span>
-              <span className="console-progress__copy">
-                <small>0{index + 1}</small>
-                <strong>{step.label}</strong>
-              </span>
-            </li>
-          ))}
-        </ol>
       </header>
 
-      <section className="surface session-workbench" aria-label="New session workspace">
+      <section className="session-workbench" aria-label="New call workspace">
         <div className="scenario-browser">
           <header className="workbench-heading">
             <div>
-              <span className="surface-index" aria-hidden="true"><Volume2 size={15} /></span>
               <div>
-                <p className="console-section-label">Scenario library</p>
-                <h2>Choose a scenario</h2>
+                <h2>Scenario</h2>
+                <p>Choose and preview the voice.</p>
               </div>
             </div>
             <button className="button button--quiet button--compact" type="button" onClick={() => navigate("/library")}>
@@ -314,7 +291,6 @@ export function NewSession() {
             {localeId && !loading && (
               <span>{filteredScenarios.length.toLocaleString()} scenario{filteredScenarios.length === 1 ? "" : "s"}</span>
             )}
-            {selectedScenario && <span>Selected: {selectedScenario.titulo}</span>}
           </div>
 
           {error ? (
@@ -359,9 +335,6 @@ export function NewSession() {
                         <strong>{scenario.titulo}</strong>
                         <span>{scenario.desc || "No description available."}</span>
                       </span>
-                      <span className="scenario-option__check" aria-hidden="true">
-                        {isSelected ? <Check size={15} /> : null}
-                      </span>
                     </button>
                     <button
                       className="scenario-option__preview"
@@ -388,16 +361,11 @@ export function NewSession() {
         <form className="session-composer" onSubmit={submit}>
           <header className="workbench-heading session-composer__heading">
             <div>
-              <span className="surface-index" aria-hidden="true"><PhoneOutgoing size={15} /></span>
               <div>
-                <p className="console-section-label">Call setup</p>
-                <h2>Recipient and launch</h2>
+                <h2>Call details</h2>
+                <p>Add the person receiving the call.</p>
               </div>
             </div>
-            <span className={`badge ${formIsIncomplete ? "badge--neutral" : "badge--live"}`}>
-              <span className="badge__dot" aria-hidden="true" />
-              {formIsIncomplete ? "Incomplete" : "Ready"}
-            </span>
           </header>
 
           <div className={`selected-scenario${selectedScenario ? " has-selection" : ""}`}>
@@ -416,13 +384,10 @@ export function NewSession() {
                 </div>
               </>
             ) : (
-              <>
-                <span className="selected-scenario__empty" aria-hidden="true"><Volume2 size={27} /></span>
-                <div>
-                  <strong>No scenario selected</strong>
-                  <p>Select one from the library to continue.</p>
-                </div>
-              </>
+              <div className="selected-scenario__placeholder">
+                <strong>No scenario selected</strong>
+                <p>Choose one from the list to continue.</p>
+              </div>
             )}
           </div>
 

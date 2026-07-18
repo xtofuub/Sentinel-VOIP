@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowUpRight,
+  Check,
   CheckCircle2,
   CircleAlert,
   LoaderCircle,
@@ -239,9 +240,10 @@ export function NewSession() {
         <div className="scenario-browser">
           <header className="workbench-heading">
             <div>
+              <span className="surface-index" aria-hidden="true"><Volume2 size={15} /></span>
               <div>
-                <h2>Scenario</h2>
-                <p>Choose and preview the voice.</p>
+                <p className="console-section-label">Scenario library</p>
+                <h2>Choose a scenario</h2>
               </div>
             </div>
             <button className="button button--quiet button--compact" type="button" onClick={() => navigate("/library")}>
@@ -291,6 +293,7 @@ export function NewSession() {
             {localeId && !loading && (
               <span>{filteredScenarios.length.toLocaleString()} scenario{filteredScenarios.length === 1 ? "" : "s"}</span>
             )}
+            {selectedScenario && <span>Selected: {selectedScenario.titulo}</span>}
           </div>
 
           {error ? (
@@ -334,6 +337,9 @@ export function NewSession() {
                       <span className="scenario-option__copy">
                         <strong>{scenario.titulo}</strong>
                         <span>{scenario.desc || "No description available."}</span>
+                      </span>
+                      <span className="scenario-option__check" aria-hidden="true">
+                        {isSelected ? <Check size={15} /> : null}
                       </span>
                     </button>
                     <button

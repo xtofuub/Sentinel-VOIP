@@ -123,7 +123,6 @@ export function Admin() {
   return (
     <main className="page product-page admin-page">
       <header className="product-hero product-hero--compact admin-hero">
-        <div className="product-hero__index" aria-hidden="true">06</div>
         <div className="product-hero__copy">
           <p className="eyebrow">Administrator</p>
           <h1>Manage people.<br /><em>Control call access.</em></h1>

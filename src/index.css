@@ -38,7 +38,7 @@ html {
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   overflow-x: hidden;
   background: var(--bg);
@@ -84,8 +84,17 @@ pre {
 
 .app-shell {
   position: relative;
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
+}
+
+.app-scroll-sentinel {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
 }
 
 .skip-link {
@@ -289,12 +298,10 @@ pre {
   transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
 }
 
-.nav-link:hover,
 .nav-link.is-active {
   color: white;
 }
 
-.nav-link:hover::before,
 .nav-link.is-active::before {
   opacity: 1;
 }
@@ -525,11 +532,6 @@ pre {
   background: rgba(255, 255, 255, 0.06);
   color: white;
   backdrop-filter: blur(12px);
-}
-
-.hero-cta--secondary:hover {
-  border-color: rgba(255, 255, 255, 0.38);
-  background: rgba(255, 255, 255, 0.1);
 }
 
 .hero-meta {
@@ -910,10 +912,6 @@ pre {
   transition: color 160ms var(--ease-out);
 }
 
-.landing-footer__links a:hover {
-  color: white;
-}
-
 .landing-footer__meta {
   display: flex;
   grid-column: 1 / -1;
@@ -945,7 +943,7 @@ pre {
 /* Product pages */
 .product-page {
   width: min(calc(100% - 3rem), 88rem);
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
   padding: 9.5rem 0 7rem;
 }
@@ -953,21 +951,11 @@ pre {
 .product-hero {
   display: grid;
   min-height: 20rem;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: 2rem;
   border-bottom: 1px solid var(--line);
   padding: 0 0 2.5rem;
-}
-
-.product-hero__index {
-  align-self: start;
-  color: rgba(255, 255, 255, 0.18);
-  font-family: "Playfair Display Variable", Georgia, serif;
-  font-size: clamp(4rem, 8vw, 7rem);
-  font-style: italic;
-  line-height: 1;
-  animation: page-enter 220ms var(--ease-out) both;
 }
 
 .product-hero__copy {
@@ -1752,19 +1740,10 @@ pre {
   color: white;
 }
 
-.button--outline:hover:not(:disabled) {
-  border-color: rgba(255, 69, 0, 0.65);
-  background: rgba(255, 69, 0, 0.08);
-}
-
 .button--quiet {
   border-color: transparent;
   background: transparent;
   color: var(--muted);
-}
-
-.button--quiet:hover:not(:disabled) {
-  color: white;
 }
 
 .button--compact {
@@ -2325,10 +2304,6 @@ pre {
 
 .data-table tbody tr {
   transition: background-color 160ms var(--ease-out);
-}
-
-.data-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.025);
 }
 
 .data-table tbody tr:last-child td {
@@ -3047,7 +3022,7 @@ pre {
 
 .route-loading {
   display: flex;
-  min-height: 100vh;
+  min-height: 100dvh;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
@@ -3057,10 +3032,16 @@ pre {
 
 .visually-hidden {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
+  border: 0;
+  margin: -1px;
   overflow: hidden;
+  padding: 0;
   clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 
@@ -3148,14 +3129,14 @@ pre {
   }
 
   .product-hero {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .product-hero__meta,
   .product-hero__action,
   .product-hero > .button,
   .product-hero__actions {
-    grid-column: 2;
+    grid-column: 1;
     justify-self: start;
     align-items: flex-start;
     margin-top: 0;
@@ -3290,10 +3271,6 @@ pre {
     min-height: auto;
     grid-template-columns: 1fr;
     padding-bottom: 2rem;
-  }
-
-  .product-hero__index {
-    display: none;
   }
 
   .product-hero__meta,
@@ -3432,8 +3409,8 @@ pre {
 
   .motion-toggle,
   .nav-menu-button {
-    width: 2.65rem;
-    height: 2.65rem;
+    width: 2.75rem;
+    height: 2.75rem;
   }
 
   .mobile-nav {
@@ -3501,7 +3478,7 @@ pre {
   }
 
   .product-hero h1 {
-    font-size: clamp(2.8rem, 14vw, 4rem);
+    font-size: clamp(2.45rem, 11.5vw, 3.25rem);
   }
 
   .surface,
@@ -3789,6 +3766,23 @@ pre {
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .hero-cta--secondary:hover {
+    border-color: rgba(255, 255, 255, 0.38);
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .landing-footer__links a:hover {
+    color: white;
+  }
+
+  .nav-link:hover {
+    color: white;
+  }
+
+  .nav-link:hover::before {
+    opacity: 1;
+  }
+
   .nav-cta:hover,
   .hero-cta:hover,
   .button:hover:not(:disabled) {
@@ -3828,6 +3822,19 @@ pre {
   .log-entry__copy:hover,
   .log-entry__payloads header button:hover {
     color: white;
+  }
+
+  .button--outline:hover:not(:disabled) {
+    border-color: rgba(255, 69, 0, 0.65);
+    background: rgba(255, 69, 0, 0.08);
+  }
+
+  .button--quiet:hover:not(:disabled) {
+    color: white;
+  }
+
+  .data-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.025);
   }
 }
 

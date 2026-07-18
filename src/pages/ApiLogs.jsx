@@ -139,7 +139,6 @@ export function ApiLogs() {
   return (
     <main className="page product-page api-logs-page">
       <header className="product-hero product-hero--compact">
-        <div className="product-hero__index" aria-hidden="true">04</div>
         <div className="product-hero__copy">
           <p className="eyebrow">Request diagnostics</p>
           <h1>
@@ -179,7 +178,7 @@ export function ApiLogs() {
 
         <div className="log-metrics" aria-label="Request summary">
           <div><span>Total</span><strong>{metrics.total}</strong><small>requests</small></div>
-          <div><span>Success</span><strong>{metrics.success}</strong><small>{metrics.total ? `${Math.round((metrics.success / metrics.total) * 100)}%` : "—"}</small></div>
+          <div><span>Success</span><strong>{metrics.success}</strong><small>{metrics.total ? `${Math.round((metrics.success / metrics.total) * 100)}%` : "0%"}</small></div>
           <div><span>Issues</span><strong>{metrics.issues}</strong><small>need review</small></div>
           <div><span>Avg latency</span><strong>{metrics.average}</strong><small>milliseconds</small></div>
         </div>
@@ -321,7 +320,7 @@ export function ApiLogs() {
           </>
         ) : logs.length ? (
           <div className="empty-state log-empty">
-            <span className="empty-state__number" aria-hidden="true">00</span>
+            <span className="empty-state__number" aria-hidden="true"><SquareTerminal size={34} /></span>
             <div><h2>No matching requests</h2><p>Change the search or status filter to widen the trace.</p><button className="button button--outline" type="button" onClick={resetFilters}>Reset filters</button></div>
           </div>
         ) : (

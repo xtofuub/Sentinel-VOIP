@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState } from "react"
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { ArrowUpRight, Menu, Pause, Waves, X } from "@/components/icons"
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 import { AccountMenu } from "@/components/AccountMenu"
@@ -23,7 +23,6 @@ const motionEntrySelector = [
   ".hero-copy",
   ".hero-actions",
   ".hero-meta",
-  ".product-hero__index",
   ".product-hero__copy",
   ".product-hero__meta",
   ".product-hero__action",
@@ -65,16 +64,22 @@ export function AppShell() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [motionMode, setMotionMode] = useState(getInitialMotionMode)
+  const scrollSentinelRef = useRef(null)
   const isLanding = pathname === "/"
   const navItems = isAdmin
     ? [...publicNavItems, { to: "/logs", label: "API logs" }]
     : publicNavItems
 
   useEffect(() => {
-    const update = () => setScrolled(window.scrollY > 36)
-    update()
-    window.addEventListener("scroll", update, { passive: true })
-    return () => window.removeEventListener("scroll", update)
+    const sentinel = scrollSentinelRef.current
+    if (!sentinel || !("IntersectionObserver" in window)) return undefined
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setScrolled(!entry.isIntersecting)
+    })
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
   }, [])
 
   useLayoutEffect(() => {
@@ -148,6 +153,7 @@ export function AppShell() {
 
   return (
     <div className={`app-shell${isLanding ? " is-landing" : " is-product"}`}>
+      <span ref={scrollSentinelRef} className="app-scroll-sentinel" aria-hidden="true" />
       <a className="skip-link" href="#main-content">Skip to content</a>
       <div className="noise-overlay" aria-hidden="true" />
       {!isLanding && (

@@ -90,7 +90,6 @@ export function Library() {
   return (
     <main className="page product-page">
       <header className="product-hero">
-        <div className="product-hero__index" aria-hidden="true">01</div>
         <div className="product-hero__copy">
           <p className="eyebrow">Scenario archive</p>
           <h1>
@@ -254,7 +253,7 @@ export function Library() {
           </div>
         ) : (
           <div className="empty-state">
-            <span className="empty-state__number" aria-hidden="true">00</span>
+            <span className="empty-state__number" aria-hidden="true"><Search size={30} /></span>
             <div>
               <h2>No scenarios found</h2>
               <p>No scenarios match the current filters. Reset the archive to begin again.</p>

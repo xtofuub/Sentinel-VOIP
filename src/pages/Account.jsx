@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/state/AuthContext"
 
 const formatDate = (value) => {
-  if (!value) return "—"
+  if (!value) return "Not set"
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value))
 }
 
@@ -70,7 +70,6 @@ export function Account() {
   return (
     <main className="page product-page account-page">
       <header className="product-hero product-hero--compact account-hero">
-        <div className="product-hero__index" aria-hidden="true">05</div>
         <div className="product-hero__copy">
           <p className="eyebrow">Your account</p>
           <h1>Your calls.<br /><em>Your account.</em></h1>

@@ -233,13 +233,20 @@
   color: white;
 }
 
-.cinematic-button:hover {
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .cinematic-button:hover {
+    transform: translateY(-2px);
+  }
+
+  .cinematic-button:hover svg,
+  .clean-feature a:hover svg {
+    transform: translateX(0.2rem);
+  }
 }
 
-.cinematic-button:hover svg,
-.clean-feature a:hover svg {
-  transform: translateX(0.2rem);
+.cinematic-button:active,
+.clean-feature a:active {
+  transform: scale(0.97);
 }
 
 .cinematic-hero__access {
@@ -529,6 +536,7 @@
   padding-bottom: 0.3rem;
   font-size: 0.74rem;
   font-weight: 680;
+  transition: transform 140ms var(--ease-out);
 }
 
 .clean-feature__links {
@@ -647,8 +655,10 @@
   transition: color 160ms var(--ease-out);
 }
 
-.cinematic-footer nav a:hover {
-  color: white;
+@media (hover: hover) and (pointer: fine) {
+  .cinematic-footer nav a:hover {
+    color: white;
+  }
 }
 
 .cinematic-footer p,
@@ -842,7 +852,12 @@
   }
 
   .cinematic-hero h1 {
-    font-size: clamp(3.7rem, 19vw, 5.2rem);
+    font-size: clamp(2.85rem, 14vw, 3.65rem);
+    line-height: 0.88;
+  }
+
+  .cinematic-hero h1 span {
+    white-space: nowrap;
   }
 
   .cinematic-hero__promise {

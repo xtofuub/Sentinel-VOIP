@@ -231,7 +231,6 @@ export function NewSession() {
   return (
     <main className="page product-page session-page">
       <header className="product-hero product-hero--compact">
-        <div className="product-hero__index" aria-hidden="true">02</div>
         <div className="product-hero__copy">
           <p className="eyebrow">Session workbench</p>
           <h1>
@@ -252,7 +251,7 @@ export function NewSession() {
         <div className="scenario-browser">
           <header className="workbench-heading">
             <div>
-              <span className="surface-index">01</span>
+              <span className="surface-index" aria-hidden="true"><Volume2 size={15} /></span>
               <div>
                 <p className="eyebrow">Scenario</p>
                 <h2>Pick the right voice</h2>
@@ -323,7 +322,7 @@ export function NewSession() {
           <div className="scenario-options" role="group" aria-label="Available scenarios">
             {!localeId ? (
               <div className="scenario-options__empty">
-                <span>01</span>
+                <span aria-hidden="true"><Volume2 size={30} /></span>
                 <p>Choose a locale to open its scenario set.</p>
               </div>
             ) : loading ? (
@@ -369,7 +368,7 @@ export function NewSession() {
               })
             ) : (
               <div className="scenario-options__empty">
-                <span>00</span>
+                <span aria-hidden="true"><Search size={30} /></span>
                 <p>No scenarios match this search.</p>
               </div>
             )}
@@ -379,7 +378,7 @@ export function NewSession() {
         <form className="session-composer" onSubmit={submit}>
           <header className="workbench-heading session-composer__heading">
             <div>
-              <span className="surface-index">02</span>
+              <span className="surface-index" aria-hidden="true"><PhoneOutgoing size={15} /></span>
               <div>
                 <p className="eyebrow">Compose</p>
                 <h2>Review and launch</h2>
@@ -408,7 +407,7 @@ export function NewSession() {
               </>
             ) : (
               <>
-                <span className="selected-scenario__empty" aria-hidden="true">01</span>
+                <span className="selected-scenario__empty" aria-hidden="true"><Volume2 size={27} /></span>
                 <div>
                   <strong>No scenario selected</strong>
                   <p>Your selected scenario and call details will appear here.</p>
@@ -481,7 +480,7 @@ export function NewSession() {
               </div>
             ) : (
               <div className="launch-status__placeholder">
-                <span>03</span>
+                <span aria-hidden="true"><PhoneOutgoing size={24} /></span>
                 <p>Complete the three inputs to enable launch.</p>
               </div>
             )}

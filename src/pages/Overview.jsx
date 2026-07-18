@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState } from "react"
+import { createElement, useMemo } from "react"
 import {
   Activity,
   ArrowRight,
@@ -13,21 +13,6 @@ import { useAuth } from "@/state/AuthContext"
 import "./Overview.css"
 
 const FALLBACK_SCENARIO_COUNT = 2129
-const FALLBACK_LOCALE_COUNT = 64
-
-const readStoredArray = (key) => {
-  try {
-    const value = JSON.parse(localStorage.getItem(key) || "[]")
-    return Array.isArray(value) ? value : []
-  } catch {
-    return []
-  }
-}
-
-const readLocalOverview = () => ({
-  accounts: readStoredArray("activeAccounts"),
-  launches: readStoredArray("recordingTargetMemory"),
-})
 
 const journey = [
   {
@@ -49,50 +34,14 @@ const journey = [
 
 export function Overview() {
   const { isAdmin } = useAuth()
-  const { error, loading, locales, scenarios } = useCatalog()
-  const [localState, setLocalState] = useState(readLocalOverview)
-
-  useEffect(() => {
-    const refreshLocalState = () => setLocalState(readLocalOverview())
-    window.addEventListener("focus", refreshLocalState)
-    window.addEventListener("storage", refreshLocalState)
-    return () => {
-      window.removeEventListener("focus", refreshLocalState)
-      window.removeEventListener("storage", refreshLocalState)
-    }
-  }, [])
+  const { error, loading, scenarios } = useCatalog()
 
   const catalogSummary = useMemo(() => {
     const scenarioCount = scenarios.length || FALLBACK_SCENARIO_COUNT
-    const localeCount = locales.length || FALLBACK_LOCALE_COUNT
     return {
       scenarioLabel: scenarioCount.toLocaleString(),
-      localeLabel: localeCount.toLocaleString(),
     }
-  }, [locales.length, scenarios.length])
-
-  const stats = [
-    {
-      value: catalogSummary.scenarioLabel,
-      label: "Prank scenarios",
-      detail: "Ready to browse and preview",
-    },
-    {
-      value: loading ? "..." : catalogSummary.localeLabel,
-      label: "Localized collections",
-      detail: "Languages and regions",
-    },
-    {
-      value: "Immediate",
-      label: "Call launch",
-      detail: "Placed as soon as you confirm",
-    },
-    {
-      value: localState.launches.length.toLocaleString(),
-      label: "Saved reactions",
-      detail: "Remembered in this browser",
-    },
-  ]
+  }, [scenarios.length])
 
   return (
     <main className="cinematic-landing">
@@ -162,10 +111,9 @@ export function Overview() {
       <section className="clean-overview" aria-labelledby="clean-overview-title">
         <div className="cinematic-shell">
           <header className="clean-overview__intro">
-            <p>From setup to replay</p>
             <h2 id="clean-overview-title">Everything stays in one place.</h2>
             <p>
-              Browse the prank, place the call, and find the returned recording later. No extra tools and no lost context.
+              Browse the prank, place the call, and return to the recording later. One simple path from setup to replay.
             </p>
             {error && (
               <span className="clean-overview__notice" role="status">
@@ -174,49 +122,51 @@ export function Overview() {
             )}
           </header>
 
-          <div className="clean-stats" aria-label="Sentinel capabilities">
-            {stats.map((stat) => (
-              <div className="clean-stat" key={stat.label}>
-                <strong>{stat.value}</strong>
-                <span>{stat.label}</span>
-                <p>{stat.detail}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="clean-features">
-            <article className="clean-feature clean-feature--accent">
-              <div className="clean-feature__topline">
-                <BookOpen size={23} aria-hidden="true" />
-                <span>Scenario library</span>
-              </div>
-              <div className="clean-feature__copy">
-                <h3>Find the prank before you make the call.</h3>
-                <p>Filter by locale, search the catalog, and preview the audio before choosing anything.</p>
-                <Link to="/library">
-                  Browse scenarios
-                  <ArrowRight size={17} aria-hidden="true" />
-                </Link>
-              </div>
-            </article>
-
-            <article className="clean-feature clean-feature--dark">
-              <div className="clean-feature__topline">
-                <Activity size={23} aria-hidden="true" />
-                <span>Call activity</span>
-              </div>
-              <div className="clean-feature__copy">
-                <h3>The right reaction stays easy to find.</h3>
-                <p>Recipient, scenario, call time, and returned audio remain together in one clear history.</p>
-                <div className="clean-feature__links">
-                  <Link to="/activity">
-                    Open activity
+          <div className="clean-features" aria-label="Sentinel destinations">
+            <div className="clean-feature-path clean-feature-path--down">
+              <article className="clean-feature clean-feature--accent">
+                <div className="clean-feature__topline">
+                  <span className="clean-feature__icon" aria-hidden="true">
+                    <BookOpen size={23} />
+                  </span>
+                  <span className="clean-feature__meta">
+                    {loading ? "Loading catalog" : `${catalogSummary.scenarioLabel} scenarios`}
+                  </span>
+                </div>
+                <div className="clean-feature__copy">
+                  <p className="clean-feature__label">Scenario library</p>
+                  <h3>Find the prank.<br />Hear it first.</h3>
+                  <p>Search localized scenarios and preview the audio before you choose one.</p>
+                  <Link to="/library">
+                    Browse scenarios
                     <ArrowRight size={17} aria-hidden="true" />
                   </Link>
-                  {isAdmin && <Link className="clean-feature__admin" to="/logs">API logs</Link>}
                 </div>
-              </div>
-            </article>
+              </article>
+            </div>
+
+            <div className="clean-feature-path clean-feature-path--up">
+              <article className="clean-feature clean-feature--dark">
+                <div className="clean-feature__topline">
+                  <span className="clean-feature__icon" aria-hidden="true">
+                    <Activity size={23} />
+                  </span>
+                  <span className="clean-feature__meta">Private history</span>
+                </div>
+                <div className="clean-feature__copy">
+                  <p className="clean-feature__label">Call activity</p>
+                  <h3>Keep the reaction.<br />Find it later.</h3>
+                  <p>Recipient, call time, share link, and returned audio stay together in one clear history.</p>
+                  <div className="clean-feature__links">
+                    <Link to="/activity">
+                      Open activity
+                      <ArrowRight size={17} aria-hidden="true" />
+                    </Link>
+                    {isAdmin && <Link className="clean-feature__admin" to="/logs">API logs</Link>}
+                  </div>
+                </div>
+              </article>
+            </div>
           </div>
         </div>
       </section>

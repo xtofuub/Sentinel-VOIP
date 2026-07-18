@@ -140,8 +140,16 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2rem;
+  gap: 0.8rem;
   margin-top: 3.5rem;
+}
+
+.reference-hero__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
 }
 
 .reference-hero__cta {
@@ -163,21 +171,22 @@
   transition: background-color 300ms ease, border-color 300ms ease, transform 300ms ease;
 }
 
-.reference-hero__meta {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  color: rgba(255, 255, 255, 0.4);
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.reference-hero__cta--primary {
+  border-color: #ffe8df;
+  background: #fff5ee;
+  color: #130706;
 }
 
-.reference-hero__meta i {
-  width: 1px;
-  height: 0.75rem;
-  background: rgba(255, 255, 255, 0.2);
+.reference-hero__cta--secondary {
+  background: rgba(31, 5, 3, 0.38);
+  color: white;
+}
+
+.reference-hero__access {
+  margin: 0;
+  color: rgba(255, 244, 238, 0.45);
+  font-size: 0.67rem;
+  line-height: 1.5;
 }
 
 .reference-steps-stage {
@@ -630,8 +639,16 @@
 @media (hover: hover) and (pointer: fine) {
   .reference-hero__cta:hover {
     border-color: rgba(255, 255, 255, 0.32);
-    background: rgba(255, 255, 255, 0.1);
     transform: scale(1.05);
+  }
+
+  .reference-hero__cta--primary:hover {
+    border-color: white;
+    background: white;
+  }
+
+  .reference-hero__cta--secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .reference-card--accent:hover {
@@ -700,8 +717,8 @@
   .reference-hero h1 { font-size: clamp(2.65rem, 13vw, 3.5rem); }
   .reference-hero__copy { max-width: 22rem; font-size: 0.84rem; }
   .reference-hero__action-group { width: 100%; margin-top: 3rem; }
+  .reference-hero__buttons,
   .reference-hero__cta { width: 100%; }
-  .reference-hero__meta { gap: 0.65rem; font-size: 0.55rem; }
   .reference-hand--left { top: 2%; left: -24%; width: 78vw; opacity: 0.62; }
   .reference-hand--right { right: -30%; bottom: 4%; width: 72vw; opacity: 0.62; }
   .reference-proof { gap: 2.5rem 1rem; }

@@ -112,15 +112,16 @@ export function Overview() {
           </div>
 
           <div className="reference-reveal reference-delay-2 reference-hero__action-group">
-            <Link className="reference-hero__cta" to="/new">
-              Start a prank
-              <ArrowRight size={15} aria-hidden="true" />
-            </Link>
-            <div className="reference-hero__meta">
-              <span>{scenarioLabel} scenarios</span>
-              <i aria-hidden="true" />
-              <span>Private replay</span>
+            <div className="reference-hero__buttons">
+              <Link className="reference-hero__cta reference-hero__cta--primary" to="/new">
+                Start a prank
+                <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+              <Link className="reference-hero__cta reference-hero__cta--secondary" to="/library">
+                Browse {scenarioLabel} scenarios
+              </Link>
             </div>
+            <p className="reference-hero__access">Browse freely. Sign in only when you are ready to place the call.</p>
           </div>
         </div>
       </section>

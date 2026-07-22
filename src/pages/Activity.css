@@ -276,11 +276,24 @@
   min-width: 0;
 }
 
-.activity-record__identity > div {
+.activity-record__heading {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: var(--activity-space-xs);
+}
+
+.activity-record__body {
+  display: block;
+  min-width: 0;
+  padding-left: calc(1.75rem + var(--activity-space-xs));
+}
+
+.activity-record .activity-record__country {
+  width: 1.75rem;
+  height: 1.2rem;
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
 }
 
 .activity-record__identity strong {
@@ -289,36 +302,58 @@
   font-weight: 670;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.25;
 }
 
 .activity-record__recipient {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem var(--activity-space-xs);
-  margin: 0.4rem 0 0;
-  color: var(--muted);
-  font-size: 0.67rem;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.42rem;
 }
 
-.activity-record__recipient-phone {
+.activity-record__recipient-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.18rem 0.55rem;
+  font-size: 0.66rem;
+}
+
+.activity-record__recipient .activity-record__recipient-name {
+  color: var(--muted);
+  font-weight: 570;
+  text-transform: capitalize;
+}
+
+.activity-record__recipient .activity-record__recipient-phone {
   color: var(--muted-dark);
+  font-variant-numeric: tabular-nums;
 }
 
 .activity-record__save-contact {
-  display: inline-flex;
-  min-height: 1.25rem;
+  display: grid;
+  width: 1.6rem;
+  height: 1.6rem;
+  flex: 0 0 1.6rem;
   align-items: center;
-  gap: 0.25rem;
-  border: 0;
-  border-radius: 0.3rem;
-  background: transparent;
-  padding: 0 0.22rem;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 0.42rem;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 0;
   color: var(--muted-dark);
   cursor: pointer;
-  font: inherit;
-  font-size: 0.6rem;
-  font-weight: 650;
-  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out), opacity 150ms var(--ease-out);
+  transition: transform 120ms var(--ease-out), background-color 150ms var(--ease-out), border-color 150ms var(--ease-out), color 150ms var(--ease-out), opacity 150ms var(--ease-out);
+}
+
+.activity-record__save-contact.is-saved {
+  border-color: rgba(255, 78, 45, 0.22);
+  background: rgba(255, 78, 45, 0.07);
+  color: var(--accent-soft);
 }
 
 .activity-record__save-contact:disabled {
@@ -331,11 +366,16 @@
   outline-offset: 2px;
 }
 
+.activity-record__save-contact:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
 .activity-record__time {
   display: block;
-  margin-top: 0.4rem;
+  margin-top: 0.32rem;
   color: var(--muted-dark);
   font-size: 0.6rem;
+  line-height: 1.3;
 }
 
 .activity-record__recording {
@@ -425,6 +465,10 @@
   .activity-record__save-contact:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.055);
     color: var(--text);
+  }
+
+  .activity-record__save-contact:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.16);
   }
 
   .activity-filter:hover:not([aria-pressed="true"]) {

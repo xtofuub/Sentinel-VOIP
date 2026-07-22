@@ -40,6 +40,7 @@ import {
   TrashIcon,
   UserGroupIcon,
   UserIcon,
+  UserPlusIcon,
   WifiIcon,
   XCircleIcon,
   XMarkIcon,
@@ -98,6 +99,7 @@ export const SquareTerminal = makeIcon(CommandLineIcon, "SquareTerminal")
 export const Trash2 = makeIcon(TrashIcon, "Trash2")
 export const UserRound = makeIcon(UserIcon, "UserRound")
 export const UserRoundCheck = makeIcon(CheckBadgeIcon, "UserRoundCheck")
+export const UserPlus = makeIcon(UserPlusIcon, "UserPlus")
 export const UsersRound = makeIcon(UserGroupIcon, "UsersRound")
 export const Volume2 = makeIcon(SpeakerWaveIcon, "Volume2")
 export const Waves = makeIcon(SignalIcon, "Waves")

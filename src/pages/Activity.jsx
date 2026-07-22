@@ -9,6 +9,7 @@ import {
   Search,
   Share2,
   Trash2,
+  UserPlus,
   UserRoundCheck,
   Waves,
 } from "@/components/icons"
@@ -46,6 +47,9 @@ const activityFilters = [
 ]
 
 const callRowKey = (call) => `${call.uid || call.accountDid}:${call._id}`
+const cleanActivityTitle = (value) => String(value || "")
+  .replace(/^(?:⭐|🌟)\s*/u, "")
+  .trim()
 
 const parseBackendTimeLabel = (value) => {
   if (!value) return null
@@ -559,7 +563,7 @@ export function Activity() {
           <div className="activity-records">
             {filteredCalls.map(({ call, scenario, country }) => {
               const rowKey = callRowKey(call)
-              const title = call.titulo || scenario?.titulo || "Untitled scenario"
+              const title = cleanActivityTitle(call.titulo || scenario?.titulo) || "Untitled scenario"
               const thumbnail = call.pic || scenario?.image_url
               const detailPath = `/activity/${encodeURIComponent(call.accountDid || call.uid || "unknown")}/${encodeURIComponent(call._id)}`
               const timestamp = formatTimestamp(call)
@@ -575,37 +579,41 @@ export function Activity() {
                   <ScenarioThumbnail src={thumbnail} title={title} size="medium" />
 
                   <div className="activity-record__identity">
-                    <div>
+                    <div className="activity-record__heading">
                       <span className="activity-record__country" title={country.toUpperCase()}>
                         <LocaleFlag code={country} />
                       </span>
                       <strong>{title}</strong>
                     </div>
-                    <p className="activity-record__recipient">
-                      <span>{call.targetName || "Unknown recipient"}</span>
-                      <span className="activity-record__recipient-phone">{call.targetPhone || "No phone stored"}</span>
-                      {canSaveContact && (
-                        <button
-                          className="activity-record__save-contact"
-                          type="button"
-                          disabled={savingContact}
-                          onClick={() => void saveCallContact(rowKey, call)}
-                          aria-label={`Save ${call.targetName} to Contacts`}
-                        >
-                          {savingContact ? (
-                            <LoaderCircle className="spin" size={13} aria-hidden="true" />
-                          ) : contactSaved ? (
-                            <Check size={13} aria-hidden="true" />
-                          ) : (
-                            <UserRoundCheck size={13} aria-hidden="true" />
-                          )}
-                          {savingContact ? "Saving" : contactSaved ? "Saved" : "Save contact"}
-                        </button>
-                      )}
-                    </p>
-                    <time className="activity-record__time" dateTime={timestamp.iso} title={timestamp.exact}>
-                      {timestamp.label}
-                    </time>
+                    <div className="activity-record__body">
+                      <div className="activity-record__recipient">
+                        <div className="activity-record__recipient-copy">
+                          <span className="activity-record__recipient-name">{call.targetName || "Unknown recipient"}</span>
+                          <span className="activity-record__recipient-phone">{call.targetPhone || "No phone stored"}</span>
+                        </div>
+                        {canSaveContact && (
+                          <button
+                            className={`activity-record__save-contact${contactSaved ? " is-saved" : ""}`}
+                            type="button"
+                            disabled={savingContact}
+                            onClick={() => void saveCallContact(rowKey, call)}
+                            aria-label={`${contactSaved ? "Saved" : "Save"} ${call.targetName} ${contactSaved ? "in" : "to"} Contacts`}
+                            title={savingContact ? "Saving contact" : contactSaved ? "Saved to Contacts" : "Save to Contacts"}
+                          >
+                            {savingContact ? (
+                              <LoaderCircle className="spin" size={14} aria-hidden="true" />
+                            ) : contactSaved ? (
+                              <UserRoundCheck size={14} aria-hidden="true" />
+                            ) : (
+                              <UserPlus size={14} aria-hidden="true" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      <time className="activity-record__time" dateTime={timestamp.iso} title={timestamp.exact}>
+                        {timestamp.label}
+                      </time>
+                    </div>
                   </div>
 
                   <div className="activity-record__recording">

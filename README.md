@@ -82,6 +82,13 @@ The frontend keeps the current service contract intact. Vite proxies `/api` duri
 - Scenario images, audio previews, and live API behavior depend on their remote services.
 - Country flag images are served by [FlagCDN / Flagpedia](https://flagpedia.net/download/api).
 
+## Security
+
+- Supabase Row Level Security keeps account, contact, credit, session, and activity rows scoped to their owner or an authorized admin.
+- Call writes run through an authenticated Edge Function; the public Vercel proxy only exposes the recording-read endpoint used by Activity.
+- Browser responses include a Content Security Policy, clickjacking protection, MIME sniffing protection, and a restrictive permissions policy.
+- Dependencies are locked with pnpm, audited in CI, and checked weekly by Dependabot for routine and security updates.
+
 ## Responsible use
 
 Use Sentinel only where you have permission and a lawful purpose. Comply with consent, privacy, recording, telecommunications, and anti-harassment rules that apply to you and the recipient.

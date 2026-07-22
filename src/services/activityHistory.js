@@ -261,7 +261,7 @@ export function subscribeToActivityHistory(userId, onChange) {
   if (!userId || !supabase) return () => {}
 
   const channel = supabase.channel(`activity-history:${userId}`)
-  ;["activity_sources", "activity_launches", "hidden_activity_records"].forEach((table) => {
+  ;["activity_sources", "activity_launches", "hidden_activity_records", "call_sessions"].forEach((table) => {
     channel.on(
       "postgres_changes",
       { event: "*", schema: "public", table, filter: `user_id=eq.${userId}` },

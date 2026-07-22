@@ -32,7 +32,7 @@ Sentinel turns the existing call flow into a clear browser workspace. The catalo
 </table>
 
 - **Scenario library** — Search titles and descriptions, filter by language and region, preview audio, and carry a selection into the session workspace.
-- **Session workbench** — Review the scenario, recipient, country code, and dial ID before sending one backend task.
+- **Session workbench** — Review the scenario and recipient, then call now or schedule it up to 30 days ahead.
 - **Live activity and recordings** — Auto-refresh browser-linked calls, replay returned audio, and share the backend recording source directly without requiring a Sentinel account.
 - **API logs** — Keep the latest 120 requests in session memory with status filters, timing summaries, expandable payloads, and recursive recipient-field redaction.
 - **Motion controls** — Use the full visual treatment or switch to the reduced-motion experience at any time.
@@ -66,17 +66,18 @@ Open [http://localhost:5173](http://localhost:5173).
 ## How it works
 
 1. The local catalog is normalized into 64 locale collections and 2,129 scenario records.
-2. A session creates and synchronizes an identity through the existing API flow.
-3. Sentinel submits the selected scenario and recipient task through the `/api` proxy.
-4. Activity automatically refreshes returned records and available audio for identities saved in this browser.
-5. API logs keep a sanitized, in-memory trace of request outcomes and payloads.
+2. Supabase reserves the call credit and stores an immediate or scheduled session.
+3. A protected Edge Function creates the upstream identity and submits the call task.
+4. Supabase Cron dispatches due calls every minute, even after the browser closes.
+5. Activity syncs scheduled, queued, calling, failed, cancelled, and recorded states across devices.
+6. API logs keep a sanitized, in-memory trace of request outcomes and payloads for admins.
 
 The frontend keeps the current service contract intact. Vite proxies `/api` during development, while the production rewrite is configured in `vercel.json`.
 
 ## Current boundaries
 
-- Calls launch immediately. Delayed scheduling is not exposed because the current backend contract does not document reliable future-time execution.
-- Identities and recipient context are browser-local and can be cleared with site data.
+- Scheduled calls can be set up to 30 days ahead and are dispatched on the next one-minute worker cycle.
+- Call sessions, recipient context, credits, and activity links sync through the signed-in Supabase account.
 - API logs are session-only and disappear on reload.
 - Scenario images, audio previews, and live API behavior depend on their remote services.
 - Country flag images are served by [FlagCDN / Flagpedia](https://flagpedia.net/download/api).

@@ -13,6 +13,7 @@ import {
   UserPlus,
   UserRoundCheck,
   Waves,
+  X,
 } from "@/components/icons"
 import { Link, useNavigate } from "react-router-dom"
 import { AudioPlayer } from "@/components/AudioPlayer"
@@ -33,9 +34,16 @@ import {
 } from "@/services/activityHistory"
 import { useAuth } from "@/state/AuthContext"
 import { isValidContactPhone, rememberContact } from "@/services/contacts"
+import {
+  callSessionToActivity,
+  cancelCallSession,
+  listCallSessions,
+} from "@/services/callSessions"
 import "./Activity.css"
 
-const ACTIVE_STATUSES = new Set(["pending", "queued", "running"])
+const ACTIVE_STATUSES = new Set(["scheduled", "pending", "queued", "running"])
+const LIVE_STATUSES = new Set(["pending", "queued", "running"])
+const ISSUE_STATUSES = new Set(["declined", "failed"])
 const LIVE_POLL_INTERVAL = 10000
 const IDLE_POLL_INTERVAL = 60000
 const HIDDEN_ACTIVITY_LIMIT = 1000
@@ -156,11 +164,13 @@ const getRecordingSourceUrl = (call) => {
 export function Activity() {
   const navigate = useNavigate()
   const { scenarios } = useCatalog()
-  const { user } = useAuth()
+  const { refreshProfile, user } = useAuth()
   const userId = user?.id
   const [accounts, setAccounts] = useState(readLocalActivitySources)
   const [launches, setLaunches] = useState(readLocalActivityLaunches)
   const [calls, setCalls] = useState([])
+  const [scheduledSessions, setScheduledSessions] = useState([])
+  const [hiddenActivity, setHiddenActivity] = useState(readLocalHiddenActivity)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [allRequestsFailed, setAllRequestsFailed] = useState(false)
@@ -169,6 +179,7 @@ export function Activity() {
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
   const [linkAction, setLinkAction] = useState({ message: "", rowKey: "", type: "" })
   const [savingContactKey, setSavingContactKey] = useState("")
+  const [cancellingSessionKey, setCancellingSessionKey] = useState("")
   const [authPromptOpen, setAuthPromptOpen] = useState(false)
   const [pageVisible, setPageVisible] = useState(() => document.visibilityState !== "hidden")
   const accountsRef = useRef(accounts)
@@ -262,12 +273,17 @@ export function Activity() {
   const syncHistory = useCallback(async () => {
     try {
       if (userId) await migrateLocalActivityToCloud(userId)
-      const history = await loadActivityHistory(userId)
+      const [history, sessions] = await Promise.all([
+        loadActivityHistory(userId),
+        listCallSessions(userId),
+      ])
       accountsRef.current = history.sources
       launchesRef.current = history.launches
       hiddenActivityRef.current = history.hidden
+      setHiddenActivity(history.hidden)
       setAccounts(history.sources)
       setLaunches(history.launches)
+      setScheduledSessions(sessions)
       setCalls((current) => current.filter((call) => !history.hidden.has(callRowKey(call))))
     } catch {
       const localSources = readLocalActivitySources()
@@ -276,8 +292,10 @@ export function Activity() {
       accountsRef.current = localSources
       launchesRef.current = localLaunches
       hiddenActivityRef.current = localHidden
+      setHiddenActivity(localHidden)
       setAccounts(localSources)
       setLaunches(localLaunches)
+      setScheduledSessions([])
     }
   }, [userId])
 
@@ -371,6 +389,7 @@ export function Activity() {
     const nextHidden = new Set(hiddenActivityRef.current)
     nextHidden.add(rowKey)
     hiddenActivityRef.current = nextHidden
+    setHiddenActivity(nextHidden)
 
     try {
       localStorage.setItem("sentinel-hidden-activity", JSON.stringify(Array.from(nextHidden).slice(-HIDDEN_ACTIVITY_LIMIT)))
@@ -379,12 +398,29 @@ export function Activity() {
     }
 
     setCalls((current) => current.filter((call) => callRowKey(call) !== rowKey))
+    setScheduledSessions((current) => current.filter((session) => callRowKey(callSessionToActivity(session)) !== rowKey))
     if (userId) {
       void hideActivityRecord(userId, rowKey).catch(() => {
         showLinkAction(rowKey, "error", "Removed here, but account sync needs another try.")
       })
     }
   }, [showLinkAction, userId])
+
+  const cancelScheduled = useCallback(async (rowKey, sessionId) => {
+    setCancellingSessionKey(rowKey)
+    try {
+      const updated = await cancelCallSession(sessionId)
+      setScheduledSessions((current) => current.map((session) => (
+        session.id === sessionId ? updated : session
+      )))
+      void refreshProfile()
+      showLinkAction(rowKey, "cancel", "Scheduled call cancelled. Credit returned.")
+    } catch (cancelError) {
+      showLinkAction(rowKey, "error", cancelError?.message || "The call could not be cancelled.")
+    } finally {
+      setCancellingSessionKey("")
+    }
+  }, [refreshProfile, showLinkAction])
 
   useEffect(() => {
     void refresh()
@@ -394,7 +430,24 @@ export function Activity() {
     setCalls((current) => enrichRecordedCallsWithHistory(current, launches))
   }, [launches])
 
-  const running = calls.some((call) => ACTIVE_STATUSES.has(call.status))
+  const displayCalls = useMemo(() => {
+    const remoteTaskIds = new Set(calls.map((call) => String(call._id || "").toLowerCase()))
+    const sessionRows = scheduledSessions
+      .filter((session) => session.status !== "completed")
+      .map(callSessionToActivity)
+      .filter((call) => (
+        call.status !== "running"
+        || !call.upstreamTaskId
+        || !remoteTaskIds.has(String(call.upstreamTaskId).toLowerCase())
+      ))
+      .filter((call) => !hiddenActivity.has(callRowKey(call)))
+
+    return [...calls, ...sessionRows].sort((a, b) => (
+      (getCallDate(b)?.getTime() || 0) - (getCallDate(a)?.getTime() || 0)
+    ))
+  }, [calls, hiddenActivity, scheduledSessions])
+
+  const running = displayCalls.some((call) => LIVE_STATUSES.has(call.status))
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -425,17 +478,17 @@ export function Activity() {
     scenario,
   ])), [scenarios])
 
-  const resolvedCalls = useMemo(() => calls.map((call) => {
+  const resolvedCalls = useMemo(() => displayCalls.map((call) => {
     const country = call.cou || call.accountCountry || "fi"
     const scenario = catalogByDial.get(`${country}|${String(call.dial || "")}`)
       || catalogByTitle.get(call.titulo?.trim().toLowerCase())
 
     return { call, scenario, country }
-  }), [calls, catalogByDial, catalogByTitle])
+  }), [displayCalls, catalogByDial, catalogByTitle])
 
-  const activeCount = calls.filter((call) => ACTIVE_STATUSES.has(call.status)).length
-  const recordingCount = calls.filter((call) => call.isPlayable).length
-  const issueCount = calls.filter((call) => call.status === "declined").length
+  const activeCount = displayCalls.filter((call) => ACTIVE_STATUSES.has(call.status)).length
+  const recordingCount = displayCalls.filter((call) => call.isPlayable).length
+  const issueCount = displayCalls.filter((call) => ISSUE_STATUSES.has(call.status)).length
   const pollIntervalSeconds = (running ? LIVE_POLL_INTERVAL : IDLE_POLL_INTERVAL) / 1000
   const syncLabel = !pageVisible
     ? "Updates paused"
@@ -459,18 +512,19 @@ export function Activity() {
       const matchesFilter = filter === "all"
         || (filter === "active" && ACTIVE_STATUSES.has(call.status))
         || (filter === "recordings" && call.isPlayable)
-        || (filter === "issues" && call.status === "declined")
+        || (filter === "issues" && ISSUE_STATUSES.has(call.status))
 
       return matchesQuery && matchesFilter
     })
   }, [filter, query, resolvedCalls])
 
   const filterCounts = {
-    all: calls.length,
+    all: displayCalls.length,
     active: activeCount,
     recordings: recordingCount,
     issues: issueCount,
   }
+  const hasActivity = accounts.length > 0 || displayCalls.length > 0
 
   const groupedCalls = useMemo(() => {
     const groups = new Map()
@@ -506,8 +560,11 @@ export function Activity() {
           <button
             className="button button--outline button--compact"
             type="button"
-            onClick={() => void refresh()}
-            disabled={loading || !accounts.length}
+            onClick={() => {
+              void syncHistory()
+              void refresh()
+            }}
+            disabled={loading}
           >
             <RefreshCw className={loading ? "is-spinning" : undefined} aria-hidden="true" size={15} />
             {loading ? "Refreshing" : "Refresh"}
@@ -516,7 +573,7 @@ export function Activity() {
       </header>
 
       <section className="call-history-panel" aria-labelledby="call-history-title">
-        {accounts.length > 0 && (
+        {hasActivity && (
           <>
             <div className="call-history-toolbar">
               <label className="call-history-search" htmlFor="activity-search">
@@ -549,7 +606,7 @@ export function Activity() {
 
             <div className="call-history-summary" aria-live="polite">
               <p>
-                Showing <strong>{filteredCalls.length.toLocaleString()}</strong> of {calls.length.toLocaleString()} calls
+                Showing <strong>{filteredCalls.length.toLocaleString()}</strong> of {displayCalls.length.toLocaleString()} calls
               </p>
               {(recordingCount > 0 || activeCount > 0 || issueCount > 0) && (
                 <div aria-label="Call history summary">
@@ -579,7 +636,7 @@ export function Activity() {
           </div>
         )}
 
-        {!accounts.length ? (
+        {!hasActivity ? (
           <div className="call-history-empty">
             <div>
               <h2>No call history yet</h2>
@@ -589,7 +646,7 @@ export function Activity() {
               </button>
             </div>
           </div>
-        ) : loading && !calls.length ? (
+        ) : loading && !displayCalls.length ? (
           <div className="call-history-skeleton" role="status" aria-live="polite">
             <span className="visually-hidden">Loading the latest calls...</span>
             {[0, 1, 2].map((item) => (
@@ -600,7 +657,7 @@ export function Activity() {
               </div>
             ))}
           </div>
-        ) : allRequestsFailed ? (
+        ) : allRequestsFailed && !scheduledSessions.length ? (
           <div className="call-history-empty">
             <div>
               <h2>Call history unavailable</h2>
@@ -632,11 +689,15 @@ export function Activity() {
                     const canSaveContact = Boolean(call.targetName?.trim() && isValidContactPhone(call.targetPhone))
                     const contactSaved = linkAction.rowKey === rowKey && linkAction.type === "contact"
                     const savingContact = savingContactKey === rowKey
+                    const cancellingSession = cancellingSessionKey === rowKey
                     const callStatus = String(call.status || "").toLowerCase()
+                    const scheduled = callStatus === "scheduled"
                     const queued = callStatus === "pending" || callStatus === "queued"
                     const calling = callStatus === "running"
-                    const active = queued || calling
+                    const active = scheduled || queued || calling
                     const declined = callStatus === "declined"
+                    const failed = callStatus === "failed"
+                    const cancelled = callStatus === "cancelled"
 
                     return (
                       <article className="call-history-record" key={rowKey}>
@@ -676,9 +737,12 @@ export function Activity() {
 
                             <div className="call-history-record__when">
                               <time dateTime={timestamp.iso} title={timestamp.exact}>{timestamp.label}</time>
+                              {scheduled && <span className="is-scheduled"><i aria-hidden="true" />Scheduled</span>}
                               {queued && <span className="is-queued"><i aria-hidden="true" />Queued</span>}
                               {calling && <span className="is-calling"><i aria-hidden="true" />Calling</span>}
                               {declined && <span className="is-declined"><i aria-hidden="true" />Declined</span>}
+                              {failed && <span className="is-failed"><i aria-hidden="true" />Failed</span>}
+                              {cancelled && <span className="is-cancelled"><i aria-hidden="true" />Cancelled</span>}
                             </div>
                           </header>
 
@@ -691,15 +755,38 @@ export function Activity() {
                               <AudioPlayer src={sourceUrl} label={`recording for ${title}`} />
                             ) : (
                               <span className="call-history-record__recording-empty">
-                                {declined ? "Recording unavailable" : queued ? "Waiting to call" : active ? "Call in progress" : "Waiting for recording"}
+                                {scheduled
+                                  ? `Will call ${timestamp.label.toLowerCase()}`
+                                  : declined || failed
+                                    ? "Recording unavailable"
+                                    : cancelled
+                                      ? "Call cancelled"
+                                      : queued
+                                        ? "Waiting to call"
+                                        : active
+                                          ? "Call in progress"
+                                          : "Waiting for recording"}
                               </span>
                             )}
                           </div>
 
                           <footer className="call-history-record__actions">
-                            <Link className="call-history-record__details" to={detailPath} aria-label={`Open record for ${title}`}>
-                              Open record <ArrowUpRight size={14} aria-hidden="true" />
-                            </Link>
+                            {!call.isScheduledSession && (
+                              <Link className="call-history-record__details" to={detailPath} aria-label={`Open record for ${title}`}>
+                                Open record <ArrowUpRight size={14} aria-hidden="true" />
+                              </Link>
+                            )}
+                            {call.isScheduledSession && scheduled && (
+                              <button
+                                className="call-history-record__cancel"
+                                type="button"
+                                disabled={cancellingSession}
+                                onClick={() => void cancelScheduled(rowKey, call.sessionId)}
+                              >
+                                {cancellingSession ? <LoaderCircle className="spin" size={14} aria-hidden="true" /> : <X size={14} aria-hidden="true" />}
+                                {cancellingSession ? "Cancelling" : "Cancel call"}
+                              </button>
+                            )}
                             {sourceUrl && (
                               <button
                                 className="call-history-record__share"
@@ -711,15 +798,17 @@ export function Activity() {
                                 {shareComplete ? shareLabel : "Share recording"}
                               </button>
                             )}
-                            <button
-                              className="call-history-record__remove"
-                              type="button"
-                              onClick={() => removeCall(rowKey)}
-                              aria-label={`Remove ${title} from call history`}
-                              title="Remove from call history"
-                            >
-                              <Trash2 aria-hidden="true" size={16} strokeWidth={1.5} />
-                            </button>
+                            {!scheduled && (
+                              <button
+                                className="call-history-record__remove"
+                                type="button"
+                                onClick={() => removeCall(rowKey)}
+                                aria-label={`Remove ${title} from call history`}
+                                title="Remove from call history"
+                              >
+                                <Trash2 aria-hidden="true" size={16} strokeWidth={1.5} />
+                              </button>
+                            )}
                           </footer>
                         </div>
                       </article>

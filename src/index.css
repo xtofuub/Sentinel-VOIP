@@ -1915,11 +1915,22 @@ pre {
 }
 
 .activity-record__country {
+  display: grid;
+  width: 1.55rem;
+  height: 1.05rem;
   flex: none;
-  color: var(--accent-soft);
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 0.58rem;
-  text-transform: uppercase;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.28rem;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0.25rem 0.6rem rgba(0, 0, 0, 0.22);
+  line-height: 1;
+}
+
+.activity-record__country .locale-flag__fallback {
+  font-size: 0.9rem;
+  letter-spacing: 0;
 }
 
 .activity-record__identity p {

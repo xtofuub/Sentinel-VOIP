@@ -2,6 +2,11 @@ import { useState } from "react"
 import { Globe2 } from "@/components/icons"
 
 const normalizeCode = (code) => (/^[a-z]{2}$/i.test(code || "") ? code.toLowerCase() : "")
+const toFlagEmoji = (code) => code
+  .toUpperCase()
+  .split("")
+  .map((letter) => String.fromCodePoint(127397 + letter.charCodeAt(0)))
+  .join("")
 
 export function LocaleFlag({ code, eager = false }) {
   const normalizedCode = normalizeCode(code)
@@ -11,7 +16,7 @@ export function LocaleFlag({ code, eager = false }) {
   if (!src) return <Globe2 size={16} aria-hidden="true" />
 
   if (failedSrc === src) {
-    return <span className="locale-flag__fallback">{normalizedCode.toUpperCase()}</span>
+    return <span className="locale-flag__fallback" aria-hidden="true">{toFlagEmoji(normalizedCode)}</span>
   }
 
   return (

@@ -632,8 +632,11 @@ export function Activity() {
                     const canSaveContact = Boolean(call.targetName?.trim() && isValidContactPhone(call.targetPhone))
                     const contactSaved = linkAction.rowKey === rowKey && linkAction.type === "contact"
                     const savingContact = savingContactKey === rowKey
-                    const active = ACTIVE_STATUSES.has(call.status)
-                    const issue = call.status === "declined"
+                    const callStatus = String(call.status || "").toLowerCase()
+                    const queued = callStatus === "pending" || callStatus === "queued"
+                    const calling = callStatus === "running"
+                    const active = queued || calling
+                    const declined = callStatus === "declined"
 
                     return (
                       <article className="call-history-record" key={rowKey}>
@@ -673,8 +676,9 @@ export function Activity() {
 
                             <div className="call-history-record__when">
                               <time dateTime={timestamp.iso} title={timestamp.exact}>{timestamp.label}</time>
-                              {active && <span className="is-live"><i aria-hidden="true" />In progress</span>}
-                              {issue && <span className="is-issue"><i aria-hidden="true" />Needs attention</span>}
+                              {queued && <span className="is-queued"><i aria-hidden="true" />Queued</span>}
+                              {calling && <span className="is-calling"><i aria-hidden="true" />Calling</span>}
+                              {declined && <span className="is-declined"><i aria-hidden="true" />Declined</span>}
                             </div>
                           </header>
 
@@ -687,7 +691,7 @@ export function Activity() {
                               <AudioPlayer src={sourceUrl} label={`recording for ${title}`} />
                             ) : (
                               <span className="call-history-record__recording-empty">
-                                {issue ? "Recording unavailable" : active ? "Call in progress" : "Waiting for recording"}
+                                {declined ? "Recording unavailable" : queued ? "Waiting to call" : active ? "Call in progress" : "Waiting for recording"}
                               </span>
                             )}
                           </div>

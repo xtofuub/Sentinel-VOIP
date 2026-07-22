@@ -5,6 +5,7 @@ import {
   CircleAlert,
   Headphones,
   LoaderCircle,
+  PhoneOutgoing,
   RefreshCw,
   Search,
   Share2,
@@ -112,6 +113,27 @@ const formatTimestamp = (call, now = new Date()) => {
   }
 
   return { exact, iso: date.toISOString(), label }
+}
+
+const formatHistoryGroup = (call, now = new Date()) => {
+  const date = getCallDate(call)
+  if (!date) return "Date unavailable"
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const callDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const dayDelta = Math.round((callDay.getTime() - today.getTime()) / 86_400_000)
+
+  if (dayDelta === 0) return "Today"
+  if (dayDelta === -1) return "Yesterday"
+  if (dayDelta > -7 && dayDelta < 0) {
+    return new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(date)
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "long",
+    year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
+  }).format(date)
 }
 
 const formatSyncTime = (timestamp) => new Intl.DateTimeFormat(undefined, {
@@ -443,16 +465,36 @@ export function Activity() {
     })
   }, [filter, query, resolvedCalls])
 
+  const filterCounts = {
+    all: calls.length,
+    active: activeCount,
+    recordings: recordingCount,
+    issues: issueCount,
+  }
+
+  const groupedCalls = useMemo(() => {
+    const groups = new Map()
+
+    filteredCalls.forEach((entry) => {
+      const label = formatHistoryGroup(entry.call)
+      const group = groups.get(label) || []
+      group.push(entry)
+      groups.set(label, group)
+    })
+
+    return Array.from(groups, ([label, entries]) => ({ label, entries }))
+  }, [filteredCalls])
+
   return (
-    <main className="page product-page activity-page">
-      <header className="activity-page__header">
-        <div className="activity-page__title">
-          <h1>Activity</h1>
-          <p>Calls, recordings, and recipients in one clear history.</p>
+    <main className="page product-page call-history-page">
+      <header className="call-history-page__header">
+        <div className="call-history-page__title">
+          <h1 id="call-history-title">Call history</h1>
+          <p>Every prank, recipient, and reaction recording—kept together.</p>
         </div>
 
-        <div className="activity-page__controls">
-          <div className="activity-sync">
+        <div className="call-history-page__controls">
+          <div className="call-history-sync">
             <span className={`badge ${running && pageVisible ? "badge--live" : "badge--neutral"}`} aria-live="polite">
               <span className="badge__dot" aria-hidden="true" />
               {syncLabel}
@@ -473,52 +515,55 @@ export function Activity() {
         </div>
       </header>
 
-      <section className="surface activity-hub" aria-labelledby="activity-results-heading">
-        <header className="activity-hub__header">
-          <div>
-            <h2 id="activity-results-heading">Call history</h2>
-            <p>Listen, share, or open the full record.</p>
-          </div>
-          <div className="activity-hub__summary" aria-label="Activity summary">
-            <span><strong>{calls.length.toLocaleString()}</strong> total</span>
-            <span><strong>{recordingCount.toLocaleString()}</strong> recordings</span>
-            <span><strong>{activeCount.toLocaleString()}</strong> active</span>
-          </div>
-        </header>
+      <section className="call-history-panel" aria-labelledby="call-history-title">
+        {accounts.length > 0 && (
+          <>
+            <div className="call-history-toolbar">
+              <label className="call-history-search" htmlFor="activity-search">
+                <span className="visually-hidden">Search activity</span>
+                <Search aria-hidden="true" size={17} strokeWidth={1.5} />
+                <input
+                  id="activity-search"
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search recipient or scenario"
+                />
+              </label>
 
-        <div className="activity-toolbar">
-          <label className="activity-search" htmlFor="activity-search">
-            <span className="visually-hidden">Search activity</span>
-            <Search aria-hidden="true" size={17} strokeWidth={1.5} />
-            <input
-              id="activity-search"
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search recipient or scenario"
-            />
-          </label>
+              <div className="call-history-filters" role="group" aria-label="Filter call history">
+                {activityFilters.map((item) => (
+                  <button
+                    key={item.id}
+                    className="call-history-filter"
+                    type="button"
+                    aria-pressed={filter === item.id}
+                    onClick={() => setFilter(item.id)}
+                  >
+                    {item.label}
+                    {filterCounts[item.id] > 0 && <span>{filterCounts[item.id]}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          <div className="activity-filters" role="group" aria-label="Filter activity">
-            {activityFilters.map((item) => (
-              <button
-                key={item.id}
-                className="activity-filter"
-                type="button"
-                aria-pressed={filter === item.id}
-                onClick={() => setFilter(item.id)}
-              >
-                {item.label}
-                {item.id === "active" && activeCount > 0 && <span>{activeCount}</span>}
-                {item.id === "recordings" && recordingCount > 0 && <span>{recordingCount}</span>}
-                {item.id === "issues" && issueCount > 0 && <span>{issueCount}</span>}
-              </button>
-            ))}
-          </div>
-        </div>
+            <div className="call-history-summary" aria-live="polite">
+              <p>
+                Showing <strong>{filteredCalls.length.toLocaleString()}</strong> of {calls.length.toLocaleString()} calls
+              </p>
+              {(recordingCount > 0 || activeCount > 0 || issueCount > 0) && (
+                <div aria-label="Call history summary">
+                  {recordingCount > 0 && <span><i className="is-ready" aria-hidden="true" />{recordingCount.toLocaleString()} ready</span>}
+                  {activeCount > 0 && <span><i className="is-live" aria-hidden="true" />{activeCount.toLocaleString()} active</span>}
+                  {issueCount > 0 && <span><i className="is-issue" aria-hidden="true" />{issueCount.toLocaleString()} issues</span>}
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {linkAction.message && (
-          <p className={`activity-action-status${linkAction.type === "error" ? " is-error" : ""}`} role="status" aria-live="polite">
+          <p className={`call-history-action-status${linkAction.type === "error" ? " is-error" : ""}`} role="status" aria-live="polite">
             {linkAction.type === "error" ? <CircleAlert size={14} aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}
             {linkAction.message}
           </p>
@@ -535,7 +580,7 @@ export function Activity() {
         )}
 
         {!accounts.length ? (
-          <div className="empty-state activity-empty">
+          <div className="call-history-empty">
             <div>
               <h2>No call history yet</h2>
               <p>Place your first call and its recording will appear here when ready.</p>
@@ -545,12 +590,18 @@ export function Activity() {
             </div>
           </div>
         ) : loading && !calls.length ? (
-          <div className="loading-state" role="status" aria-live="polite">
-            <span className="loading-mark" aria-hidden="true" />
-            <p>Loading the latest calls...</p>
+          <div className="call-history-skeleton" role="status" aria-live="polite">
+            <span className="visually-hidden">Loading the latest calls...</span>
+            {[0, 1, 2].map((item) => (
+              <div className="call-history-skeleton__row" key={item} aria-hidden="true">
+                <span className="call-history-skeleton__image" />
+                <span className="call-history-skeleton__lines" />
+                <span className="call-history-skeleton__audio" />
+              </div>
+            ))}
           </div>
         ) : allRequestsFailed ? (
-          <div className="empty-state activity-empty">
+          <div className="call-history-empty">
             <div>
               <h2>Call history unavailable</h2>
               <p>Your saved call links are still here. Retry when the service is reachable.</p>
@@ -560,98 +611,122 @@ export function Activity() {
             </div>
           </div>
         ) : filteredCalls.length ? (
-          <div className="activity-records">
-            {filteredCalls.map(({ call, scenario, country }) => {
-              const rowKey = callRowKey(call)
-              const title = cleanActivityTitle(call.titulo || scenario?.titulo) || "Untitled scenario"
-              const thumbnail = call.pic || scenario?.image_url
-              const detailPath = `/activity/${encodeURIComponent(call.accountDid || call.uid || "unknown")}/${encodeURIComponent(call._id)}`
-              const timestamp = formatTimestamp(call)
-              const sourceUrl = getRecordingSourceUrl(call)
-              const shareComplete = linkAction.rowKey === rowKey && ["copy", "share"].includes(linkAction.type)
-              const shareLabel = linkAction.type === "copy" ? "Copied" : "Shared"
-              const canSaveContact = Boolean(call.targetName?.trim() && isValidContactPhone(call.targetPhone))
-              const contactSaved = linkAction.rowKey === rowKey && linkAction.type === "contact"
-              const savingContact = savingContactKey === rowKey
+          <div className="call-history-groups">
+            {groupedCalls.map((group) => (
+              <section className="call-history-group" key={group.label} aria-labelledby={`history-group-${group.label.replace(/\W+/g, "-").toLowerCase()}`}>
+                <header className="call-history-group__header">
+                  <h2 id={`history-group-${group.label.replace(/\W+/g, "-").toLowerCase()}`}>{group.label}</h2>
+                  <span>{group.entries.length} {group.entries.length === 1 ? "call" : "calls"}</span>
+                </header>
 
-              return (
-                <article className="activity-record" key={rowKey}>
-                  <ScenarioThumbnail src={thumbnail} title={title} size="medium" />
+                <div className="call-history-group__records">
+                  {group.entries.map(({ call, scenario, country }) => {
+                    const rowKey = callRowKey(call)
+                    const title = cleanActivityTitle(call.titulo || scenario?.titulo) || "Untitled scenario"
+                    const thumbnail = call.pic || scenario?.image_url
+                    const detailPath = `/activity/${encodeURIComponent(call.accountDid || call.uid || "unknown")}/${encodeURIComponent(call._id)}`
+                    const timestamp = formatTimestamp(call)
+                    const sourceUrl = getRecordingSourceUrl(call)
+                    const shareComplete = linkAction.rowKey === rowKey && ["copy", "share"].includes(linkAction.type)
+                    const shareLabel = linkAction.type === "copy" ? "Copied" : "Shared"
+                    const canSaveContact = Boolean(call.targetName?.trim() && isValidContactPhone(call.targetPhone))
+                    const contactSaved = linkAction.rowKey === rowKey && linkAction.type === "contact"
+                    const savingContact = savingContactKey === rowKey
+                    const active = ACTIVE_STATUSES.has(call.status)
+                    const issue = call.status === "declined"
 
-                  <div className="activity-record__identity">
-                    <span className="activity-record__country" title={country.toUpperCase()}>
-                      <LocaleFlag code={country} />
-                    </span>
-                    <strong className="activity-record__title">{title}</strong>
-                    <div className="activity-record__recipient">
-                      <span className="activity-record__recipient-name">{call.targetName || "Unknown recipient"}</span>
-                      <span className="activity-record__recipient-phone">{call.targetPhone || "No phone stored"}</span>
-                    </div>
-                    {canSaveContact && (
-                      <button
-                        className={`activity-record__save-contact${contactSaved ? " is-saved" : ""}`}
-                        type="button"
-                        disabled={savingContact}
-                        onClick={() => void saveCallContact(rowKey, call)}
-                        aria-label={`${contactSaved ? "Saved" : "Save"} ${call.targetName} ${contactSaved ? "in" : "to"} Contacts`}
-                        title={savingContact ? "Saving contact" : contactSaved ? "Saved to Contacts" : "Save to Contacts"}
-                      >
-                        {savingContact ? (
-                          <LoaderCircle className="spin" size={14} aria-hidden="true" />
-                        ) : contactSaved ? (
-                          <UserRoundCheck size={14} aria-hidden="true" />
-                        ) : (
-                          <UserPlus size={14} aria-hidden="true" />
-                        )}
-                      </button>
-                    )}
-                    <time className="activity-record__time" dateTime={timestamp.iso} title={timestamp.exact}>
-                      {timestamp.label}
-                    </time>
-                  </div>
+                    return (
+                      <article className="call-history-record" key={rowKey}>
+                        <ScenarioThumbnail src={thumbnail} title={title} size="medium" />
 
-                  <div className="activity-record__recording">
-                    {call.isPlayable && sourceUrl ? (
-                      <AudioPlayer src={sourceUrl} label={`recording for ${title}`} />
-                    ) : (
-                      <span className="recording-unavailable">
-                        <Headphones aria-hidden="true" size={15} strokeWidth={1.5} />
-                        No recording yet
-                      </span>
-                    )}
-                  </div>
+                        <div className="call-history-record__content">
+                          <header className="call-history-record__header">
+                            <div className="call-history-record__identity">
+                              <h3>{title}</h3>
+                              <div className="call-history-record__recipient">
+                                <span className="call-history-record__country" title={country.toUpperCase()}>
+                                  <LocaleFlag code={country} />
+                                </span>
+                                <PhoneOutgoing size={14} aria-hidden="true" />
+                                <strong>{call.targetName || "Unknown recipient"}</strong>
+                                <span dir="ltr">{call.targetPhone || "No phone stored"}</span>
+                                {canSaveContact && (
+                                  <button
+                                    className={`call-history-record__save-contact${contactSaved ? " is-saved" : ""}`}
+                                    type="button"
+                                    disabled={savingContact}
+                                    onClick={() => void saveCallContact(rowKey, call)}
+                                    aria-label={`${contactSaved ? "Saved" : "Save"} ${call.targetName} ${contactSaved ? "in" : "to"} Contacts`}
+                                    title={savingContact ? "Saving contact" : contactSaved ? "Saved to Contacts" : "Save to Contacts"}
+                                  >
+                                    {savingContact ? (
+                                      <LoaderCircle className="spin" size={14} aria-hidden="true" />
+                                    ) : contactSaved ? (
+                                      <UserRoundCheck size={14} aria-hidden="true" />
+                                    ) : (
+                                      <UserPlus size={14} aria-hidden="true" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
 
-                  <div className="activity-record__actions">
-                    {sourceUrl && (
-                      <button
-                        className="activity-record__share"
-                        type="button"
-                        onClick={() => void shareRecording(rowKey, call, title)}
-                        aria-label={`Share recording for ${title}`}
-                      >
-                        {shareComplete ? <Check size={15} aria-hidden="true" /> : <Share2 size={15} aria-hidden="true" />}
-                        {shareComplete ? shareLabel : "Share"}
-                      </button>
-                    )}
-                    <Link className="activity-record__details" to={detailPath} aria-label={`Open record for ${title}`}>
-                      Details <ArrowUpRight size={14} aria-hidden="true" />
-                    </Link>
-                    <button
-                      className="activity-record__remove"
-                      type="button"
-                      onClick={() => removeCall(rowKey)}
-                      aria-label={`Remove ${title} from Activity`}
-                      title="Remove from Activity"
-                    >
-                      <Trash2 aria-hidden="true" size={16} strokeWidth={1.5} />
-                    </button>
-                  </div>
-                </article>
-              )
-            })}
+                            <div className="call-history-record__when">
+                              <time dateTime={timestamp.iso} title={timestamp.exact}>{timestamp.label}</time>
+                              {active && <span className="is-live"><i aria-hidden="true" />In progress</span>}
+                              {issue && <span className="is-issue"><i aria-hidden="true" />Needs attention</span>}
+                            </div>
+                          </header>
+
+                          <div className="call-history-record__recording">
+                            <div className="call-history-record__recording-label">
+                              <Headphones aria-hidden="true" size={15} strokeWidth={1.5} />
+                              <span>Reaction recording</span>
+                            </div>
+                            {call.isPlayable && sourceUrl ? (
+                              <AudioPlayer src={sourceUrl} label={`recording for ${title}`} />
+                            ) : (
+                              <span className="call-history-record__recording-empty">
+                                {issue ? "Recording unavailable" : active ? "Call in progress" : "Waiting for recording"}
+                              </span>
+                            )}
+                          </div>
+
+                          <footer className="call-history-record__actions">
+                            <Link className="call-history-record__details" to={detailPath} aria-label={`Open record for ${title}`}>
+                              Open record <ArrowUpRight size={14} aria-hidden="true" />
+                            </Link>
+                            {sourceUrl && (
+                              <button
+                                className="call-history-record__share"
+                                type="button"
+                                onClick={() => void shareRecording(rowKey, call, title)}
+                                aria-label={`Share recording for ${title}`}
+                              >
+                                {shareComplete ? <Check size={15} aria-hidden="true" /> : <Share2 size={15} aria-hidden="true" />}
+                                {shareComplete ? shareLabel : "Share recording"}
+                              </button>
+                            )}
+                            <button
+                              className="call-history-record__remove"
+                              type="button"
+                              onClick={() => removeCall(rowKey)}
+                              aria-label={`Remove ${title} from call history`}
+                              title="Remove from call history"
+                            >
+                              <Trash2 aria-hidden="true" size={16} strokeWidth={1.5} />
+                            </button>
+                          </footer>
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         ) : (
-          <div className="empty-state activity-empty">
+          <div className="call-history-empty">
             <div>
               <h2>No matching activity</h2>
               <p>Change the search or filter to see more records.</p>

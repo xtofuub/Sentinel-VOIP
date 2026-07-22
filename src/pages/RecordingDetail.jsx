@@ -17,19 +17,12 @@ import {
 import { useNavigate, useParams } from "react-router-dom"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
 import { AudioPlayer } from "@/components/AudioPlayer"
-import { enrichRecordedCallsWithLocalInput, getRecordedCalls } from "@/services/api"
+import { getRecordedCalls } from "@/services/api"
+import { enrichRecordedCallsWithHistory, loadActivityHistory } from "@/services/activityHistory"
+import { useAuth } from "@/state/AuthContext"
 import "./RecordingDetail.css"
 
 const RECORDING_ALIASES_KEY = "recordingAliases"
-
-const readAccounts = () => {
-  try {
-    const value = JSON.parse(localStorage.getItem("activeAccounts") || "[]")
-    return Array.isArray(value) ? value : []
-  } catch {
-    return []
-  }
-}
 
 const readAliases = () => {
   try {
@@ -75,6 +68,7 @@ const getRecordingSourceUrl = (value) => {
 export function RecordingDetail() {
   const navigate = useNavigate()
   const { accountDid, recordingId } = useParams()
+  const { user } = useAuth()
   const [record, setRecord] = useState(null)
   const [phase, setPhase] = useState("loading")
   const [message, setMessage] = useState("")
@@ -98,10 +92,19 @@ export function RecordingDetail() {
         return
       }
 
-      const accounts = readAccounts()
+      let history
+      try {
+        history = await loadActivityHistory(user?.id)
+      } catch {
+        setPhase("error")
+        setMessage("Your account history could not be synced. Try again shortly.")
+        return
+      }
+
+      const accounts = history.sources
       if (!accounts.length) {
         setPhase("not-found")
-        setMessage("No call history in this browser can open this recording.")
+        setMessage("No saved call history can open this recording.")
         return
       }
 
@@ -111,7 +114,7 @@ export function RecordingDetail() {
 
       if (!eligibleAccounts.length) {
         setPhase("not-found")
-        setMessage("This call is no longer saved in this browser.")
+        setMessage("This call is no longer saved to your Activity.")
         return
       }
 
@@ -119,7 +122,7 @@ export function RecordingDetail() {
         const did = String(account?.did || account?.uid || "")
         const country = account?.country || "fi"
         const calls = await getRecordedCalls(country, did)
-        return enrichRecordedCallsWithLocalInput(calls).map((call) => ({
+        return enrichRecordedCallsWithHistory(calls, history.launches).map((call) => ({
           ...call,
           accountCountry: country,
           accountDid: did,
@@ -156,7 +159,7 @@ export function RecordingDetail() {
     return () => {
       cancelled = true
     }
-  }, [accountDid, recordingId, reloadKey])
+  }, [accountDid, recordingId, reloadKey, user?.id])
 
   const audioUrl = getRecordingSourceUrl(record?.url)
   const displayTitle = alias || record?.titulo || "Untitled recording"

@@ -3,6 +3,7 @@ import { ArrowUpRight, Menu, Pause, Waves, X } from "@/components/icons"
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 import { AccountMenu } from "@/components/AccountMenu"
 import { useAuth } from "@/state/AuthContext"
+import { migrateLocalActivityToCloud } from "@/services/activityHistory"
 
 const publicNavItems = [
   { to: "/library", label: "Library" },
@@ -59,7 +60,7 @@ function getInitialMotionMode() {
 }
 
 export function AppShell() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, user } = useAuth()
   const { pathname } = useLocation()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -69,6 +70,13 @@ export function AppShell() {
   const navItems = isAdmin
     ? [...publicNavItems, { to: "/logs", label: "API logs" }]
     : publicNavItems
+
+  useEffect(() => {
+    if (!user?.id) return
+    void migrateLocalActivityToCloud(user.id).catch(() => {
+      // Local history remains available until account sync can retry.
+    })
+  }, [user?.id])
 
   useEffect(() => {
     const sentinel = scrollSentinelRef.current

@@ -31,6 +31,7 @@ import {
   pushRecordingTargetMemory,
 } from "@/services/api"
 import { isValidContactPhone, normalizeContactPhone, rememberContact } from "@/services/contacts"
+import { saveActivityLaunch } from "@/services/activityHistory"
 
 const formatTaskTimestamp = (date = new Date()) => {
   const pad = (value) => String(value).padStart(2, "0")
@@ -220,6 +221,22 @@ export function NewSession() {
       }
 
       try {
+        await saveActivityLaunch({
+          userId: user.id,
+          did,
+          upstreamUid: mongoUid,
+          countryCode: selectedScenario.countryCode,
+          taskId,
+          scenarioId: selectedScenario._id,
+          scenarioTitle: selectedScenario.titulo,
+          recipientName: cleanName,
+          recipientPhone: cleanPhone,
+        })
+      } catch {
+        historySaved = false
+      }
+
+      try {
         await rememberContact({
           userId: user.id,
           name: cleanName,
@@ -232,7 +249,7 @@ export function NewSession() {
       setNotice({
         type: "success",
         text: !historySaved
-          ? `Call ${taskId.slice(0, 8)} was queued, but this browser could not save it to Activity.`
+          ? `Call ${taskId.slice(0, 8)} was queued, but Activity sync needs another try.`
           : !contactSaved
             ? `Call ${taskId.slice(0, 8)} was queued, but the recipient could not be saved to Contacts.`
             : `Call ${taskId.slice(0, 8)} was queued. Recipient saved to Contacts.`,

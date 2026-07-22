@@ -12,15 +12,26 @@ import {
 } from "@/components/icons"
 import { Link, useNavigate } from "react-router-dom"
 import { AudioPlayer } from "@/components/AudioPlayer"
+import { LocaleFlag } from "@/components/LocaleFlag"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
 import { useCatalog } from "@/hooks/useCatalog"
-import { enrichRecordedCallsWithLocalInput, getRecordedCalls } from "@/services/api"
+import { getRecordedCalls } from "@/services/api"
+import {
+  enrichRecordedCallsWithHistory,
+  hideActivityRecord,
+  loadActivityHistory,
+  migrateLocalActivityToCloud,
+  readLocalActivityLaunches,
+  readLocalActivitySources,
+  readLocalHiddenActivity,
+  subscribeToActivityHistory,
+} from "@/services/activityHistory"
+import { useAuth } from "@/state/AuthContext"
 import "./Activity.css"
 
 const ACTIVE_STATUSES = new Set(["pending", "queued", "running"])
 const LIVE_POLL_INTERVAL = 10000
 const IDLE_POLL_INTERVAL = 60000
-const HIDDEN_ACTIVITY_KEY = "sentinel-hidden-activity"
 const HIDDEN_ACTIVITY_LIMIT = 1000
 
 const activityFilters = [
@@ -30,25 +41,7 @@ const activityFilters = [
   { id: "issues", label: "Issues" },
 ]
 
-const readAccounts = () => {
-  try {
-    const value = JSON.parse(localStorage.getItem("activeAccounts") || "[]")
-    return Array.isArray(value) ? value : []
-  } catch {
-    return []
-  }
-}
-
 const callRowKey = (call) => `${call.uid || call.accountDid}:${call._id}`
-
-const readHiddenActivity = () => {
-  try {
-    const value = JSON.parse(localStorage.getItem(HIDDEN_ACTIVITY_KEY) || "[]")
-    return new Set(Array.isArray(value) ? value.filter((key) => typeof key === "string") : [])
-  } catch {
-    return new Set()
-  }
-}
 
 const parseBackendTimeLabel = (value) => {
   if (!value) return null
@@ -133,7 +126,10 @@ const getRecordingSourceUrl = (call) => {
 export function Activity() {
   const navigate = useNavigate()
   const { scenarios } = useCatalog()
-  const [accounts, setAccounts] = useState(readAccounts)
+  const { user } = useAuth()
+  const userId = user?.id
+  const [accounts, setAccounts] = useState(readLocalActivitySources)
+  const [launches, setLaunches] = useState(readLocalActivityLaunches)
   const [calls, setCalls] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -144,10 +140,11 @@ export function Activity() {
   const [linkAction, setLinkAction] = useState({ message: "", rowKey: "", type: "" })
   const [pageVisible, setPageVisible] = useState(() => document.visibilityState !== "hidden")
   const accountsRef = useRef(accounts)
+  const launchesRef = useRef(launches)
   const mountedRef = useRef(false)
   const refreshingRef = useRef(false)
   const refreshQueuedRef = useRef(false)
-  const hiddenActivityRef = useRef(readHiddenActivity())
+  const hiddenActivityRef = useRef(readLocalHiddenActivity())
   const linkActionTimerRef = useRef(null)
 
   useEffect(() => {
@@ -203,10 +200,34 @@ export function Activity() {
   }, [accounts])
 
   useEffect(() => {
+    launchesRef.current = launches
+  }, [launches])
+
+  const syncHistory = useCallback(async () => {
+    try {
+      if (userId) await migrateLocalActivityToCloud(userId)
+      const history = await loadActivityHistory(userId)
+      accountsRef.current = history.sources
+      launchesRef.current = history.launches
+      hiddenActivityRef.current = history.hidden
+      setAccounts(history.sources)
+      setLaunches(history.launches)
+      setCalls((current) => current.filter((call) => !history.hidden.has(callRowKey(call))))
+    } catch {
+      const localSources = readLocalActivitySources()
+      const localLaunches = readLocalActivityLaunches()
+      const localHidden = readLocalHiddenActivity()
+      accountsRef.current = localSources
+      launchesRef.current = localLaunches
+      hiddenActivityRef.current = localHidden
+      setAccounts(localSources)
+      setLaunches(localLaunches)
+    }
+  }, [userId])
+
+  useEffect(() => {
     const syncBrowserState = () => {
-      setAccounts(readAccounts())
-      hiddenActivityRef.current = readHiddenActivity()
-      setCalls((current) => current.filter((call) => !hiddenActivityRef.current.has(callRowKey(call))))
+      void syncHistory()
     }
     window.addEventListener("focus", syncBrowserState)
     window.addEventListener("storage", syncBrowserState)
@@ -214,7 +235,14 @@ export function Activity() {
       window.removeEventListener("focus", syncBrowserState)
       window.removeEventListener("storage", syncBrowserState)
     }
-  }, [])
+  }, [syncHistory])
+
+  useEffect(() => {
+    void syncHistory()
+    return subscribeToActivityHistory(userId, () => {
+      void syncHistory()
+    })
+  }, [syncHistory, userId])
 
   const refresh = useCallback(async () => {
     if (refreshingRef.current) {
@@ -270,7 +298,7 @@ export function Activity() {
         ))
 
         const visibleRows = unique.filter((call) => !hiddenActivityRef.current.has(callRowKey(call)))
-        setCalls(enrichRecordedCallsWithLocalInput(visibleRows))
+        setCalls(enrichRecordedCallsWithHistory(visibleRows, launchesRef.current))
         setAllRequestsFailed(requests.length > 0 && failures.length === requests.length)
         setLastUpdatedAt(Date.now())
         if (failures.length) {
@@ -289,17 +317,26 @@ export function Activity() {
     hiddenActivityRef.current = nextHidden
 
     try {
-      localStorage.setItem(HIDDEN_ACTIVITY_KEY, JSON.stringify(Array.from(nextHidden).slice(-HIDDEN_ACTIVITY_LIMIT)))
+      localStorage.setItem("sentinel-hidden-activity", JSON.stringify(Array.from(nextHidden).slice(-HIDDEN_ACTIVITY_LIMIT)))
     } catch {
       // The record remains hidden for this visit when browser storage is unavailable.
     }
 
     setCalls((current) => current.filter((call) => callRowKey(call) !== rowKey))
-  }, [])
+    if (userId) {
+      void hideActivityRecord(userId, rowKey).catch(() => {
+        showLinkAction(rowKey, "error", "Removed here, but account sync needs another try.")
+      })
+    }
+  }, [showLinkAction, userId])
 
   useEffect(() => {
     void refresh()
-  }, [refresh])
+  }, [accounts, refresh])
+
+  useEffect(() => {
+    setCalls((current) => enrichRecordedCallsWithHistory(current, launches))
+  }, [launches])
 
   const running = calls.some((call) => ACTIVE_STATUSES.has(call.status))
 
@@ -506,7 +543,9 @@ export function Activity() {
 
                   <div className="activity-record__identity">
                     <div>
-                      <span className="activity-record__country">{country.toUpperCase()}</span>
+                      <span className="activity-record__country" title={country.toUpperCase()}>
+                        <LocaleFlag code={country} />
+                      </span>
                       <strong>{title}</strong>
                     </div>
                     <p className="activity-record__recipient">

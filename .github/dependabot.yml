@@ -1,35 +1,37 @@
-# Patch-only dependency updates. Inactive repos stay silent; minor/major upgrades are ignored.
 version: 2
+
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 1
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Helsinki"
+    versioning-strategy: "increase"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps"
     groups:
-      npm-patch:
+      routine-updates:
+        applies-to: "version-updates"
         patterns:
           - "*"
         update-types:
+          - "minor"
           - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types:
-          - "version-update:semver-major"
-          - "version-update:semver-minor"
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 1
-    groups:
-      actions-patch:
-        patterns:
-          - "*"
-        update-types:
-          - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types:
-          - "version-update:semver-major"
-          - "version-update:semver-minor"
+      interval: "weekly"
+      day: "monday"
+      time: "06:15"
+      timezone: "Europe/Helsinki"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"

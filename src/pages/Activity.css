@@ -300,8 +300,35 @@
   font-size: 0.67rem;
 }
 
-.activity-record__recipient span:last-child {
+.activity-record__recipient-phone {
   color: var(--muted-dark);
+}
+
+.activity-record__save-contact {
+  display: inline-flex;
+  min-height: 1.25rem;
+  align-items: center;
+  gap: 0.25rem;
+  border: 0;
+  border-radius: 0.3rem;
+  background: transparent;
+  padding: 0 0.22rem;
+  color: var(--muted-dark);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.6rem;
+  font-weight: 650;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out), opacity 150ms var(--ease-out);
+}
+
+.activity-record__save-contact:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.activity-record__save-contact:focus-visible {
+  outline: 2px solid rgba(255, 78, 45, 0.7);
+  outline-offset: 2px;
 }
 
 .activity-record__time {
@@ -394,7 +421,8 @@
   }
 
   .activity-record__details:hover,
-  .activity-record__remove:hover {
+  .activity-record__remove:hover,
+  .activity-record__save-contact:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.055);
     color: var(--text);
   }
@@ -539,6 +567,7 @@
   .activity-record__share,
   .activity-record__details,
   .activity-record__remove,
+  .activity-record__save-contact,
   .activity-filter {
     animation: none;
     transition: none;

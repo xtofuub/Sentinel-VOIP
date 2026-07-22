@@ -3,7 +3,7 @@ import { CircleAlert, LoaderCircle, X } from "@/components/icons"
 import { GoogleMark } from "@/components/GoogleMark"
 import { useAuth } from "@/state/AuthContext"
 
-export function AuthPromptDialog({ open, onClose, reason = "call" }) {
+export function AuthPromptDialog({ open, onClose, reason = "call", nextPath = "/new" }) {
   const { configured, loading, signInWithGoogle } = useAuth()
   const dialogRef = useRef(null)
   const signInButtonRef = useRef(null)
@@ -57,7 +57,7 @@ export function AuthPromptDialog({ open, onClose, reason = "call" }) {
     setSigningIn(true)
     setError("")
     try {
-      await signInWithGoogle("/new")
+      await signInWithGoogle(nextPath)
     } catch (signInError) {
       setError(signInError?.message || "Google sign-in could not be started.")
       setSigningIn(false)

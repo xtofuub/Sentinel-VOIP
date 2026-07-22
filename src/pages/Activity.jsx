@@ -4,14 +4,17 @@ import {
   Check,
   CircleAlert,
   Headphones,
+  LoaderCircle,
   RefreshCw,
   Search,
   Share2,
   Trash2,
+  UserRoundCheck,
   Waves,
 } from "@/components/icons"
 import { Link, useNavigate } from "react-router-dom"
 import { AudioPlayer } from "@/components/AudioPlayer"
+import { AuthPromptDialog } from "@/components/AuthPromptDialog"
 import { LocaleFlag } from "@/components/LocaleFlag"
 import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
 import { useCatalog } from "@/hooks/useCatalog"
@@ -27,6 +30,7 @@ import {
   subscribeToActivityHistory,
 } from "@/services/activityHistory"
 import { useAuth } from "@/state/AuthContext"
+import { isValidContactPhone, rememberContact } from "@/services/contacts"
 import "./Activity.css"
 
 const ACTIVE_STATUSES = new Set(["pending", "queued", "running"])
@@ -138,6 +142,8 @@ export function Activity() {
   const [filter, setFilter] = useState("all")
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
   const [linkAction, setLinkAction] = useState({ message: "", rowKey: "", type: "" })
+  const [savingContactKey, setSavingContactKey] = useState("")
+  const [authPromptOpen, setAuthPromptOpen] = useState(false)
   const [pageVisible, setPageVisible] = useState(() => document.visibilityState !== "hidden")
   const accountsRef = useRef(accounts)
   const launchesRef = useRef(launches)
@@ -194,6 +200,30 @@ export function Activity() {
       await copyRecordingLink(rowKey, sourceUrl)
     }
   }, [copyRecordingLink, showLinkAction])
+
+  const saveCallContact = useCallback(async (rowKey, call) => {
+    if (!userId) {
+      setAuthPromptOpen(true)
+      return
+    }
+
+    const name = call.targetName?.trim()
+    const phoneNumber = call.targetPhone?.trim()
+    if (!name || !isValidContactPhone(phoneNumber)) {
+      showLinkAction(rowKey, "error", "This call does not have a complete name and phone number.")
+      return
+    }
+
+    setSavingContactKey(rowKey)
+    try {
+      await rememberContact({ userId, name, phoneNumber })
+      showLinkAction(rowKey, "contact", `${name} saved to Contacts.`)
+    } catch (contactError) {
+      showLinkAction(rowKey, "error", contactError?.message || "Contact could not be saved.")
+    } finally {
+      setSavingContactKey("")
+    }
+  }, [showLinkAction, userId])
 
   useEffect(() => {
     accountsRef.current = accounts
@@ -536,6 +566,9 @@ export function Activity() {
               const sourceUrl = getRecordingSourceUrl(call)
               const shareComplete = linkAction.rowKey === rowKey && ["copy", "share"].includes(linkAction.type)
               const shareLabel = linkAction.type === "copy" ? "Copied" : "Shared"
+              const canSaveContact = Boolean(call.targetName?.trim() && isValidContactPhone(call.targetPhone))
+              const contactSaved = linkAction.rowKey === rowKey && linkAction.type === "contact"
+              const savingContact = savingContactKey === rowKey
 
               return (
                 <article className="activity-record" key={rowKey}>
@@ -550,7 +583,25 @@ export function Activity() {
                     </div>
                     <p className="activity-record__recipient">
                       <span>{call.targetName || "Unknown recipient"}</span>
-                      <span>{call.targetPhone || "No phone stored"}</span>
+                      <span className="activity-record__recipient-phone">{call.targetPhone || "No phone stored"}</span>
+                      {canSaveContact && (
+                        <button
+                          className="activity-record__save-contact"
+                          type="button"
+                          disabled={savingContact}
+                          onClick={() => void saveCallContact(rowKey, call)}
+                          aria-label={`Save ${call.targetName} to Contacts`}
+                        >
+                          {savingContact ? (
+                            <LoaderCircle className="spin" size={13} aria-hidden="true" />
+                          ) : contactSaved ? (
+                            <Check size={13} aria-hidden="true" />
+                          ) : (
+                            <UserRoundCheck size={13} aria-hidden="true" />
+                          )}
+                          {savingContact ? "Saving" : contactSaved ? "Saved" : "Save contact"}
+                        </button>
+                      )}
                     </p>
                     <time className="activity-record__time" dateTime={timestamp.iso} title={timestamp.exact}>
                       {timestamp.label}
@@ -609,6 +660,12 @@ export function Activity() {
           </div>
         )}
       </section>
+      <AuthPromptDialog
+        open={authPromptOpen}
+        reason="contacts"
+        nextPath="/activity"
+        onClose={() => setAuthPromptOpen(false)}
+      />
     </main>
   )
 }

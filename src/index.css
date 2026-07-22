@@ -1624,6 +1624,170 @@ pre {
   color: #ff8975;
 }
 
+.schedule-details {
+  border-bottom: 1px solid var(--line);
+  padding: 1.15rem 1.25rem 1.25rem;
+}
+
+.schedule-details__header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.9rem;
+}
+
+.schedule-details__header > div:last-child {
+  min-width: 0;
+}
+
+.schedule-details__header p,
+.schedule-details__header h3 {
+  margin: 0;
+}
+
+.schedule-details__header p,
+.schedule-picker label > span {
+  color: var(--muted-dark);
+  font-size: 0.64rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.schedule-details__header h3 {
+  margin-top: 0.2rem;
+  color: white;
+  font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.schedule-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 0.68rem;
+  background: rgba(0, 0, 0, 0.28);
+  padding: 0.3rem;
+}
+
+.schedule-mode button {
+  display: inline-flex;
+  min-height: 2.7rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 0.48rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 640;
+  transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out), transform 120ms var(--ease-out);
+}
+
+.schedule-mode button[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.075);
+  color: white;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+.schedule-mode button[aria-pressed="true"] svg {
+  color: var(--accent-soft);
+}
+
+.schedule-mode button:active,
+.schedule-presets button:active {
+  transform: scale(0.98);
+}
+
+.schedule-mode button:disabled,
+.schedule-presets button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.schedule-picker {
+  display: grid;
+  gap: 0.7rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  animation: notice-in 180ms var(--ease-out) both;
+}
+
+.schedule-picker label {
+  display: grid;
+  gap: 0.48rem;
+}
+
+.schedule-picker input {
+  width: 100%;
+  min-height: 3rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  outline: 0;
+  background: rgba(0, 0, 0, 0.26);
+  padding: 0 0.8rem;
+  color: white;
+  color-scheme: dark;
+  font: inherit;
+  font-size: 0.78rem;
+  transition: border-color 160ms var(--ease-out), background-color 160ms var(--ease-out);
+}
+
+.schedule-picker input:focus {
+  border-color: rgba(255, 69, 0, 0.72);
+  background: rgba(255, 69, 0, 0.035);
+}
+
+.schedule-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.schedule-presets button {
+  min-height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 0 0.68rem;
+  color: #aaa3a0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.61rem;
+  font-weight: 620;
+  transition: border-color 160ms var(--ease-out), background-color 160ms var(--ease-out), color 160ms var(--ease-out), transform 120ms var(--ease-out);
+}
+
+.schedule-picker > p,
+.schedule-details__now {
+  margin: 0.7rem 0 0;
+  color: var(--muted-dark);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.schedule-picker > p {
+  margin-top: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .schedule-mode button:not([aria-pressed="true"]):hover,
+  .schedule-presets button:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+  }
+
+  .schedule-presets button:hover {
+    border-color: rgba(255, 69, 0, 0.3);
+  }
+}
+
 .technical-details {
   border: 0;
   border-top: 1px solid var(--line);

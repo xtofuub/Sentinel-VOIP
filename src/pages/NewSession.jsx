@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowUpRight,
+  CalendarClock,
   Check,
   CheckCircle2,
   CircleAlert,
+  Clock3,
   LoaderCircle,
   Pause,
   PhoneCall,
@@ -23,31 +25,32 @@ import { ScenarioThumbnail } from "@/components/ScenarioThumbnail"
 import { useCatalog } from "@/hooks/useCatalog"
 import { useApp } from "@/state/AppContext"
 import { useAuth } from "@/state/AuthContext"
-import {
-  bootstrapNewSession,
-  formatKoErrorMessage,
-  generateTaskId,
-  launchPrank,
-  pushRecordingTargetMemory,
-} from "@/services/api"
+import { createCallSession, dispatchCallSession } from "@/services/callSessions"
 import { isValidContactPhone, normalizeContactPhone, rememberContact } from "@/services/contacts"
-import { saveActivityLaunch } from "@/services/activityHistory"
-
-const formatTaskTimestamp = (date = new Date()) => {
-  const pad = (value) => String(value).padStart(2, "0")
-  return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-}
-
-const readActiveAccounts = () => {
-  try {
-    const value = JSON.parse(localStorage.getItem("activeAccounts") || "[]")
-    return Array.isArray(value) ? value : []
-  } catch {
-    return []
-  }
-}
 
 const sessionDraftKey = "sentinel-session-draft"
+
+const toDateTimeInputValue = (date) => {
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return offsetDate.toISOString().slice(0, 16)
+}
+
+const scheduleMin = () => toDateTimeInputValue(new Date(Date.now() + 2 * 60_000))
+const scheduleMax = () => toDateTimeInputValue(new Date(Date.now() + 30 * 24 * 60 * 60_000))
+const scheduleTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Local time"
+
+const formatScheduledTime = (value) => new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+}).format(new Date(value))
+
+const formatSessionError = (error) => {
+  const message = String(error?.message || "").trim()
+  if (/No call credits remaining/i.test(message)) return "You have no call credits remaining."
+  if (/Scheduled time/i.test(message)) return "Choose a time within the next 30 days."
+  if (/Authentication required|JWT/i.test(message)) return "Your session expired. Sign in again and retry."
+  return message || "The call could not be queued."
+}
 
 const readSessionDraft = () => {
   try {
@@ -64,7 +67,7 @@ const readSessionDraft = () => {
 export function NewSession() {
   const { loading, error, locales, scenarios } = useCatalog()
   const { selectedScenario, setSelectedScenario } = useApp()
-  const { isSuspended, user } = useAuth()
+  const { isSuspended, refreshProfile, user } = useAuth()
   const navigate = useNavigate()
   const audioRef = useRef(null)
   const [draft] = useState(() => readSessionDraft())
@@ -75,6 +78,8 @@ export function NewSession() {
   const [recipientName, setRecipientName] = useState(draft.recipientName)
   const [phoneNumber, setPhoneNumber] = useState(draft.phoneNumber)
   const [phoneTouched, setPhoneTouched] = useState(false)
+  const [timingMode, setTimingMode] = useState("now")
+  const [scheduledFor, setScheduledFor] = useState("")
   const [authPromptOpen, setAuthPromptOpen] = useState(false)
   const [authPromptReason, setAuthPromptReason] = useState("call")
   const [contactsOpen, setContactsOpen] = useState(false)
@@ -144,6 +149,20 @@ export function NewSession() {
     })
   }
 
+  const chooseTimingMode = (mode) => {
+    setTimingMode(mode)
+    setNotice(null)
+    if (mode === "scheduled" && !scheduledFor) {
+      setScheduledFor(toDateTimeInputValue(new Date(Date.now() + 15 * 60_000)))
+    }
+  }
+
+  const chooseDelay = (minutes) => {
+    setTimingMode("scheduled")
+    setScheduledFor(toDateTimeInputValue(new Date(Date.now() + minutes * 60_000)))
+    setNotice(null)
+  }
+
   const submit = async (event) => {
     event.preventDefault()
     const cleanName = recipientName.trim()
@@ -156,6 +175,20 @@ export function NewSession() {
         type: "error",
         text: "Use a full international number with country code, such as +14155550123.",
       })
+      return
+    }
+
+    const scheduledDate = timingMode === "scheduled" ? new Date(scheduledFor) : new Date()
+    if (Number.isNaN(scheduledDate.getTime())) {
+      setNotice({ type: "error", text: "Choose a valid date and time." })
+      return
+    }
+    if (timingMode === "scheduled" && scheduledDate.getTime() < Date.now() + 60_000) {
+      setNotice({ type: "error", text: "Scheduled calls need at least one minute of lead time." })
+      return
+    }
+    if (scheduledDate.getTime() > Date.now() + 30 * 24 * 60 * 60_000) {
+      setNotice({ type: "error", text: "Calls can be scheduled up to 30 days ahead." })
       return
     }
 
@@ -178,62 +211,30 @@ export function NewSession() {
     stopPreview()
     setSubmitting(true)
     setNotice(null)
-    const taskId = generateTaskId()
+    const requestId = crypto.randomUUID()
 
     try {
-      setStage("Preparing your call")
-      const { did, mongoUid } = await bootstrapNewSession(selectedScenario.countryCode)
-      const taskTimestamp = formatTaskTimestamp()
-
-      setStage("Placing the call")
-      await launchPrank({
-        _id: taskId,
-        c: selectedScenario.countryCode,
-        dial: selectedScenario._id,
-        dst: cleanPhone,
-        f: taskTimestamp,
-        nombre: cleanName,
-        real_f: taskTimestamp,
-        titulo: selectedScenario.titulo,
-        uid: did,
+      setStage(timingMode === "scheduled" ? "Saving schedule" : "Queuing call")
+      const session = await createCallSession({
+        requestId,
+        scenarioId: selectedScenario._id,
+        scenarioTitle: selectedScenario.titulo,
+        localeCode: selectedScenario.countryCode,
+        recipientName: cleanName,
+        recipientPhone: cleanPhone,
+        scheduledFor: scheduledDate.toISOString(),
       })
 
-      let historySaved = true
       let contactSaved = true
+      let dispatchDelayed = false
 
-      try {
-        pushRecordingTargetMemory({
-          uid: did,
-          dial: selectedScenario._id,
-          targetName: cleanName,
-          targetPhone: cleanPhone,
-          taskId,
-        })
-
-        const activeAccounts = readActiveAccounts()
-        const nextAccounts = [
-          { did, uid: mongoUid, country: selectedScenario.countryCode, at: Date.now() },
-          ...activeAccounts.filter((entry) => (entry?.did || entry?.uid) !== did),
-        ]
-        localStorage.setItem("activeAccounts", JSON.stringify(nextAccounts.slice(0, 30)))
-      } catch {
-        historySaved = false
-      }
-
-      try {
-        await saveActivityLaunch({
-          userId: user.id,
-          did,
-          upstreamUid: mongoUid,
-          countryCode: selectedScenario.countryCode,
-          taskId,
-          scenarioId: selectedScenario._id,
-          scenarioTitle: selectedScenario.titulo,
-          recipientName: cleanName,
-          recipientPhone: cleanPhone,
-        })
-      } catch {
-        historySaved = false
+      if (timingMode === "now") {
+        setStage("Connecting call")
+        try {
+          await dispatchCallSession(session.id)
+        } catch {
+          dispatchDelayed = true
+        }
       }
 
       try {
@@ -248,16 +249,22 @@ export function NewSession() {
 
       setNotice({
         type: "success",
-        text: !historySaved
-          ? `Call ${taskId.slice(0, 8)} was queued, but Activity sync needs another try.`
-          : !contactSaved
-            ? `Call ${taskId.slice(0, 8)} was queued, but the recipient could not be saved to Contacts.`
-            : `Call ${taskId.slice(0, 8)} was queued. Recipient saved to Contacts.`,
+        title: timingMode === "scheduled" ? "Call scheduled" : "Call queued",
+        text: timingMode === "scheduled"
+          ? `${formatScheduledTime(scheduledDate)}${contactSaved ? ". Recipient saved to Contacts." : "."}`
+          : dispatchDelayed
+            ? "Saved safely. The dispatcher will retry within a minute."
+            : contactSaved
+              ? "Connecting now. Recipient saved to Contacts."
+              : "Connecting now. The recipient could not be saved to Contacts.",
       })
+      void refreshProfile()
       setStage("")
       setRecipientName("")
       setPhoneNumber("")
       setPhoneTouched(false)
+      setTimingMode("now")
+      setScheduledFor("")
       try {
         sessionStorage.removeItem(sessionDraftKey)
       } catch {
@@ -266,7 +273,7 @@ export function NewSession() {
     } catch (requestError) {
       setNotice({
         type: "error",
-        text: formatKoErrorMessage(requestError) || "The call could not be placed.",
+        text: formatSessionError(requestError),
       })
       setStage("")
     } finally {
@@ -274,7 +281,10 @@ export function NewSession() {
     }
   }
 
-  const formIsIncomplete = !selectedScenario || !recipientName.trim() || !phoneNumber.trim()
+  const formIsIncomplete = !selectedScenario
+    || !recipientName.trim()
+    || !phoneNumber.trim()
+    || (timingMode === "scheduled" && !scheduledFor)
 
   const openContacts = () => {
     if (!user) {
@@ -522,6 +532,66 @@ export function NewSession() {
             </div>
           </section>
 
+          <section className="schedule-details" aria-labelledby="schedule-details-title">
+            <header className="schedule-details__header">
+              <span className="recipient-details__icon" aria-hidden="true"><CalendarClock size={17} /></span>
+              <div>
+                <p>Timing</p>
+                <h3 id="schedule-details-title">When should Sentinel call?</h3>
+              </div>
+            </header>
+
+            <div className="schedule-mode" role="group" aria-label="Call timing">
+              <button
+                type="button"
+                aria-pressed={timingMode === "now"}
+                onClick={() => chooseTimingMode("now")}
+                disabled={submitting}
+              >
+                <PhoneOutgoing size={15} aria-hidden="true" />
+                Call now
+              </button>
+              <button
+                type="button"
+                aria-pressed={timingMode === "scheduled"}
+                onClick={() => chooseTimingMode("scheduled")}
+                disabled={submitting}
+              >
+                <Clock3 size={15} aria-hidden="true" />
+                Schedule
+              </button>
+            </div>
+
+            {timingMode === "scheduled" ? (
+              <div className="schedule-picker">
+                <label htmlFor="session-scheduled-for">
+                  <span>Date and time</span>
+                  <input
+                    id="session-scheduled-for"
+                    type="datetime-local"
+                    value={scheduledFor}
+                    min={scheduleMin()}
+                    max={scheduleMax()}
+                    step="60"
+                    onChange={(event) => {
+                      setScheduledFor(event.target.value)
+                      setNotice(null)
+                    }}
+                    disabled={submitting}
+                  />
+                </label>
+                <div className="schedule-presets" aria-label="Quick schedule options">
+                  <button type="button" onClick={() => chooseDelay(15)} disabled={submitting}>In 15 min</button>
+                  <button type="button" onClick={() => chooseDelay(60)} disabled={submitting}>In 1 hour</button>
+                  <button type="button" onClick={() => chooseDelay(24 * 60)} disabled={submitting}>Tomorrow</button>
+                </div>
+                <p>Shown in {scheduleTimeZone}. The call fires from Supabase even if this page is closed.</p>
+              </div>
+            ) : (
+              <p className="schedule-details__now">The call enters the queue as soon as you confirm.</p>
+            )}
+          </section>
+
           {selectedScenario && (
             <details className="technical-details">
               <summary>Scenario details</summary>
@@ -547,7 +617,7 @@ export function NewSession() {
             ) : notice?.type === "success" ? (
               <div className="launch-status__message is-success" role="status">
                 <CheckCircle2 size={18} aria-hidden="true" />
-                <div><strong>Call queued</strong><p>{notice.text}</p></div>
+                <div><strong>{notice.title || "Call queued"}</strong><p>{notice.text}</p></div>
                 <button className="button button--quiet button--compact" type="button" onClick={() => navigate("/activity")}>
                   Activity <ArrowUpRight size={15} aria-hidden="true" />
                 </button>
@@ -555,12 +625,12 @@ export function NewSession() {
             ) : notice?.type === "error" ? (
               <div className="launch-status__message is-error" role="alert">
                 <CircleAlert size={18} aria-hidden="true" />
-                <div><strong>Call not placed</strong><p>{notice.text}</p></div>
+                <div><strong>Call not queued</strong><p>{notice.text}</p></div>
               </div>
             ) : (
               <div className="launch-status__placeholder">
                 <span aria-hidden="true"><PhoneOutgoing size={24} /></span>
-                <p>Complete the three inputs to enable launch.</p>
+                <p>Choose a scenario and recipient to continue.</p>
               </div>
             )}
           </div>
@@ -570,7 +640,7 @@ export function NewSession() {
             type="submit"
             disabled={formIsIncomplete || submitting}
           >
-            {submitting ? stage : "Place call"}
+            {submitting ? stage : timingMode === "scheduled" ? "Schedule call" : "Place call"}
             {!submitting && <PhoneOutgoing size={17} aria-hidden="true" />}
           </button>
         </form>

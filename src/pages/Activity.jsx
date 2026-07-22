@@ -579,41 +579,35 @@ export function Activity() {
                   <ScenarioThumbnail src={thumbnail} title={title} size="medium" />
 
                   <div className="activity-record__identity">
-                    <div className="activity-record__heading">
-                      <span className="activity-record__country" title={country.toUpperCase()}>
-                        <LocaleFlag code={country} />
-                      </span>
-                      <strong>{title}</strong>
+                    <span className="activity-record__country" title={country.toUpperCase()}>
+                      <LocaleFlag code={country} />
+                    </span>
+                    <strong className="activity-record__title">{title}</strong>
+                    <div className="activity-record__recipient">
+                      <span className="activity-record__recipient-name">{call.targetName || "Unknown recipient"}</span>
+                      <span className="activity-record__recipient-phone">{call.targetPhone || "No phone stored"}</span>
                     </div>
-                    <div className="activity-record__body">
-                      <div className="activity-record__recipient">
-                        <div className="activity-record__recipient-copy">
-                          <span className="activity-record__recipient-name">{call.targetName || "Unknown recipient"}</span>
-                          <span className="activity-record__recipient-phone">{call.targetPhone || "No phone stored"}</span>
-                        </div>
-                        {canSaveContact && (
-                          <button
-                            className={`activity-record__save-contact${contactSaved ? " is-saved" : ""}`}
-                            type="button"
-                            disabled={savingContact}
-                            onClick={() => void saveCallContact(rowKey, call)}
-                            aria-label={`${contactSaved ? "Saved" : "Save"} ${call.targetName} ${contactSaved ? "in" : "to"} Contacts`}
-                            title={savingContact ? "Saving contact" : contactSaved ? "Saved to Contacts" : "Save to Contacts"}
-                          >
-                            {savingContact ? (
-                              <LoaderCircle className="spin" size={14} aria-hidden="true" />
-                            ) : contactSaved ? (
-                              <UserRoundCheck size={14} aria-hidden="true" />
-                            ) : (
-                              <UserPlus size={14} aria-hidden="true" />
-                            )}
-                          </button>
+                    {canSaveContact && (
+                      <button
+                        className={`activity-record__save-contact${contactSaved ? " is-saved" : ""}`}
+                        type="button"
+                        disabled={savingContact}
+                        onClick={() => void saveCallContact(rowKey, call)}
+                        aria-label={`${contactSaved ? "Saved" : "Save"} ${call.targetName} ${contactSaved ? "in" : "to"} Contacts`}
+                        title={savingContact ? "Saving contact" : contactSaved ? "Saved to Contacts" : "Save to Contacts"}
+                      >
+                        {savingContact ? (
+                          <LoaderCircle className="spin" size={14} aria-hidden="true" />
+                        ) : contactSaved ? (
+                          <UserRoundCheck size={14} aria-hidden="true" />
+                        ) : (
+                          <UserPlus size={14} aria-hidden="true" />
                         )}
-                      </div>
-                      <time className="activity-record__time" dateTime={timestamp.iso} title={timestamp.exact}>
-                        {timestamp.label}
-                      </time>
-                    </div>
+                      </button>
+                    )}
+                    <time className="activity-record__time" dateTime={timestamp.iso} title={timestamp.exact}>
+                      {timestamp.label}
+                    </time>
                   </div>
 
                   <div className="activity-record__recording">

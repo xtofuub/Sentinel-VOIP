@@ -273,30 +273,28 @@
 }
 
 .activity-record__identity {
+  display: grid;
   min-width: 0;
-}
-
-.activity-record__heading {
-  display: flex;
-  min-width: 0;
+  grid-template-columns: 1.75rem minmax(0, 1fr) 1.75rem;
+  grid-template-areas:
+    "flag title title"
+    ". recipient contact"
+    ". time time";
   align-items: center;
-  gap: var(--activity-space-xs);
-}
-
-.activity-record__body {
-  display: block;
-  min-width: 0;
-  padding-left: calc(1.75rem + var(--activity-space-xs));
+  column-gap: var(--activity-space-xs);
+  row-gap: 0.25rem;
 }
 
 .activity-record .activity-record__country {
+  grid-area: flag;
   width: 1.75rem;
   height: 1.2rem;
   border-color: rgba(255, 255, 255, 0.14);
   box-shadow: none;
 }
 
-.activity-record__identity strong {
+.activity-record__title {
+  grid-area: title;
   overflow: hidden;
   font-size: 0.8rem;
   font-weight: 670;
@@ -308,19 +306,12 @@
 .activity-record__recipient {
   display: flex;
   min-width: 0;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.42rem;
-}
-
-.activity-record__recipient-copy {
-  display: flex;
-  min-width: 0;
-  flex: 1;
+  grid-area: recipient;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.18rem 0.55rem;
+  align-items: center;
+  gap: 0.125rem var(--activity-space-xs);
   font-size: 0.66rem;
+  line-height: 1.35;
 }
 
 .activity-record__recipient .activity-record__recipient-name {
@@ -336,9 +327,11 @@
 
 .activity-record__save-contact {
   display: grid;
-  width: 1.6rem;
-  height: 1.6rem;
-  flex: 0 0 1.6rem;
+  position: relative;
+  width: 1.75rem;
+  height: 1.75rem;
+  grid-area: contact;
+  place-self: center;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.09);
@@ -348,6 +341,13 @@
   color: var(--muted-dark);
   cursor: pointer;
   transition: transform 120ms var(--ease-out), background-color 150ms var(--ease-out), border-color 150ms var(--ease-out), color 150ms var(--ease-out), opacity 150ms var(--ease-out);
+}
+
+.activity-record__save-contact::after {
+  position: absolute;
+  width: 2.75rem;
+  height: 2.75rem;
+  content: "";
 }
 
 .activity-record__save-contact.is-saved {
@@ -372,7 +372,7 @@
 
 .activity-record__time {
   display: block;
-  margin-top: 0.32rem;
+  grid-area: time;
   color: var(--muted-dark);
   font-size: 0.6rem;
   line-height: 1.3;

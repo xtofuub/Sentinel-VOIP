@@ -1900,13 +1900,6 @@ pre {
   min-width: 0;
 }
 
-.activity-record__identity > div {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.55rem;
-}
-
 .activity-record__identity strong {
   overflow: hidden;
   font-size: 0.78rem;

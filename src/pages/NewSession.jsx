@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ArrowUpRight, CalendarClock, Check, CheckCircle2, CircleAlert, Clock3, LoaderCircle, Pause, PhoneCall, PhoneOutgoing, Play, Search, ShieldCheck, UserRound, UsersRound, Volume2 } from "@/components/icons"
+import { ArrowUpRight, CalendarClock, CalendarDays, Check, CheckCircle2, CircleAlert, Clock3, LoaderCircle, Pause, PhoneCall, PhoneOutgoing, Play, Search, ShieldCheck, UserRound, UsersRound, Volume2 } from "@/components/icons"
 import { useNavigate } from "react-router-dom"
 import { AuthPromptDialog } from "@/components/AuthPromptDialog"
 import { ContactsDialog } from "@/components/ContactsDialog"
@@ -25,8 +25,11 @@ const scheduleTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Lo
 
 const formatScheduledTime = (value) =>
   new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(value))
 
 const formatSessionError = (error) => {
@@ -515,9 +518,17 @@ export function NewSession() {
 
             {timingMode === "scheduled" ? (
               <div className="schedule-picker">
+                <div className={`schedule-picker__summary${scheduledFor ? " has-value" : ""}`} aria-live="polite">
+                  <span>Scheduled for</span>
+                  <strong>{scheduledFor ? formatScheduledTime(new Date(scheduledFor)) : "Choose a date and time"}</strong>
+                  <small>{scheduleTimeZone} · dispatches within one minute</small>
+                </div>
                 <div className="schedule-picker__fields">
                   <label htmlFor="session-scheduled-date">
-                    <span>Date</span>
+                    <span>
+                      <CalendarDays size={14} aria-hidden="true" />
+                      Date
+                    </span>
                     <input
                       id="session-scheduled-date"
                       type="date"
@@ -532,7 +543,10 @@ export function NewSession() {
                     />
                   </label>
                   <label htmlFor="session-scheduled-time">
-                    <span>Time</span>
+                    <span>
+                      <Clock3 size={14} aria-hidden="true" />
+                      Time
+                    </span>
                     <input
                       id="session-scheduled-time"
                       type="time"
@@ -546,11 +560,6 @@ export function NewSession() {
                     />
                   </label>
                 </div>
-                <div className="schedule-picker__summary" aria-live="polite">
-                  <Clock3 size={15} aria-hidden="true" />
-                  <span>{scheduledFor ? `Set for ${formatScheduledTime(new Date(scheduledFor))}` : "Choose the exact date and time"}</span>
-                </div>
-                <p>Times use {scheduleTimeZone}. Sentinel dispatches within one minute, even when this page is closed.</p>
               </div>
             ) : (
               <p className="schedule-details__now">The call enters the queue as soon as you confirm.</p>

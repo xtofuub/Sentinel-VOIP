@@ -380,6 +380,10 @@
   color: #817a77;
 }
 
+.call-history-record__when .is-completed {
+  color: #aaa3a0;
+}
+
 .call-history-record__when .is-queued {
   color: #d1aaa1;
 }

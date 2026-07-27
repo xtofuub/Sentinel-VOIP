@@ -433,11 +433,9 @@ export function Activity() {
   const displayCalls = useMemo(() => {
     const remoteTaskIds = new Set(calls.map((call) => String(call._id || "").toLowerCase()))
     const sessionRows = scheduledSessions
-      .filter((session) => session.status !== "completed")
       .map(callSessionToActivity)
       .filter((call) => (
-        call.status !== "running"
-        || !call.upstreamTaskId
+        !call.upstreamTaskId
         || !remoteTaskIds.has(String(call.upstreamTaskId).toLowerCase())
       ))
       .filter((call) => !hiddenActivity.has(callRowKey(call)))
@@ -676,6 +674,7 @@ export function Activity() {
                     const declined = callStatus === "declined"
                     const failed = callStatus === "failed"
                     const cancelled = callStatus === "cancelled"
+                    const completed = callStatus === "completed"
                     const ready = call.isPlayable && Boolean(sourceUrl)
                     const hasOverflowActions = Boolean(sourceUrl || canSaveContact || !scheduled)
 
@@ -709,6 +708,7 @@ export function Activity() {
                               {declined && <span className="is-declined"><i aria-hidden="true" />Declined</span>}
                               {failed && <span className="is-failed"><i aria-hidden="true" />Failed</span>}
                               {cancelled && <span className="is-cancelled"><i aria-hidden="true" />Cancelled</span>}
+                              {completed && <span className="is-completed"><i aria-hidden="true" />Ended</span>}
                               <time dateTime={timestamp.iso} title={timestamp.exact}>{timestamp.label}</time>
                             </div>
                           </header>
@@ -727,6 +727,8 @@ export function Activity() {
                                     ? call.failureReason || "The provider did not place this call"
                                     : cancelled
                                       ? "This call was cancelled"
+                                      : completed
+                                        ? "Recording has not returned yet"
                                       : queued
                                         ? "Waiting for the provider"
                                         : active

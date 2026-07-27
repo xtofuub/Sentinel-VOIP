@@ -21,3 +21,11 @@ allowBuilds:
   '@ibm/plex-sans-thai-looped': set this to true or false
   '@ibm/plex-serif': set this to true or false
   '@parcel/watcher': true
+auditConfig:
+  # Client-only SPA: React Router's vulnerable RSC action path is not used.
+  # Remove after a patched react-router-dom version is published.
+  ignoreGhsas:
+    - GHSA-qwww-vcr4-c8h2
+overrides:
+  brace-expansion: 5.0.8
+  postcss: 8.5.18

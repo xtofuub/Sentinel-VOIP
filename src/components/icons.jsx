@@ -22,6 +22,7 @@ import {
   Cog6ToothIcon,
   CommandLineIcon,
   DocumentTextIcon,
+  EllipsisVerticalIcon,
   ExclamationCircleIcon,
   GlobeAltIcon,
   InformationCircleIcon,
@@ -75,6 +76,7 @@ export const Coins = makeIcon(CircleStackIcon, "Coins")
 export const Copy = makeIcon(Square2StackIcon, "Copy")
 export const Download = makeIcon(ArrowDownTrayIcon, "Download")
 export const ExternalLink = makeIcon(ArrowTopRightOnSquareIcon, "ExternalLink")
+export const MoreVertical = makeIcon(EllipsisVerticalIcon, "MoreVertical")
 export const FileText = makeIcon(DocumentTextIcon, "FileText")
 export const Globe2 = makeIcon(GlobeAltIcon, "Globe2")
 export const Headphones = makeIcon(SpeakerWaveIcon, "Headphones")

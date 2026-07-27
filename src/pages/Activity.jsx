@@ -5,6 +5,7 @@ import {
   CircleAlert,
   Headphones,
   LoaderCircle,
+  MoreVertical,
   RefreshCw,
   Search,
   Share2,
@@ -485,9 +486,6 @@ export function Activity() {
     return { call, scenario, country }
   }), [displayCalls, catalogByDial, catalogByTitle])
 
-  const activeCount = displayCalls.filter((call) => ACTIVE_STATUSES.has(call.status)).length
-  const recordingCount = displayCalls.filter((call) => call.isPlayable).length
-  const issueCount = displayCalls.filter((call) => ISSUE_STATUSES.has(call.status)).length
   const pollIntervalSeconds = (running ? LIVE_POLL_INTERVAL : IDLE_POLL_INTERVAL) / 1000
   const syncLabel = !pageVisible
     ? "Updates paused"
@@ -517,12 +515,6 @@ export function Activity() {
     })
   }, [filter, query, resolvedCalls])
 
-  const filterCounts = {
-    all: displayCalls.length,
-    active: activeCount,
-    recordings: recordingCount,
-    issues: issueCount,
-  }
   const hasActivity = accounts.length > 0 || displayCalls.length > 0
 
   const groupedCalls = useMemo(() => {
@@ -597,7 +589,6 @@ export function Activity() {
                     onClick={() => setFilter(item.id)}
                   >
                     {item.label}
-                    {filterCounts[item.id] > 0 && <span>{filterCounts[item.id]}</span>}
                   </button>
                 ))}
               </div>
@@ -685,6 +676,8 @@ export function Activity() {
                     const declined = callStatus === "declined"
                     const failed = callStatus === "failed"
                     const cancelled = callStatus === "cancelled"
+                    const ready = call.isPlayable && Boolean(sourceUrl)
+                    const hasOverflowActions = Boolean(sourceUrl || canSaveContact || !scheduled)
 
                     return (
                       <article
@@ -692,24 +685,24 @@ export function Activity() {
                         data-status={callStatus || "unknown"}
                         key={rowKey}
                       >
-                        <ScenarioThumbnail src={thumbnail} title={title} size="medium" />
+                        <ScenarioThumbnail src={thumbnail} title={title} size="small" />
 
                         <div className="call-history-record__content">
                           <header className="call-history-record__header">
                             <div className="call-history-record__identity">
-                              <h3>{title}</h3>
+                              <h3>{call.targetName || call.targetPhone || "Unknown recipient"}</h3>
                               <div className="call-history-record__recipient">
                                 <span className="call-history-record__country" title={country.toUpperCase()}>
                                   <LocaleFlag code={country} />
                                 </span>
-                                <span className="call-history-record__recipient-copy">
-                                  <strong>{call.targetName || "Unknown recipient"}</strong>
-                                  <span dir="ltr">{call.targetPhone || "No phone stored"}</span>
-                                </span>
+                                <span dir="ltr">{call.targetPhone || "No phone stored"}</span>
+                                <span aria-hidden="true">·</span>
+                                <span className="call-history-record__scenario">{title}</span>
                               </div>
                             </div>
 
                             <div className="call-history-record__when">
+                              {ready && <span className="is-ready"><i aria-hidden="true" />Ready</span>}
                               {scheduled && <span className="is-scheduled"><i aria-hidden="true" />Scheduled</span>}
                               {queued && <span className="is-queued"><i aria-hidden="true" />Queued</span>}
                               {calling && <span className="is-calling"><i aria-hidden="true" />Calling</span>}
@@ -722,10 +715,6 @@ export function Activity() {
 
                           {call.isPlayable && sourceUrl ? (
                             <div className="call-history-record__recording is-playable">
-                              <div className="call-history-record__recording-label">
-                                <Headphones aria-hidden="true" size={15} strokeWidth={1.5} />
-                                <span>Reaction recording</span>
-                              </div>
                               <AudioPlayer src={sourceUrl} label={`recording for ${title}`} />
                             </div>
                           ) : (
@@ -750,7 +739,7 @@ export function Activity() {
                           <footer className="call-history-record__actions">
                             {!call.isScheduledSession && (
                               <Link className="call-history-record__details" to={detailPath} aria-label={`Open record for ${title}`}>
-                                Open record <ArrowUpRight size={14} aria-hidden="true" />
+                                View details <ArrowUpRight size={14} aria-hidden="true" />
                               </Link>
                             )}
                             {call.isScheduledSession && scheduled && (
@@ -764,45 +753,60 @@ export function Activity() {
                                 {cancellingSession ? "Cancelling" : "Cancel call"}
                               </button>
                             )}
-                            {sourceUrl && (
-                              <button
-                                className="call-history-record__share"
-                                type="button"
-                                onClick={() => void shareRecording(rowKey, call, title)}
-                                aria-label={`Share recording for ${title}`}
-                              >
-                                {shareComplete ? <Check size={15} aria-hidden="true" /> : <Share2 size={15} aria-hidden="true" />}
-                                {shareComplete ? shareLabel : "Share recording"}
-                              </button>
-                            )}
-                            {canSaveContact && (
-                              <button
-                                className={`call-history-record__save-contact${contactSaved ? " is-saved" : ""}`}
-                                type="button"
-                                disabled={savingContact}
-                                onClick={() => void saveCallContact(rowKey, call)}
-                                aria-label={`${contactSaved ? "Saved" : "Save"} ${call.targetName} ${contactSaved ? "in" : "to"} Contacts`}
-                              >
-                                {savingContact ? (
-                                  <LoaderCircle className="spin" size={14} aria-hidden="true" />
-                                ) : contactSaved ? (
-                                  <UserRoundCheck size={14} aria-hidden="true" />
-                                ) : (
-                                  <UserPlus size={14} aria-hidden="true" />
-                                )}
-                                {savingContact ? "Saving" : contactSaved ? "Saved" : "Save contact"}
-                              </button>
-                            )}
-                            {!scheduled && (
-                              <button
-                                className="call-history-record__remove"
-                                type="button"
-                                onClick={() => removeCall(rowKey)}
-                                aria-label={`Remove ${title} from call history`}
-                                title="Remove from call history"
-                              >
-                                <Trash2 aria-hidden="true" size={16} strokeWidth={1.5} />
-                              </button>
+                            {hasOverflowActions && (
+                              <details className="call-history-record__menu">
+                                <summary aria-label={`More actions for ${title}`} title="More actions">
+                                  <MoreVertical aria-hidden="true" size={18} />
+                                </summary>
+                                <div className="call-history-record__menu-popover">
+                                  {sourceUrl && (
+                                    <button
+                                      className="call-history-record__share"
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.currentTarget.closest("details")?.removeAttribute("open")
+                                        void shareRecording(rowKey, call, title)
+                                      }}
+                                    >
+                                      {shareComplete ? <Check size={15} aria-hidden="true" /> : <Share2 size={15} aria-hidden="true" />}
+                                      {shareComplete ? shareLabel : "Share recording"}
+                                    </button>
+                                  )}
+                                  {canSaveContact && (
+                                    <button
+                                      className={`call-history-record__save-contact${contactSaved ? " is-saved" : ""}`}
+                                      type="button"
+                                      disabled={savingContact}
+                                      onClick={(event) => {
+                                        event.currentTarget.closest("details")?.removeAttribute("open")
+                                        void saveCallContact(rowKey, call)
+                                      }}
+                                    >
+                                      {savingContact ? (
+                                        <LoaderCircle className="spin" size={14} aria-hidden="true" />
+                                      ) : contactSaved ? (
+                                        <UserRoundCheck size={14} aria-hidden="true" />
+                                      ) : (
+                                        <UserPlus size={14} aria-hidden="true" />
+                                      )}
+                                      {savingContact ? "Saving" : contactSaved ? "Saved to contacts" : "Save to contacts"}
+                                    </button>
+                                  )}
+                                  {!scheduled && (
+                                    <button
+                                      className="call-history-record__remove"
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.currentTarget.closest("details")?.removeAttribute("open")
+                                        removeCall(rowKey)
+                                      }}
+                                    >
+                                      <Trash2 aria-hidden="true" size={15} strokeWidth={1.5} />
+                                      Remove from history
+                                    </button>
+                                  )}
+                                </div>
+                              </details>
                             )}
                           </footer>
                         </div>

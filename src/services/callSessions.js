@@ -1,6 +1,22 @@
 import { supabase } from "@/lib/supabase"
+import { recordApiLog } from "@/services/api"
 
 const unwrapRow = (data) => (Array.isArray(data) ? data[0] : data)
+
+const readDispatchState = async (sessionId) => {
+  const { data } = await supabase
+    .from("call_sessions")
+    .select("status,failure_reason,attempt_count")
+    .eq("id", sessionId)
+    .maybeSingle()
+  return data
+}
+
+const dispatchError = (message, status) => {
+  const error = new Error(message)
+  error.dispatchStatus = status || "unknown"
+  return error
+}
 
 export async function createCallSession({ requestId, scenarioId, scenarioTitle, localeCode, recipientName, recipientPhone, scheduledFor, timeZone }) {
   if (!supabase) throw new Error("Supabase is not configured.")
@@ -22,16 +38,60 @@ export async function createCallSession({ requestId, scenarioId, scenarioTitle, 
 
 export async function dispatchCallSession(sessionId) {
   if (!supabase) throw new Error("Supabase is not configured.")
+  const startedAt = Date.now()
   const { data, error } = await supabase.functions.invoke("dispatch-calls", {
     body: { sessionId },
   })
-  if (error) throw error
+
+  if (error) {
+    const dispatchState = await readDispatchState(sessionId)
+    const status = Number(error?.context?.status) || 0
+    recordApiLog({
+      path: "dispatch-calls",
+      url: "/functions/v1/dispatch-calls",
+      request: { sessionId },
+      response: dispatchState ? { data, dispatchState } : data,
+      ok: false,
+      status,
+      durationMs: Date.now() - startedAt,
+      error: dispatchState?.failure_reason || error.message || "The dispatcher request failed.",
+    })
+    throw dispatchError(
+      dispatchState?.failure_reason || error.message || "The dispatcher request failed.",
+      dispatchState?.status,
+    )
+  }
+
   const result = data?.results?.find((item) => item?.id === sessionId)
+  const dispatched = data?.claimed === 1 && result?.status === "running"
+
+  let dispatchState = null
+  if (!dispatched) {
+    dispatchState = await readDispatchState(sessionId)
+  }
+
+  recordApiLog({
+    path: "dispatch-calls",
+    url: "/functions/v1/dispatch-calls",
+    request: { sessionId },
+    response: dispatchState ? { ...data, dispatchState } : data,
+    ok: dispatched,
+    status: dispatched ? 200 : 202,
+    durationMs: Date.now() - startedAt,
+    error: dispatched ? "" : dispatchState?.failure_reason || "The provider did not accept the call yet.",
+  })
+
   if (data?.claimed !== 1 || !result) {
-    throw new Error("The call was saved but could not be claimed for dispatch.")
+    throw dispatchError(
+      dispatchState?.failure_reason || "The call was saved but could not be claimed for dispatch.",
+      dispatchState?.status,
+    )
   }
   if (result.status !== "running") {
-    throw new Error("The call could not be sent to the provider. It will retry automatically.")
+    throw dispatchError(
+      dispatchState?.failure_reason || "The call could not be sent to the provider.",
+      dispatchState?.status || result.status,
+    )
   }
   return result
 }

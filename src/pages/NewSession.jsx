@@ -209,14 +209,14 @@ export function NewSession() {
       })
 
       let contactSaved = true
-      let dispatchDelayed = false
+      let dispatchIssue = null
 
       if (timingMode === "now") {
         setStage("Connecting call")
         try {
           await dispatchCallSession(session.id)
-        } catch {
-          dispatchDelayed = true
+        } catch (error) {
+          dispatchIssue = error
         }
       }
 
@@ -230,10 +230,22 @@ export function NewSession() {
         contactSaved = false
       }
 
+      if (dispatchIssue) {
+        const retryScheduled = dispatchIssue.dispatchStatus === "scheduled"
+        setNotice({
+          type: "error",
+          title: retryScheduled ? "Call not accepted" : "Call declined",
+          text: `${formatSessionError(dispatchIssue)}${retryScheduled ? " Automatic retry scheduled." : ""}`,
+        })
+        void refreshProfile()
+        setStage("")
+        return
+      }
+
       setNotice({
         type: "success",
         title: timingMode === "scheduled" ? "Call scheduled" : "Call queued",
-        text: timingMode === "scheduled" ? `${formatScheduledTime(scheduledDate)}${contactSaved ? ". Recipient saved to Contacts." : "."}` : dispatchDelayed ? "Saved safely. The dispatcher will retry within a minute." : contactSaved ? "Connecting now. Recipient saved to Contacts." : "Connecting now. The recipient could not be saved to Contacts.",
+        text: timingMode === "scheduled" ? `${formatScheduledTime(scheduledDate)}${contactSaved ? ". Recipient saved to Contacts." : "."}` : contactSaved ? "Connecting now. Recipient saved to Contacts." : "Connecting now. The recipient could not be saved to Contacts.",
       })
       void refreshProfile()
       setStage("")

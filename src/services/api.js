@@ -49,6 +49,20 @@ const appendApiLog = (entry) => {
     notifyApiLogSubscribers();
 };
 
+export const recordApiLog = (entry) => {
+    appendApiLog({
+        ts: entry.ts || getTimestamp(),
+        path: entry.path,
+        url: entry.url || entry.path,
+        request: redactRequestForLog(entry.request),
+        response: redactValueForLog(entry.response),
+        ok: Boolean(entry.ok),
+        status: Number(entry.status) || 0,
+        durationMs: Math.max(0, Number(entry.durationMs) || 0),
+        error: entry.error || "",
+    });
+};
+
 export const generateId = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);

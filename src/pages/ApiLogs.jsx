@@ -145,7 +145,7 @@ export function ApiLogs() {
             Every request.<br />
             <em>One clear trace.</em>
           </h1>
-          <p>Live request history for this browser session, with private recipient fields redacted.</p>
+          <p>Live browser and call-dispatch requests, with private recipient fields redacted.</p>
         </div>
         <div className="product-hero__meta" aria-label="Log retention">
           <span>Session memory</span>
@@ -161,7 +161,7 @@ export function ApiLogs() {
             <div>
               <p className="eyebrow">Live · session only</p>
               <h2 id="request-diagnostics-heading">API logs</h2>
-              <p>Requests disappear when this page reloads.</p>
+              <p>Requests disappear when this page reloads. Call launches appear as <code>dispatch-calls</code>.</p>
             </div>
           </div>
           <button

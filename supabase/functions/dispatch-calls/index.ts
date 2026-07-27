@@ -34,6 +34,7 @@ const json = (body: unknown, status = 200) =>
 const sleep = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
 class RetryableUpstreamError extends Error {}
+class PermanentUpstreamError extends Error {}
 
 const tryParseJson = (value: string) => {
   try {
@@ -122,13 +123,16 @@ const postUpstream = async (path: string, payload: Record<string, unknown>) => {
         ;(error as RetryableUpstreamError & { retryAfter?: number }).retryAfter = retryAfter
         throw error
       }
-      if (!response.ok) throw new Error(`Upstream ${response.status}: ${text.slice(0, 140)}`)
+      if (!response.ok) throw new PermanentUpstreamError(`Upstream ${response.status}: ${text.slice(0, 140)}`)
       const parsed = extractJson(text)
-      if (parsed?.res === "KO" || parsed?.res === "ko") throw new Error(getUpstreamError(parsed))
+      if (parsed?.res === "KO" || parsed?.res === "ko") throw new PermanentUpstreamError(getUpstreamError(parsed))
       return parsed
     } catch (error) {
       const retryable = error instanceof RetryableUpstreamError || error instanceof TypeError || (error instanceof DOMException && error.name === "TimeoutError")
-      if (!retryable || attempt === 4) throw error
+      if (!retryable) throw error
+      if (attempt === 4) {
+        throw new RetryableUpstreamError(error instanceof Error ? error.message : "Temporary upstream failure")
+      }
       const retryAfter = error instanceof RetryableUpstreamError ? (error as RetryableUpstreamError & { retryAfter?: number }).retryAfter : undefined
       await sleep(Number.isFinite(retryAfter) ? retryAfter * 1_000 : 500 * 2 ** (attempt - 1))
     }
@@ -303,7 +307,9 @@ Deno.serve(async (request) => {
       const message = error instanceof Error ? error.message : "Call dispatch failed"
       const attempt = Number(session.attempt_count || 1)
       const retryMinutes = [1, 5, 15][Math.min(Math.max(attempt - 1, 0), 2)]
-      const retryAt = attempt < 3 ? new Date(Date.now() + retryMinutes * 60_000).toISOString() : null
+      const retryAt = error instanceof RetryableUpstreamError && attempt < 3
+        ? new Date(Date.now() + retryMinutes * 60_000).toISOString()
+        : null
 
       await admin.rpc("mark_call_session_failed", {
         p_session_id: session.id,
@@ -315,7 +321,7 @@ Deno.serve(async (request) => {
         attempt,
         message,
       })
-      return { id: session.id, status: retryAt ? "retrying" : "failed" }
+      return { id: session.id, status: retryAt ? "retrying" : "failed", error: message }
     }
   }
 

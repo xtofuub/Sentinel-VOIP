@@ -323,7 +323,7 @@ const recordingRowKey = (uid, dial) => `${String(uid ?? '')}|${String(dial ?? ''
 
 /** Remember the name/phone you typed when starting a call (client-only; does not depend on API list fields). */
 export const pushRecordingTargetMemory = ({ uid, dial, targetName, targetPhone, taskId }) => {
-    let arr = [];
+    let arr;
     try {
         arr = JSON.parse(localStorage.getItem(RECORDING_TARGET_MEMORY_KEY) || '[]');
     } catch {
@@ -351,7 +351,7 @@ export const pushRecordingTargetMemory = ({ uid, dial, targetName, targetPhone, 
  * Both lists are newest-first; the i-th recording in that group gets the i-th remembered launch.
  */
 export const enrichRecordedCallsWithLocalInput = (calls) => {
-    let memory = [];
+    let memory;
     try {
         memory = JSON.parse(localStorage.getItem(RECORDING_TARGET_MEMORY_KEY) || '[]');
     } catch {

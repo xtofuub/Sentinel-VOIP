@@ -15,7 +15,7 @@ import {
   Waves,
   X,
 } from "@/components/icons"
-import { Link, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { AudioPlayer } from "@/components/AudioPlayer"
 import { AuthPromptDialog } from "@/components/AuthPromptDialog"
 import { LocaleFlag } from "@/components/LocaleFlag"
@@ -657,7 +657,6 @@ export function Activity() {
                     const rowKey = callRowKey(call)
                     const title = cleanActivityTitle(call.titulo || scenario?.titulo) || "Untitled scenario"
                     const thumbnail = call.pic || scenario?.image_url
-                    const detailPath = `/activity/${encodeURIComponent(call.accountDid || call.uid || "unknown")}/${encodeURIComponent(call._id)}`
                     const timestamp = formatTimestamp(call)
                     const sourceUrl = getRecordingSourceUrl(call)
                     const shareComplete = linkAction.rowKey === rowKey && ["copy", "share"].includes(linkAction.type)
@@ -689,14 +688,12 @@ export function Activity() {
                         <div className="call-history-record__content">
                           <header className="call-history-record__header">
                             <div className="call-history-record__identity">
-                              <h3>{call.targetName || call.targetPhone || "Unknown recipient"}</h3>
+                              <h3>{call.targetName || "Unknown recipient"}</h3>
                               <div className="call-history-record__recipient">
                                 <span className="call-history-record__country" title={country.toUpperCase()}>
                                   <LocaleFlag code={country} />
                                 </span>
                                 <span dir="ltr">{call.targetPhone || "No phone stored"}</span>
-                                <span aria-hidden="true">·</span>
-                                <span className="call-history-record__scenario">{title}</span>
                               </div>
                             </div>
 
@@ -712,6 +709,12 @@ export function Activity() {
                               <time dateTime={timestamp.iso} title={timestamp.exact}>{timestamp.label}</time>
                             </div>
                           </header>
+
+                          <div className="call-history-record__scenario">
+                            <Waves size={14} strokeWidth={1.5} aria-hidden="true" />
+                            <span>Scenario</span>
+                            <strong>{title}</strong>
+                          </div>
 
                           {call.isPlayable && sourceUrl ? (
                             <div className="call-history-record__recording is-playable">
@@ -738,12 +741,8 @@ export function Activity() {
                             </div>
                           )}
 
-                          <footer className="call-history-record__actions">
-                            {!call.isScheduledSession && (
-                              <Link className="call-history-record__details" to={detailPath} aria-label={`Open record for ${title}`}>
-                                View details <ArrowUpRight size={14} aria-hidden="true" />
-                              </Link>
-                            )}
+                          {(call.isScheduledSession && scheduled || hasOverflowActions) && (
+                            <footer className="call-history-record__actions">
                             {call.isScheduledSession && scheduled && (
                               <button
                                 className="call-history-record__cancel"
@@ -810,7 +809,8 @@ export function Activity() {
                                 </div>
                               </details>
                             )}
-                          </footer>
+                            </footer>
+                          )}
                         </div>
                       </article>
                     )

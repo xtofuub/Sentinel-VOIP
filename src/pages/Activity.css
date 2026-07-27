@@ -147,7 +147,6 @@
 }
 
 .call-history-filter:focus-visible,
-.call-history-record__details:focus-visible,
 .call-history-record__cancel:focus-visible,
 .call-history-record__menu summary:focus-visible,
 .call-history-record__menu button:focus-visible {
@@ -299,14 +298,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.call-history-record__scenario {
-  overflow: hidden;
-  min-width: 0;
-  color: #a49d9a;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .call-history-record__country {
   display: grid;
   width: 1.5rem;
@@ -396,6 +387,34 @@
   animation: call-history-calling-pulse 1.1s var(--ease-out) infinite;
 }
 
+.call-history-record__scenario {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--history-space-2);
+  color: #817a77;
+}
+
+.call-history-record__scenario > svg {
+  color: #77706d;
+}
+
+.call-history-record__scenario > span {
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+
+.call-history-record__scenario > strong {
+  overflow: hidden;
+  color: #b8b1ae;
+  font-size: 0.6875rem;
+  font-weight: 620;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .call-history-record__recording {
   min-width: 0;
 }
@@ -441,7 +460,6 @@
   gap: var(--history-space-2);
 }
 
-.call-history-record__details,
 .call-history-record__cancel,
 .call-history-record__menu summary {
   display: inline-flex;
@@ -459,10 +477,6 @@
   font-weight: 650;
   text-decoration: none;
   transition: transform 120ms var(--ease-out), background-color 160ms var(--ease-out), color 160ms var(--ease-out);
-}
-
-.call-history-record__details {
-  padding: 0 var(--history-space-3);
 }
 
 .call-history-record__cancel {
@@ -540,7 +554,6 @@
   color: #c79f97;
 }
 
-.call-history-record__details:active,
 .call-history-record__cancel:active:not(:disabled),
 .call-history-record__menu summary:active {
   transform: scale(0.96);
@@ -626,7 +639,6 @@
   }
 
   .call-history-filter:hover:not([aria-pressed="true"]),
-  .call-history-record__details:hover,
   .call-history-record__cancel:hover:not(:disabled),
   .call-history-record__menu summary:hover {
     background: rgba(255, 255, 255, 0.055);
@@ -721,10 +733,6 @@
     flex-wrap: wrap;
   }
 
-  .call-history-record__scenario {
-    max-width: 100%;
-  }
-
   .call-history-record__recording-empty {
     white-space: normal;
   }
@@ -749,12 +757,12 @@
     font-size: 1.75rem;
   }
 
-  .call-history-record__recipient > span[aria-hidden="true"] {
-    display: none;
+  .call-history-record__scenario {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
-  .call-history-record__scenario {
-    flex-basis: 100%;
+  .call-history-record__scenario > span {
+    display: none;
   }
 }
 
@@ -762,7 +770,6 @@
   .call-history-filter,
   .call-history-action-status,
   .call-history-record,
-  .call-history-record__details,
   .call-history-record__cancel,
   .call-history-record__menu summary,
   .call-history-record__menu-popover button,
@@ -778,7 +785,6 @@
 html[data-motion="reduced"] .call-history-filter,
 html[data-motion="reduced"] .call-history-action-status,
 html[data-motion="reduced"] .call-history-record,
-html[data-motion="reduced"] .call-history-record__details,
 html[data-motion="reduced"] .call-history-record__cancel,
 html[data-motion="reduced"] .call-history-record__menu summary,
 html[data-motion="reduced"] .call-history-record__menu-popover button,

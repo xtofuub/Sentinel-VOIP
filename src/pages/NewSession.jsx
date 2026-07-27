@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ArrowUpRight, CalendarClock, CalendarDays, Check, CheckCircle2, CircleAlert, Clock3, LoaderCircle, Pause, PhoneCall, PhoneOutgoing, Play, Search, ShieldCheck, UserRound, UsersRound, Volume2 } from "@/components/icons"
+import { ArrowUpRight, CalendarClock, CalendarDays, Check, CheckCircle2, ChevronDown, CircleAlert, Clock3, Globe2, LoaderCircle, Pause, PhoneCall, PhoneOutgoing, Play, Search, ShieldCheck, UserRound, UsersRound, Volume2 } from "@/components/icons"
 import { useNavigate } from "react-router-dom"
 import { AuthPromptDialog } from "@/components/AuthPromptDialog"
 import { ContactsDialog } from "@/components/ContactsDialog"
@@ -22,15 +22,32 @@ const scheduleDate = (date) => toDateTimeInputValue(date).slice(0, 10)
 const scheduleMin = () => scheduleDate(new Date(Date.now() + 2 * 60_000))
 const scheduleMax = () => scheduleDate(new Date(Date.now() + 30 * 24 * 60 * 60_000))
 const scheduleTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Local time"
+const scheduleHours = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0"))
+const scheduleMinutes = Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, "0"))
 
-const formatScheduledTime = (value) =>
+const formatScheduledDate = (value) =>
   new Intl.DateTimeFormat(undefined, {
     weekday: "short",
     day: "numeric",
     month: "short",
+  }).format(new Date(value))
+
+const formatScheduledClock = (value) =>
+  new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value))
+
+const getDefaultSchedule = () => {
+  const date = new Date(Date.now() + 15 * 60_000)
+  date.setSeconds(0, 0)
+  const remainder = date.getMinutes() % 5
+  if (remainder) date.setMinutes(date.getMinutes() + 5 - remainder)
+  return {
+    date: scheduleDate(date),
+    time: toDateTimeInputValue(date).slice(11, 16),
+  }
+}
 
 const formatSessionError = (error) => {
   const message = String(error?.message || "").trim()
@@ -135,10 +152,25 @@ export function NewSession() {
     })
   }
 
-  const scheduledFor = scheduledDate && scheduledTime ? `${scheduledDate}T${scheduledTime}` : ""
+  const [scheduledHour = "", scheduledMinute = ""] = scheduledTime.split(":")
+  const scheduledFor = scheduledDate && /^\d{2}:\d{2}$/.test(scheduledTime)
+    ? `${scheduledDate}T${scheduledTime}`
+    : ""
 
   const chooseTimingMode = (mode) => {
+    if (mode === "scheduled" && (!scheduledDate || !scheduledTime)) {
+      const nextSchedule = getDefaultSchedule()
+      setScheduledDate(nextSchedule.date)
+      setScheduledTime(nextSchedule.time)
+    }
     setTimingMode(mode)
+    setNotice(null)
+  }
+
+  const updateScheduledTime = (part, value) => {
+    const nextHour = part === "hour" ? value : scheduledHour
+    const nextMinute = part === "minute" ? value : scheduledMinute
+    setScheduledTime(`${nextHour}:${nextMinute}`)
     setNotice(null)
   }
 
@@ -248,7 +280,7 @@ export function NewSession() {
       setNotice({
         type: "success",
         title: timingMode === "scheduled" ? "Call scheduled" : "Call queued",
-        text: timingMode === "scheduled" ? `${formatScheduledTime(scheduledDate)}${contactSaved ? ". Recipient saved to Contacts." : "."}` : contactSaved ? "Connecting now. Recipient saved to Contacts." : "Connecting now. The recipient could not be saved to Contacts.",
+        text: timingMode === "scheduled" ? `${formatScheduledDate(scheduledDate)} at ${formatScheduledClock(scheduledDate)}${contactSaved ? ". Recipient saved to Contacts." : "."}` : contactSaved ? "Connecting now. Recipient saved to Contacts." : "Connecting now. The recipient could not be saved to Contacts.",
       })
       void refreshProfile()
       setStage("")
@@ -519,46 +551,79 @@ export function NewSession() {
             {timingMode === "scheduled" ? (
               <div className="schedule-picker">
                 <div className={`schedule-picker__summary${scheduledFor ? " has-value" : ""}`} aria-live="polite">
-                  <span>Scheduled for</span>
-                  <strong>{scheduledFor ? formatScheduledTime(new Date(scheduledFor)) : "Choose a date and time"}</strong>
-                  <small>{scheduleTimeZone} · dispatches within one minute</small>
+                  <div className="schedule-picker__summary-header">
+                    <span>
+                      <CalendarClock size={14} aria-hidden="true" />
+                      Scheduled call
+                    </span>
+                    <small>Local time</small>
+                  </div>
+                  <div className="schedule-picker__summary-value">
+                    <strong>{scheduledFor ? formatScheduledClock(scheduledFor) : "--:--"}</strong>
+                    <span>{scheduledFor ? formatScheduledDate(scheduledFor) : "Choose a date"}</span>
+                  </div>
+                  <p>
+                    <Globe2 size={13} aria-hidden="true" />
+                    {scheduleTimeZone}
+                    <span>Dispatches within one minute</span>
+                  </p>
                 </div>
                 <div className="schedule-picker__fields">
-                  <label htmlFor="session-scheduled-date">
-                    <span>
+                  <label className="schedule-picker__field" htmlFor="session-scheduled-date">
+                    <span className="schedule-picker__field-label">
                       <CalendarDays size={14} aria-hidden="true" />
                       Date
                     </span>
-                    <input
-                      id="session-scheduled-date"
-                      type="date"
-                      value={scheduledDate}
-                      min={scheduleMin()}
-                      max={scheduleMax()}
-                      onChange={(event) => {
-                        setScheduledDate(event.target.value)
-                        setNotice(null)
-                      }}
-                      disabled={submitting}
-                    />
+                    <span className="schedule-picker__date-control">
+                      <input
+                        id="session-scheduled-date"
+                        type="date"
+                        value={scheduledDate}
+                        min={scheduleMin()}
+                        max={scheduleMax()}
+                        onChange={(event) => {
+                          setScheduledDate(event.target.value)
+                          setNotice(null)
+                        }}
+                        disabled={submitting}
+                      />
+                    </span>
                   </label>
-                  <label htmlFor="session-scheduled-time">
-                    <span>
+                  <div className="schedule-picker__field">
+                    <span className="schedule-picker__field-label" id="session-scheduled-time-label">
                       <Clock3 size={14} aria-hidden="true" />
                       Time
                     </span>
-                    <input
-                      id="session-scheduled-time"
-                      type="time"
-                      value={scheduledTime}
-                      step="60"
-                      onChange={(event) => {
-                        setScheduledTime(event.target.value)
-                        setNotice(null)
-                      }}
-                      disabled={submitting}
-                    />
-                  </label>
+                    <div className="schedule-picker__time-control" role="group" aria-labelledby="session-scheduled-time-label">
+                      <label className="visually-hidden" htmlFor="session-scheduled-hour">Hour</label>
+                      <span className="schedule-picker__time-select">
+                        <select
+                          id="session-scheduled-hour"
+                          value={scheduledHour}
+                          onChange={(event) => updateScheduledTime("hour", event.target.value)}
+                          disabled={submitting}
+                        >
+                          <option value="" disabled>HH</option>
+                          {scheduleHours.map((hour) => <option key={hour} value={hour}>{hour}</option>)}
+                        </select>
+                        <ChevronDown size={14} aria-hidden="true" />
+                      </span>
+                      <b aria-hidden="true">:</b>
+                      <label className="visually-hidden" htmlFor="session-scheduled-minute">Minute</label>
+                      <span className="schedule-picker__time-select">
+                        <select
+                          id="session-scheduled-minute"
+                          value={scheduledMinute}
+                          onChange={(event) => updateScheduledTime("minute", event.target.value)}
+                          disabled={submitting}
+                        >
+                          <option value="" disabled>MM</option>
+                          {scheduleMinutes.map((minute) => <option key={minute} value={minute}>{minute}</option>)}
+                        </select>
+                        <ChevronDown size={14} aria-hidden="true" />
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (

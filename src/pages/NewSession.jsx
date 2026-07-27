@@ -1,22 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import {
-  ArrowUpRight,
-  CalendarClock,
-  Check,
-  CheckCircle2,
-  CircleAlert,
-  Clock3,
-  LoaderCircle,
-  Pause,
-  PhoneCall,
-  PhoneOutgoing,
-  Play,
-  Search,
-  ShieldCheck,
-  UserRound,
-  UsersRound,
-  Volume2,
-} from "@/components/icons"
+import { ArrowUpRight, CalendarClock, Check, CheckCircle2, CircleAlert, Clock3, LoaderCircle, Pause, PhoneCall, PhoneOutgoing, Play, Search, ShieldCheck, UserRound, UsersRound, Volume2 } from "@/components/icons"
 import { useNavigate } from "react-router-dom"
 import { AuthPromptDialog } from "@/components/AuthPromptDialog"
 import { ContactsDialog } from "@/components/ContactsDialog"
@@ -35,14 +18,16 @@ const toDateTimeInputValue = (date) => {
   return offsetDate.toISOString().slice(0, 16)
 }
 
-const scheduleMin = () => toDateTimeInputValue(new Date(Date.now() + 2 * 60_000))
-const scheduleMax = () => toDateTimeInputValue(new Date(Date.now() + 30 * 24 * 60 * 60_000))
+const scheduleDate = (date) => toDateTimeInputValue(date).slice(0, 10)
+const scheduleMin = () => scheduleDate(new Date(Date.now() + 2 * 60_000))
+const scheduleMax = () => scheduleDate(new Date(Date.now() + 30 * 24 * 60 * 60_000))
 const scheduleTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Local time"
 
-const formatScheduledTime = (value) => new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-}).format(new Date(value))
+const formatScheduledTime = (value) =>
+  new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value))
 
 const formatSessionError = (error) => {
   const message = String(error?.message || "").trim()
@@ -79,7 +64,8 @@ export function NewSession() {
   const [phoneNumber, setPhoneNumber] = useState(draft.phoneNumber)
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [timingMode, setTimingMode] = useState("now")
-  const [scheduledFor, setScheduledFor] = useState("")
+  const [scheduledDate, setScheduledDate] = useState("")
+  const [scheduledTime, setScheduledTime] = useState("")
   const [authPromptOpen, setAuthPromptOpen] = useState(false)
   const [authPromptReason, setAuthPromptReason] = useState("call")
   const [contactsOpen, setContactsOpen] = useState(false)
@@ -91,23 +77,20 @@ export function NewSession() {
     if (selectedScenario?.localeId) setLocaleId(selectedScenario.localeId)
   }, [selectedScenario])
 
-  useEffect(() => () => {
-    audioRef.current?.pause()
-  }, [])
-
-  const localeScenarios = useMemo(
-    () => scenarios.filter((scenario) => scenario.localeId === localeId),
-    [localeId, scenarios],
+  useEffect(
+    () => () => {
+      audioRef.current?.pause()
+    },
+    [],
   )
+
+  const localeScenarios = useMemo(() => scenarios.filter((scenario) => scenario.localeId === localeId), [localeId, scenarios])
 
   const filteredScenarios = useMemo(() => {
     const normalized = scenarioQuery.trim().toLowerCase()
     if (!normalized) return localeScenarios
 
-    return localeScenarios.filter((scenario) => (
-      scenario.titulo?.toLowerCase().includes(normalized)
-      || scenario.desc?.toLowerCase().includes(normalized)
-    ))
+    return localeScenarios.filter((scenario) => scenario.titulo?.toLowerCase().includes(normalized) || scenario.desc?.toLowerCase().includes(normalized))
   }, [localeScenarios, scenarioQuery])
 
   const stopPreview = () => {
@@ -149,17 +132,10 @@ export function NewSession() {
     })
   }
 
+  const scheduledFor = scheduledDate && scheduledTime ? `${scheduledDate}T${scheduledTime}` : ""
+
   const chooseTimingMode = (mode) => {
     setTimingMode(mode)
-    setNotice(null)
-    if (mode === "scheduled" && !scheduledFor) {
-      setScheduledFor(toDateTimeInputValue(new Date(Date.now() + 15 * 60_000)))
-    }
-  }
-
-  const chooseDelay = (minutes) => {
-    setTimingMode("scheduled")
-    setScheduledFor(toDateTimeInputValue(new Date(Date.now() + minutes * 60_000)))
     setNotice(null)
   }
 
@@ -184,11 +160,17 @@ export function NewSession() {
       return
     }
     if (timingMode === "scheduled" && scheduledDate.getTime() < Date.now() + 60_000) {
-      setNotice({ type: "error", text: "Scheduled calls need at least one minute of lead time." })
+      setNotice({
+        type: "error",
+        text: "Scheduled calls need at least one minute of lead time.",
+      })
       return
     }
     if (scheduledDate.getTime() > Date.now() + 30 * 24 * 60 * 60_000) {
-      setNotice({ type: "error", text: "Calls can be scheduled up to 30 days ahead." })
+      setNotice({
+        type: "error",
+        text: "Calls can be scheduled up to 30 days ahead.",
+      })
       return
     }
 
@@ -223,6 +205,7 @@ export function NewSession() {
         recipientName: cleanName,
         recipientPhone: cleanPhone,
         scheduledFor: scheduledDate.toISOString(),
+        timeZone: scheduleTimeZone,
       })
 
       let contactSaved = true
@@ -250,13 +233,7 @@ export function NewSession() {
       setNotice({
         type: "success",
         title: timingMode === "scheduled" ? "Call scheduled" : "Call queued",
-        text: timingMode === "scheduled"
-          ? `${formatScheduledTime(scheduledDate)}${contactSaved ? ". Recipient saved to Contacts." : "."}`
-          : dispatchDelayed
-            ? "Saved safely. The dispatcher will retry within a minute."
-            : contactSaved
-              ? "Connecting now. Recipient saved to Contacts."
-              : "Connecting now. The recipient could not be saved to Contacts.",
+        text: timingMode === "scheduled" ? `${formatScheduledTime(scheduledDate)}${contactSaved ? ". Recipient saved to Contacts." : "."}` : dispatchDelayed ? "Saved safely. The dispatcher will retry within a minute." : contactSaved ? "Connecting now. Recipient saved to Contacts." : "Connecting now. The recipient could not be saved to Contacts.",
       })
       void refreshProfile()
       setStage("")
@@ -264,7 +241,8 @@ export function NewSession() {
       setPhoneNumber("")
       setPhoneTouched(false)
       setTimingMode("now")
-      setScheduledFor("")
+      setScheduledDate("")
+      setScheduledTime("")
       try {
         sessionStorage.removeItem(sessionDraftKey)
       } catch {
@@ -281,10 +259,7 @@ export function NewSession() {
     }
   }
 
-  const formIsIncomplete = !selectedScenario
-    || !recipientName.trim()
-    || !phoneNumber.trim()
-    || (timingMode === "scheduled" && !scheduledFor)
+  const formIsIncomplete = !selectedScenario || !recipientName.trim() || !phoneNumber.trim() || (timingMode === "scheduled" && !scheduledFor)
 
   const openContacts = () => {
     if (!user) {
@@ -315,7 +290,9 @@ export function NewSession() {
         <div className="scenario-browser">
           <header className="workbench-heading">
             <div>
-              <span className="surface-index" aria-hidden="true"><Volume2 size={15} /></span>
+              <span className="surface-index" aria-hidden="true">
+                <Volume2 size={15} />
+              </span>
               <div>
                 <p className="console-section-label">Scenario library</p>
                 <h2>Choose a scenario</h2>
@@ -328,28 +305,13 @@ export function NewSession() {
           </header>
 
           <div className="scenario-browser__controls">
-            <LocalePicker
-              id="session-locale"
-              label="Language & region"
-              value={localeId}
-              options={locales}
-              onChange={handleLocaleChange}
-              placeholder={loading ? "Loading locales" : "Choose a language"}
-              disabled={loading || submitting}
-            />
+            <LocalePicker id="session-locale" label="Language & region" value={localeId} options={locales} onChange={handleLocaleChange} placeholder={loading ? "Loading locales" : "Choose a language"} disabled={loading || submitting} />
 
             <label className="field field--search" htmlFor="session-scenario-search">
               <span>Search scenarios</span>
               <span className="control-input-wrap">
                 <Search aria-hidden="true" size={17} strokeWidth={1.5} />
-                <input
-                  id="session-scenario-search"
-                  type="search"
-                  value={scenarioQuery}
-                  onChange={(event) => setScenarioQuery(event.target.value)}
-                  placeholder="Title or description"
-                  disabled={!localeId || submitting}
-                />
+                <input id="session-scenario-search" type="search" value={scenarioQuery} onChange={(event) => setScenarioQuery(event.target.value)} placeholder="Title or description" disabled={!localeId || submitting} />
               </span>
             </label>
           </div>
@@ -366,7 +328,10 @@ export function NewSession() {
 
           <div className="scenario-browser__status" aria-live="polite">
             {localeId && !loading && (
-              <span>{filteredScenarios.length.toLocaleString()} scenario{filteredScenarios.length === 1 ? "" : "s"}</span>
+              <span>
+                {filteredScenarios.length.toLocaleString()} scenario
+                {filteredScenarios.length === 1 ? "" : "s"}
+              </span>
             )}
             {selectedScenario && <span>Selected: {selectedScenario.titulo}</span>}
           </div>
@@ -386,7 +351,9 @@ export function NewSession() {
           <div className="scenario-options" role="group" aria-label="Available scenarios">
             {!localeId ? (
               <div className="scenario-options__empty">
-                <span aria-hidden="true"><Volume2 size={30} /></span>
+                <span aria-hidden="true">
+                  <Volume2 size={30} />
+                </span>
                 <p>Choose a locale to open its scenario set.</p>
               </div>
             ) : loading ? (
@@ -401,13 +368,7 @@ export function NewSession() {
 
                 return (
                   <article className={`scenario-option${isSelected ? " is-selected" : ""}`} key={scenario.uniqueId}>
-                    <button
-                      className="scenario-option__select"
-                      type="button"
-                      onClick={() => chooseScenario(scenario)}
-                      aria-pressed={isSelected}
-                      disabled={submitting}
-                    >
+                    <button className="scenario-option__select" type="button" onClick={() => chooseScenario(scenario)} aria-pressed={isSelected} disabled={submitting}>
                       <ScenarioThumbnail src={scenario.image_url} title={scenario.titulo} size="medium" />
                       <span className="scenario-option__copy">
                         <strong>{scenario.titulo}</strong>
@@ -417,13 +378,7 @@ export function NewSession() {
                         {isSelected ? <Check size={15} /> : null}
                       </span>
                     </button>
-                    <button
-                      className="scenario-option__preview"
-                      type="button"
-                      onClick={() => togglePreview(scenario)}
-                      disabled={!scenario.example || submitting}
-                      aria-label={`${isPlaying ? "Pause" : "Preview"} ${scenario.titulo}`}
-                    >
+                    <button className="scenario-option__preview" type="button" onClick={() => togglePreview(scenario)} disabled={!scenario.example || submitting} aria-label={`${isPlaying ? "Pause" : "Preview"} ${scenario.titulo}`}>
                       {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
                       {isPlaying ? "Pause" : "Preview"}
                     </button>
@@ -432,7 +387,9 @@ export function NewSession() {
               })
             ) : (
               <div className="scenario-options__empty">
-                <span aria-hidden="true"><Search size={30} /></span>
+                <span aria-hidden="true">
+                  <Search size={30} />
+                </span>
                 <p>No scenarios match this search.</p>
               </div>
             )}
@@ -452,12 +409,7 @@ export function NewSession() {
           <div className={`selected-scenario${selectedScenario ? " has-selection" : ""}`}>
             {selectedScenario ? (
               <>
-                <ScenarioThumbnail
-                  src={selectedScenario.image_url}
-                  title={selectedScenario.titulo}
-                  size="large"
-                  eager
-                />
+                <ScenarioThumbnail src={selectedScenario.image_url} title={selectedScenario.titulo} size="large" eager />
                 <div>
                   <span>{selectedScenario.localeLabel}</span>
                   <strong>{selectedScenario.titulo}</strong>
@@ -474,7 +426,9 @@ export function NewSession() {
 
           <section className="recipient-details" aria-labelledby="recipient-details-title">
             <header className="recipient-details__header">
-              <span className="recipient-details__icon" aria-hidden="true"><UserRound size={17} /></span>
+              <span className="recipient-details__icon" aria-hidden="true">
+                <UserRound size={17} />
+              </span>
               <div className="recipient-details__heading-copy">
                 <p>Recipient</p>
                 <h3 id="recipient-details-title">Who receives this call?</h3>
@@ -490,14 +444,7 @@ export function NewSession() {
                 <span>Name</span>
                 <div className="recipient-field__control">
                   <UserRound size={16} aria-hidden="true" />
-                  <input
-                    id="session-recipient-name"
-                    value={recipientName}
-                    onChange={(event) => setRecipientName(event.target.value)}
-                    placeholder="Their name"
-                    autoComplete="off"
-                    disabled={submitting}
-                  />
+                  <input id="session-recipient-name" value={recipientName} onChange={(event) => setRecipientName(event.target.value)} placeholder="Their name" autoComplete="off" disabled={submitting} />
                 </div>
               </label>
 
@@ -534,7 +481,9 @@ export function NewSession() {
 
           <section className="schedule-details" aria-labelledby="schedule-details-title">
             <header className="schedule-details__header">
-              <span className="recipient-details__icon" aria-hidden="true"><CalendarClock size={17} /></span>
+              <span className="recipient-details__icon" aria-hidden="true">
+                <CalendarClock size={17} />
+              </span>
               <div>
                 <p>Timing</p>
                 <h3 id="schedule-details-title">When should Sentinel call?</h3>
@@ -542,21 +491,11 @@ export function NewSession() {
             </header>
 
             <div className="schedule-mode" role="group" aria-label="Call timing">
-              <button
-                type="button"
-                aria-pressed={timingMode === "now"}
-                onClick={() => chooseTimingMode("now")}
-                disabled={submitting}
-              >
+              <button type="button" aria-pressed={timingMode === "now"} onClick={() => chooseTimingMode("now")} disabled={submitting}>
                 <PhoneOutgoing size={15} aria-hidden="true" />
                 Call now
               </button>
-              <button
-                type="button"
-                aria-pressed={timingMode === "scheduled"}
-                onClick={() => chooseTimingMode("scheduled")}
-                disabled={submitting}
-              >
+              <button type="button" aria-pressed={timingMode === "scheduled"} onClick={() => chooseTimingMode("scheduled")} disabled={submitting}>
                 <Clock3 size={15} aria-hidden="true" />
                 Schedule
               </button>
@@ -564,28 +503,42 @@ export function NewSession() {
 
             {timingMode === "scheduled" ? (
               <div className="schedule-picker">
-                <label htmlFor="session-scheduled-for">
-                  <span>Date and time</span>
-                  <input
-                    id="session-scheduled-for"
-                    type="datetime-local"
-                    value={scheduledFor}
-                    min={scheduleMin()}
-                    max={scheduleMax()}
-                    step="60"
-                    onChange={(event) => {
-                      setScheduledFor(event.target.value)
-                      setNotice(null)
-                    }}
-                    disabled={submitting}
-                  />
-                </label>
-                <div className="schedule-presets" aria-label="Quick schedule options">
-                  <button type="button" onClick={() => chooseDelay(15)} disabled={submitting}>In 15 min</button>
-                  <button type="button" onClick={() => chooseDelay(60)} disabled={submitting}>In 1 hour</button>
-                  <button type="button" onClick={() => chooseDelay(24 * 60)} disabled={submitting}>Tomorrow</button>
+                <div className="schedule-picker__fields">
+                  <label htmlFor="session-scheduled-date">
+                    <span>Date</span>
+                    <input
+                      id="session-scheduled-date"
+                      type="date"
+                      value={scheduledDate}
+                      min={scheduleMin()}
+                      max={scheduleMax()}
+                      onChange={(event) => {
+                        setScheduledDate(event.target.value)
+                        setNotice(null)
+                      }}
+                      disabled={submitting}
+                    />
+                  </label>
+                  <label htmlFor="session-scheduled-time">
+                    <span>Time</span>
+                    <input
+                      id="session-scheduled-time"
+                      type="time"
+                      value={scheduledTime}
+                      step="60"
+                      onChange={(event) => {
+                        setScheduledTime(event.target.value)
+                        setNotice(null)
+                      }}
+                      disabled={submitting}
+                    />
+                  </label>
                 </div>
-                <p>Shown in {scheduleTimeZone}. The call fires from Supabase even if this page is closed.</p>
+                <div className="schedule-picker__summary" aria-live="polite">
+                  <Clock3 size={15} aria-hidden="true" />
+                  <span>{scheduledFor ? `Set for ${formatScheduledTime(new Date(scheduledFor))}` : "Choose the exact date and time"}</span>
+                </div>
+                <p>Times use {scheduleTimeZone}. Sentinel dispatches within one minute, even when this page is closed.</p>
               </div>
             ) : (
               <p className="schedule-details__now">The call enters the queue as soon as you confirm.</p>
@@ -596,9 +549,22 @@ export function NewSession() {
             <details className="technical-details">
               <summary>Scenario details</summary>
               <dl>
-                <div><dt>Country</dt><dd><code>{selectedScenario.countryCode}</code></dd></div>
-                <div><dt>Scenario ID</dt><dd><code>{selectedScenario._id}</code></dd></div>
-                <div><dt>Locale</dt><dd>{selectedScenario.localeLabel}</dd></div>
+                <div>
+                  <dt>Country</dt>
+                  <dd>
+                    <code>{selectedScenario.countryCode}</code>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Scenario ID</dt>
+                  <dd>
+                    <code>{selectedScenario._id}</code>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Locale</dt>
+                  <dd>{selectedScenario.localeLabel}</dd>
+                </div>
               </dl>
             </details>
           )}
@@ -612,12 +578,18 @@ export function NewSession() {
             {submitting ? (
               <div className="launch-status__message is-loading" role="status">
                 <LoaderCircle className="spin" size={18} aria-hidden="true" />
-                <div><strong>Placing call</strong><p>{stage}</p></div>
+                <div>
+                  <strong>Placing call</strong>
+                  <p>{stage}</p>
+                </div>
               </div>
             ) : notice?.type === "success" ? (
               <div className="launch-status__message is-success" role="status">
                 <CheckCircle2 size={18} aria-hidden="true" />
-                <div><strong>{notice.title || "Call queued"}</strong><p>{notice.text}</p></div>
+                <div>
+                  <strong>{notice.title || "Call queued"}</strong>
+                  <p>{notice.text}</p>
+                </div>
                 <button className="button button--quiet button--compact" type="button" onClick={() => navigate("/activity")}>
                   Activity <ArrowUpRight size={15} aria-hidden="true" />
                 </button>
@@ -625,37 +597,29 @@ export function NewSession() {
             ) : notice?.type === "error" ? (
               <div className="launch-status__message is-error" role="alert">
                 <CircleAlert size={18} aria-hidden="true" />
-                <div><strong>Call not queued</strong><p>{notice.text}</p></div>
+                <div>
+                  <strong>Call not queued</strong>
+                  <p>{notice.text}</p>
+                </div>
               </div>
             ) : (
               <div className="launch-status__placeholder">
-                <span aria-hidden="true"><PhoneOutgoing size={24} /></span>
+                <span aria-hidden="true">
+                  <PhoneOutgoing size={24} />
+                </span>
                 <p>Choose a scenario and recipient to continue.</p>
               </div>
             )}
           </div>
 
-          <button
-            className="button button--primary session-launch-button"
-            type="submit"
-            disabled={formIsIncomplete || submitting}
-          >
+          <button className="button button--primary session-launch-button" type="submit" disabled={formIsIncomplete || submitting}>
             {submitting ? stage : timingMode === "scheduled" ? "Schedule call" : "Place call"}
             {!submitting && <PhoneOutgoing size={17} aria-hidden="true" />}
           </button>
         </form>
       </section>
-      <AuthPromptDialog
-        open={authPromptOpen}
-        reason={authPromptReason}
-        onClose={() => setAuthPromptOpen(false)}
-      />
-      <ContactsDialog
-        open={contactsOpen}
-        userId={user?.id}
-        onClose={() => setContactsOpen(false)}
-        onChoose={chooseContact}
-      />
+      <AuthPromptDialog open={authPromptOpen} reason={authPromptReason} onClose={() => setAuthPromptOpen(false)} />
+      <ContactsDialog open={contactsOpen} userId={user?.id} onClose={() => setContactsOpen(false)} onChoose={chooseContact} />
     </main>
   )
 }

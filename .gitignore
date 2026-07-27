@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Supabase CLI state
+supabase/.temp/
+
 # Local MCP secrets (API keys)
 .cursor/mcp.json
 

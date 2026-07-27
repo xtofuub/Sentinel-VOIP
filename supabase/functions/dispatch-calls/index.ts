@@ -18,18 +18,22 @@ type CallSession = {
   recipient_name: string
   recipient_phone: string
   scheduled_for: string
+  time_zone: string
   attempt_count: number
   upstream_did: string | null
   upstream_uid: string | null
   upstream_task_id: string | null
 }
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status,
-  headers: corsHeaders,
-})
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: corsHeaders,
+  })
 
 const sleep = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+
+class RetryableUpstreamError extends Error {}
 
 const tryParseJson = (value: string) => {
   try {
@@ -112,19 +116,21 @@ const postUpstream = async (path: string, payload: Record<string, unknown>) => {
       })
       const text = await response.text()
 
-      if ((response.status === 429 || response.status >= 500) && attempt < 4) {
+      if (response.status === 429 || response.status >= 500) {
         const retryAfter = Number.parseInt(response.headers.get("Retry-After") || "", 10)
-        await sleep(Number.isFinite(retryAfter) ? retryAfter * 1_000 : 500 * 2 ** (attempt - 1))
-        continue
+        const error = new RetryableUpstreamError(`Upstream ${response.status}: ${text.slice(0, 140)}`)
+        ;(error as RetryableUpstreamError & { retryAfter?: number }).retryAfter = retryAfter
+        throw error
       }
-
       if (!response.ok) throw new Error(`Upstream ${response.status}: ${text.slice(0, 140)}`)
       const parsed = extractJson(text)
       if (parsed?.res === "KO" || parsed?.res === "ko") throw new Error(getUpstreamError(parsed))
       return parsed
     } catch (error) {
-      if (attempt === 4) throw error
-      await sleep(500 * 2 ** (attempt - 1))
+      const retryable = error instanceof RetryableUpstreamError || error instanceof TypeError || (error instanceof DOMException && error.name === "TimeoutError")
+      if (!retryable || attempt === 4) throw error
+      const retryAfter = error instanceof RetryableUpstreamError ? (error as RetryableUpstreamError & { retryAfter?: number }).retryAfter : undefined
+      await sleep(Number.isFinite(retryAfter) ? retryAfter * 1_000 : 500 * 2 ** (attempt - 1))
     }
   }
 }
@@ -144,16 +150,37 @@ const resolveUid = (...sources: unknown[]) => {
   return ""
 }
 
-const localeForCountry = (country: string) => ({
-  fi: "fi_FI", es: "es_ES", gb: "en_GB", us: "en_US", fr: "fr_FR",
-  de: "de_DE", it: "it_IT", pl: "pl_PL", pt: "pt_PT", br: "pt_BR",
-  mx: "es_MX", co: "es_CO", ar: "es_AR",
-}[country] || `${country}_${country.toUpperCase()}`)
+const localeForCountry = (country: string) =>
+  ({
+    fi: "fi_FI",
+    es: "es_ES",
+    gb: "en_GB",
+    us: "en_US",
+    fr: "fr_FR",
+    de: "de_DE",
+    it: "it_IT",
+    pl: "pl_PL",
+    pt: "pt_PT",
+    br: "pt_BR",
+    mx: "es_MX",
+    co: "es_CO",
+    ar: "es_AR",
+  })[country] || `${country}_${country.toUpperCase()}`
 
-const formatTaskTimestamp = (value: string) => {
+const formatTaskTimestamp = (value: string, timeZone: string) => {
   const date = new Date(value)
-  const pad = (part: number) => String(part).padStart(2, "0")
-  return `${pad(date.getUTCDate())}-${pad(date.getUTCMonth() + 1)}-${date.getUTCFullYear()}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value || ""
+  return `${part("day")}-${part("month")}-${part("year")}T${part("hour")}:${part("minute")}:${part("second")}`
 }
 
 const taskIdFromSession = (sessionId: string) => sessionId.replaceAll("-", "").slice(0, 18)
@@ -186,7 +213,9 @@ Deno.serve(async (request) => {
     })
     if (tokenError || validToken !== true) return json({ error: "Unauthorized" }, 401)
 
-    const { data, error } = await admin.rpc("claim_due_call_sessions", { p_limit: 4 })
+    const { data, error } = await admin.rpc("claim_due_call_sessions", {
+      p_limit: 4,
+    })
     if (error) return json({ error: "Could not claim scheduled calls" }, 500)
     sessions = (data || []) as CallSession[]
   } else {
@@ -203,20 +232,18 @@ Deno.serve(async (request) => {
       p_user_id: authData.user.id,
     })
     if (error) return json({ error: "Could not claim call" }, 500)
-    if (data) sessions = [data as CallSession]
+    if (!data) return json({ error: "Call is not ready for dispatch" }, 409)
+    sessions = [data as CallSession]
   }
 
   const processSession = async (session: CallSession) => {
     const country = session.locale_code.toLowerCase().slice(0, 2)
+    const timeZone = session.time_zone || "Europe/Helsinki"
     const did = session.upstream_did || session.id.toUpperCase()
     const taskId = session.upstream_task_id || taskIdFromSession(session.id)
 
     try {
-      await admin
-        .from("call_sessions")
-        .update({ upstream_did: did, upstream_task_id: taskId })
-        .eq("id", session.id)
-        .eq("status", "queued")
+      await admin.from("call_sessions").update({ upstream_did: did, upstream_task_id: taskId }).eq("id", session.id).eq("status", "queued")
 
       let upstreamUid = session.upstream_uid || ""
       if (!upstreamUid) {
@@ -226,22 +253,31 @@ Deno.serve(async (request) => {
             did,
             dtype: "uid",
             route: "jl_azul",
-            tags: { c: country.toUpperCase(), l: localeForCountry(country), v: "6.7", r: "17.4", mf: "Apple" },
-            timezone: "Europe/Helsinki",
+            tags: {
+              c: country.toUpperCase(),
+              l: localeForCountry(country),
+              v: "6.7",
+              r: "17.4",
+              mf: "Apple",
+            },
+            timezone: timeZone,
           })
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
           if (!/already|exists|registered|duplicate/i.test(message)) throw error
         }
 
-        const identityResponse = await postUpstream("get_user.lua", { did, uid: did })
+        const identityResponse = await postUpstream("get_user.lua", {
+          did,
+          uid: did,
+        })
         upstreamUid = resolveUid(identityResponse, createResponse)
         if (!upstreamUid) throw new Error("Could not resolve the upstream account")
 
         await admin.from("call_sessions").update({ upstream_uid: upstreamUid }).eq("id", session.id)
       }
 
-      const taskTimestamp = formatTaskTimestamp(session.scheduled_for)
+      const taskTimestamp = formatTaskTimestamp(session.scheduled_for, timeZone)
       await postUpstream("create_task_ios.lua", {
         _id: taskId,
         c: country,
@@ -267,16 +303,18 @@ Deno.serve(async (request) => {
       const message = error instanceof Error ? error.message : "Call dispatch failed"
       const attempt = Number(session.attempt_count || 1)
       const retryMinutes = [1, 5, 15][Math.min(Math.max(attempt - 1, 0), 2)]
-      const retryAt = attempt < 3
-        ? new Date(Date.now() + retryMinutes * 60_000).toISOString()
-        : null
+      const retryAt = attempt < 3 ? new Date(Date.now() + retryMinutes * 60_000).toISOString() : null
 
       await admin.rpc("mark_call_session_failed", {
         p_session_id: session.id,
         p_reason: message,
         p_retry_at: retryAt,
       })
-      console.error("Call dispatch failed", { sessionId: session.id, attempt, message })
+      console.error("Call dispatch failed", {
+        sessionId: session.id,
+        attempt,
+        message,
+      })
       return { id: session.id, status: retryAt ? "retrying" : "failed" }
     }
   }

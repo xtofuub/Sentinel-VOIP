@@ -685,130 +685,125 @@ export function Activity() {
                       >
                         <ScenarioThumbnail src={thumbnail} title={title} size="small" />
 
-                        <div className="call-history-record__content">
-                          <header className="call-history-record__header">
-                            <div className="call-history-record__identity">
-                              <h3>{call.targetName || "Unknown recipient"}</h3>
-                              <div className="call-history-record__recipient">
-                                <span className="call-history-record__country" title={country.toUpperCase()}>
-                                  <LocaleFlag code={country} />
-                                </span>
-                                <span dir="ltr">{call.targetPhone || "No phone stored"}</span>
-                              </div>
-                            </div>
-
-                            <div className="call-history-record__when">
-                              {ready && <span className="is-ready"><i aria-hidden="true" />Ready</span>}
-                              {scheduled && <span className="is-scheduled"><i aria-hidden="true" />Scheduled</span>}
-                              {queued && <span className="is-queued"><i aria-hidden="true" />Queued</span>}
-                              {calling && <span className="is-calling"><i aria-hidden="true" />Calling</span>}
-                              {declined && <span className="is-declined"><i aria-hidden="true" />Declined</span>}
-                              {failed && <span className="is-failed"><i aria-hidden="true" />Failed</span>}
-                              {cancelled && <span className="is-cancelled"><i aria-hidden="true" />Cancelled</span>}
-                              {completed && <span className="is-completed"><i aria-hidden="true" />Ended</span>}
-                              <time dateTime={timestamp.iso} title={timestamp.exact}>{timestamp.label}</time>
-                            </div>
-                          </header>
-
+                        <div className="call-history-record__identity">
+                          <h3>{call.targetName || "Unknown recipient"}</h3>
+                          <div className="call-history-record__recipient">
+                            <span className="call-history-record__country" title={country.toUpperCase()}>
+                              <LocaleFlag code={country} />
+                            </span>
+                            <span dir="ltr">{call.targetPhone || "No phone stored"}</span>
+                          </div>
                           <div className="call-history-record__scenario">
                             <Waves size={14} strokeWidth={1.5} aria-hidden="true" />
-                            <span>Scenario</span>
                             <strong>{title}</strong>
                           </div>
+                        </div>
 
-                          {call.isPlayable && sourceUrl ? (
-                            <div className="call-history-record__recording is-playable">
-                              <AudioPlayer src={sourceUrl} label={`recording for ${title}`} />
-                            </div>
-                          ) : (
-                            <div className="call-history-record__recording is-compact">
-                              <Headphones aria-hidden="true" size={15} strokeWidth={1.5} />
-                              <span className="call-history-record__recording-empty">
-                                {scheduled
-                                  ? `Scheduled for ${timestamp.label.toLowerCase()}`
-                                  : declined || failed
-                                    ? call.failureReason || "The provider did not place this call"
-                                    : cancelled
-                                      ? "This call was cancelled"
-                                      : completed
-                                        ? "Recording has not returned yet"
-                                      : queued
-                                        ? "Waiting for the provider"
-                                        : active
-                                          ? "Call in progress"
-                                          : "Recording is not ready yet"}
-                              </span>
-                            </div>
-                          )}
+                        {call.isPlayable && sourceUrl ? (
+                          <div className="call-history-record__recording is-playable">
+                            <AudioPlayer src={sourceUrl} label={`recording for ${title}`} />
+                          </div>
+                        ) : (
+                          <div className="call-history-record__recording is-compact">
+                            <Headphones aria-hidden="true" size={15} strokeWidth={1.5} />
+                            <span className="call-history-record__recording-empty">
+                              {scheduled
+                                ? `Scheduled for ${timestamp.label.toLowerCase()}`
+                                : declined || failed
+                                  ? call.failureReason || "The provider did not place this call"
+                                  : cancelled
+                                    ? "This call was cancelled"
+                                    : completed
+                                      ? "Recording has not returned yet"
+                                    : queued
+                                      ? "Waiting for the provider"
+                                      : active
+                                        ? "Call in progress"
+                                        : "Recording is not ready yet"}
+                            </span>
+                          </div>
+                        )}
 
+                        <div className="call-history-record__side">
+                          <div className="call-history-record__when">
+                            {ready && <span className="is-ready"><i aria-hidden="true" />Ready</span>}
+                            {scheduled && <span className="is-scheduled"><i aria-hidden="true" />Scheduled</span>}
+                            {queued && <span className="is-queued"><i aria-hidden="true" />Queued</span>}
+                            {calling && <span className="is-calling"><i aria-hidden="true" />Calling</span>}
+                            {declined && <span className="is-declined"><i aria-hidden="true" />Declined</span>}
+                            {failed && <span className="is-failed"><i aria-hidden="true" />Failed</span>}
+                            {cancelled && <span className="is-cancelled"><i aria-hidden="true" />Cancelled</span>}
+                            {completed && <span className="is-completed"><i aria-hidden="true" />Ended</span>}
+                            <time dateTime={timestamp.iso} title={timestamp.exact}>{timestamp.label}</time>
+                          </div>
                           {(call.isScheduledSession && scheduled || hasOverflowActions) && (
                             <footer className="call-history-record__actions">
-                            {call.isScheduledSession && scheduled && (
-                              <button
-                                className="call-history-record__cancel"
-                                type="button"
-                                disabled={cancellingSession}
-                                onClick={() => void cancelScheduled(rowKey, call.sessionId)}
-                              >
-                                {cancellingSession ? <LoaderCircle className="spin" size={14} aria-hidden="true" /> : <X size={14} aria-hidden="true" />}
-                                {cancellingSession ? "Cancelling" : "Cancel call"}
-                              </button>
-                            )}
-                            {hasOverflowActions && (
-                              <details className="call-history-record__menu">
-                                <summary aria-label={`More actions for ${title}`} title="More actions">
-                                  <MoreVertical aria-hidden="true" size={18} />
-                                </summary>
-                                <div className="call-history-record__menu-popover">
-                                  {sourceUrl && (
-                                    <button
-                                      className="call-history-record__share"
-                                      type="button"
-                                      onClick={(event) => {
-                                        event.currentTarget.closest("details")?.removeAttribute("open")
-                                        void shareRecording(rowKey, call, title)
-                                      }}
-                                    >
-                                      {shareComplete ? <Check size={15} aria-hidden="true" /> : <Share2 size={15} aria-hidden="true" />}
-                                      {shareComplete ? shareLabel : "Share recording"}
-                                    </button>
-                                  )}
-                                  {canSaveContact && (
-                                    <button
-                                      className={`call-history-record__save-contact${contactSaved ? " is-saved" : ""}`}
-                                      type="button"
-                                      disabled={savingContact}
-                                      onClick={(event) => {
-                                        event.currentTarget.closest("details")?.removeAttribute("open")
-                                        void saveCallContact(rowKey, call)
-                                      }}
-                                    >
-                                      {savingContact ? (
-                                        <LoaderCircle className="spin" size={14} aria-hidden="true" />
-                                      ) : contactSaved ? (
-                                        <UserRoundCheck size={14} aria-hidden="true" />
-                                      ) : (
-                                        <UserPlus size={14} aria-hidden="true" />
-                                      )}
-                                      {savingContact ? "Saving" : contactSaved ? "Saved to contacts" : "Save to contacts"}
-                                    </button>
-                                  )}
-                                  {!scheduled && (
-                                    <button
-                                      className="call-history-record__remove"
-                                      type="button"
-                                      onClick={(event) => {
-                                        event.currentTarget.closest("details")?.removeAttribute("open")
-                                        removeCall(rowKey)
-                                      }}
-                                    >
-                                      <Trash2 aria-hidden="true" size={15} strokeWidth={1.5} />
-                                      Remove from history
-                                    </button>
-                                  )}
-                                </div>
-                              </details>
-                            )}
+                              {call.isScheduledSession && scheduled && (
+                                <button
+                                  className="call-history-record__cancel"
+                                  type="button"
+                                  disabled={cancellingSession}
+                                  onClick={() => void cancelScheduled(rowKey, call.sessionId)}
+                                >
+                                  {cancellingSession ? <LoaderCircle className="spin" size={14} aria-hidden="true" /> : <X size={14} aria-hidden="true" />}
+                                  {cancellingSession ? "Cancelling" : "Cancel call"}
+                                </button>
+                              )}
+                              {hasOverflowActions && (
+                                <details className="call-history-record__menu">
+                                  <summary aria-label={`More actions for ${title}`} title="More actions">
+                                    <MoreVertical aria-hidden="true" size={18} />
+                                  </summary>
+                                  <div className="call-history-record__menu-popover">
+                                    {sourceUrl && (
+                                      <button
+                                        className="call-history-record__share"
+                                        type="button"
+                                        onClick={(event) => {
+                                          event.currentTarget.closest("details")?.removeAttribute("open")
+                                          void shareRecording(rowKey, call, title)
+                                        }}
+                                      >
+                                        {shareComplete ? <Check size={15} aria-hidden="true" /> : <Share2 size={15} aria-hidden="true" />}
+                                        {shareComplete ? shareLabel : "Share recording"}
+                                      </button>
+                                    )}
+                                    {canSaveContact && (
+                                      <button
+                                        className={`call-history-record__save-contact${contactSaved ? " is-saved" : ""}`}
+                                        type="button"
+                                        disabled={savingContact}
+                                        onClick={(event) => {
+                                          event.currentTarget.closest("details")?.removeAttribute("open")
+                                          void saveCallContact(rowKey, call)
+                                        }}
+                                      >
+                                        {savingContact ? (
+                                          <LoaderCircle className="spin" size={14} aria-hidden="true" />
+                                        ) : contactSaved ? (
+                                          <UserRoundCheck size={14} aria-hidden="true" />
+                                        ) : (
+                                          <UserPlus size={14} aria-hidden="true" />
+                                        )}
+                                        {savingContact ? "Saving" : contactSaved ? "Saved to contacts" : "Save to contacts"}
+                                      </button>
+                                    )}
+                                    {!scheduled && (
+                                      <button
+                                        className="call-history-record__remove"
+                                        type="button"
+                                        onClick={(event) => {
+                                          event.currentTarget.closest("details")?.removeAttribute("open")
+                                          removeCall(rowKey)
+                                        }}
+                                      >
+                                        <Trash2 aria-hidden="true" size={15} strokeWidth={1.5} />
+                                        Remove from history
+                                      </button>
+                                    )}
+                                  </div>
+                                </details>
+                              )}
                             </footer>
                           )}
                         </div>
